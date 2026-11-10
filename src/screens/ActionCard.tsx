@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Exercise, ExerciseSymptom } from '../types'
 import { addSymptomLog } from '../lib/logs'
+import { todayKey } from '../lib/cards'
+import { clearSession, loadSession, saveSession } from '../lib/session'
 import { playRestDone, unlockAudio } from '../lib/audio'
 import { speak } from '../lib/speech'
 import { useRestTimer } from '../hooks/useRestTimer'
@@ -23,16 +25,56 @@ function formatMs(ms: number): string {
 }
 
 export default function ActionCard({ exercise, onExit }: Props) {
-  const [phase, setPhase] = useState<Phase>('pre')
-  const [setNo, setSetNo] = useState(1)
-  const [checks, setChecks] = useState<boolean[]>(() => exercise.preChecks.map(() => false))
-  const [cue, setCue] = useState(exercise.cue)
-  const [chosen, setChosen] = useState<ExerciseSymptom | null>(null)
+  const [restored] = useState(() => {
+    const saved = loadSession()
+    return saved && saved.exerciseId === exercise.id ? saved : null
+  })
+
+  const [phase, setPhase] = useState<Phase>(restored?.phase ?? 'pre')
+  const [setNo, setSetNo] = useState(restored?.setNo ?? 1)
+  const [checks, setChecks] = useState<boolean[]>(() =>
+    restored && restored.checks.length === exercise.preChecks.length
+      ? restored.checks
+      : exercise.preChecks.map(() => false),
+  )
+  const [cue, setCue] = useState(restored?.cue ?? exercise.cue)
+  const [chosen, setChosen] = useState<ExerciseSymptom | null>(
+    exercise.symptoms.find((item) => item.id === restored?.chosenSymptomId) ?? null,
+  )
   const [flashing, setFlashing] = useState(false)
   const timer = useRestTimer()
   const firedRef = useRef(false)
 
   useWakeLock(true)
+
+  useEffect(() => {
+    saveSession({
+      exerciseId: exercise.id,
+      date: todayKey(),
+      phase,
+      setNo,
+      cue,
+      checks,
+      chosenSymptomId: chosen?.id ?? null,
+      restEndAt: phase === 'rest' ? timer.endAt : null,
+    })
+  }, [exercise.id, phase, setNo, cue, checks, chosen, timer.endAt])
+
+  useEffect(() => {
+    if (restored?.phase === 'rest' && restored.restEndAt) {
+      timer.startAt(restored.restEndAt)
+    }
+  }, [])
+
+  useEffect(() => {
+    document.body.classList.add('card-open')
+    return () => document.body.classList.remove('card-open')
+  }, [])
+
+  const exit = () => {
+    clearSession()
+    onExit()
+  }
 
   const toggleCheck = (index: number) => {
     setChecks((prev) => prev.map((value, i) => (i === index ? !value : value)))
@@ -74,7 +116,7 @@ export default function ActionCard({ exercise, onExit }: Props) {
   return (
     <div className={`card-mode${flashing ? ' flash' : ''}`}>
       <div className="card-top">
-        <button className="icon-btn" type="button" onClick={onExit} aria-label="退出动作卡">
+        <button className="icon-btn" type="button" onClick={exit} aria-label="退出动作卡">
           ✕
         </button>
         <span className="card-top-title">{exercise.name}</span>

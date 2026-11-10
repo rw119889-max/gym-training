@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import ActionCard from './ActionCard'
 import ExerciseDetail from './ExerciseDetail'
@@ -6,8 +6,14 @@ import { EXERCISES, GROUP_LABELS } from '../data/exercises'
 import { getPinnedKeys, pinKey, rankSymptoms, togglePin } from '../lib/logs'
 import type { SymptomCount } from '../lib/logs'
 import { exportBackup, importBackup } from '../lib/backup'
+import { clearSession, loadSession } from '../lib/session'
 
 type View = { name: 'list' } | { name: 'detail'; id: string } | { name: 'card'; id: string }
+
+function depthOf(view: View): number {
+  if (view.name === 'list') return 0
+  return view.name === 'detail' ? 1 : 2
+}
 
 interface RankedRow extends SymptomCount {
   key: string
@@ -35,10 +41,55 @@ function buildRanking(pins: string[]): RankedRow[] {
 }
 
 export default function TrainingTab() {
-  const [view, setView] = useState<View>({ name: 'list' })
+  const [view, setView] = useState<View>(() => {
+    const active = loadSession()
+    return active ? { name: 'card', id: active.exerciseId } : { name: 'list' }
+  })
   const [pins, setPins] = useState<string[]>(() => getPinnedKeys())
   const [backupBusy, setBackupBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const viewRef = useRef(view)
+  viewRef.current = view
+
+  useEffect(() => {
+    const depth = depthOf(viewRef.current)
+    if (depth > 0) window.history.pushState({ gtDepth: depth }, '')
+
+    const onPop = (event: PopStateEvent) => {
+      const current = viewRef.current
+      if (current.name === 'list') return
+      const target =
+        event.state && typeof event.state.gtDepth === 'number' ? event.state.gtDepth : 0
+      if (current.name === 'card' && target < 2) clearSession()
+      if (target <= 0) setView({ name: 'list' })
+      else if (target === 1) setView({ name: 'detail', id: current.id })
+    }
+
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  const goDetail = (id: string) => {
+    window.history.pushState({ gtDepth: 1 }, '')
+    setView({ name: 'detail', id })
+  }
+
+  const goCard = (id: string) => {
+    window.history.pushState({ gtDepth: 2 }, '')
+    setView({ name: 'card', id })
+  }
+
+  const back = () => {
+    const depth = window.history.state?.gtDepth
+    if (typeof depth === 'number' && depth > 0) {
+      window.history.back()
+      return
+    }
+    const current = viewRef.current
+    setView(
+      current.name === 'card' ? { name: 'detail', id: current.id } : { name: 'list' },
+    )
+  }
 
   const handleExport = async () => {
     setBackupBusy(true)
@@ -69,15 +120,15 @@ export default function TrainingTab() {
   const exercise = view.name === 'list' ? undefined : EXERCISES.find((e) => e.id === view.id)
 
   if (view.name === 'card' && exercise) {
-    return <ActionCard exercise={exercise} onExit={() => setView({ name: 'detail', id: exercise.id })} />
+    return <ActionCard exercise={exercise} onExit={back} />
   }
 
   if (view.name === 'detail' && exercise) {
     return (
       <ExerciseDetail
         exercise={exercise}
-        onBack={() => setView({ name: 'list' })}
-        onStart={() => setView({ name: 'card', id: exercise.id })}
+        onBack={back}
+        onStart={() => goCard(exercise.id)}
       />
     )
   }
@@ -95,7 +146,7 @@ export default function TrainingTab() {
             key={item.id}
             type="button"
             className="exercise-row"
-            onClick={() => setView({ name: 'detail', id: item.id })}
+            onClick={() => goDetail(item.id)}
           >
             <span className="exercise-name">{item.name}</span>
             <span className="exercise-meta">

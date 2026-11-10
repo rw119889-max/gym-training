@@ -4,7 +4,9 @@ interface RestTimer {
   remainingMs: number
   running: boolean
   finished: boolean
+  endAt: number | null
   start: (seconds: number) => void
+  startAt: (timestamp: number) => void
   stop: () => void
   adjust: (seconds: number) => void
 }
@@ -36,6 +38,12 @@ export function useRestTimer(): RestTimer {
     setRemainingMs(seconds * 1000)
   }, [])
 
+  const startAt = useCallback((timestamp: number) => {
+    endAtRef.current = timestamp
+    setEndAt(timestamp)
+    setRemainingMs(Math.max(0, timestamp - Date.now()))
+  }, [])
+
   const stop = useCallback(() => {
     endAtRef.current = null
     setEndAt(null)
@@ -51,5 +59,5 @@ export function useRestTimer(): RestTimer {
 
   const finished = endAt !== null && remainingMs === 0 && Date.now() >= endAt
 
-  return { remainingMs, running: endAt !== null, finished, start, stop, adjust }
+  return { remainingMs, running: endAt !== null, finished, endAt, start, startAt, stop, adjust }
 }

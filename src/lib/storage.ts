@@ -17,6 +17,14 @@ export function writeJSON(key: string, value: unknown): void {
   }
 }
 
+export function removeKey(key: string): void {
+  try {
+    localStorage.removeItem(PREFIX + key)
+  } catch {
+    // 同上
+  }
+}
+
 const DB_NAME = 'gym-training'
 const DB_VERSION = 1
 const IMAGE_STORE = 'images'
