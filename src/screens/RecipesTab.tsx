@@ -1,21 +1,18 @@
 import { useState } from 'react'
-import type { Recipe } from '../types'
+import type { MealSlot, Recipe } from '../types'
 import RecipeEditor from './RecipeEditor'
 import RecipeImage from '../components/RecipeImage'
-import { deleteRecipe, getRecipes } from '../lib/recipes'
+import { deleteRecipe, getRecipes, MEAL_LABELS, MEAL_SLOTS } from '../lib/recipes'
 import { deleteImage } from '../lib/storage'
-import { formatGram, formatKcal, perServing, recipeNutrition } from '../lib/nutrition'
+import { formatGram, formatKcal, recipeNutrition } from '../lib/nutrition'
 
 type View = { name: 'list' } | { name: 'detail'; id: string } | { name: 'edit'; id: string | null }
-type Filter = 'all' | 'quick' | 'protein'
+type Filter = 'all' | MealSlot
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: '全部' },
-  { id: 'quick', label: '快手' },
-  { id: 'protein', label: '高蛋白' },
+  ...MEAL_SLOTS.map((meal) => ({ id: meal, label: MEAL_LABELS[meal] })),
 ]
-
-const PROTEIN_THRESHOLD = 25
 
 interface DetailProps {
   recipe: Recipe
@@ -26,7 +23,6 @@ interface DetailProps {
 
 function RecipeDetail({ recipe, onBack, onEdit, onDelete }: DetailProps) {
   const total = recipeNutrition(recipe)
-  const each = perServing(total, recipe.servings)
 
   return (
     <section>
@@ -38,33 +34,30 @@ function RecipeDetail({ recipe, onBack, onEdit, onDelete }: DetailProps) {
 
       <div className="recipe-head">
         <h1 className="page-title">{recipe.name}</h1>
-        {recipe.quick && <span className="group-tag">快手</span>}
+        <span className="group-tag">{MEAL_LABELS[recipe.meal]}</span>
+        <button className="ghost-btn small head-edit" type="button" onClick={onEdit}>
+          编辑
+        </button>
       </div>
-      <p className="page-sub">{recipe.servings} 份</p>
 
       <div className="macro-cards">
         <div className="macro-card">
-          <span className="macro-value">{formatKcal(each.kcal)}</span>
-          <span className="macro-label">kcal / 份</span>
+          <span className="macro-value">{formatKcal(total.kcal)}</span>
+          <span className="macro-label">kcal</span>
         </div>
         <div className="macro-card">
-          <span className="macro-value">{formatGram(each.protein)}</span>
+          <span className="macro-value">{formatGram(total.protein)}</span>
           <span className="macro-label">蛋白 g</span>
         </div>
         <div className="macro-card">
-          <span className="macro-value">{formatGram(each.fat)}</span>
+          <span className="macro-value">{formatGram(total.fat)}</span>
           <span className="macro-label">脂肪 g</span>
         </div>
         <div className="macro-card">
-          <span className="macro-value">{formatGram(each.carb)}</span>
+          <span className="macro-value">{formatGram(total.carb)}</span>
           <span className="macro-label">碳水 g</span>
         </div>
       </div>
-
-      <p className="hint">
-        整份：{formatKcal(total.kcal)} kcal · 蛋白 {formatGram(total.protein)} g · 脂肪{' '}
-        {formatGram(total.fat)} g · 碳水 {formatGram(total.carb)} g
-      </p>
 
       <h2 className="section-title">食材与用量</h2>
       {recipe.ingredients.length === 0 ? (
@@ -87,11 +80,8 @@ function RecipeDetail({ recipe, onBack, onEdit, onDelete }: DetailProps) {
       <p className="method-text">{recipe.method || '还没有写做法。'}</p>
 
       <div className="detail-actions">
-        <button className="cta" type="button" onClick={onEdit}>
-          编辑
-        </button>
         <button className="danger-btn" type="button" onClick={onDelete}>
-          删除
+          删除这道菜
         </button>
       </div>
     </section>
@@ -137,13 +127,7 @@ export default function RecipesTab() {
     )
   }
 
-  const visible = recipes.filter((recipe) => {
-    if (filter === 'quick') return recipe.quick
-    if (filter === 'protein') {
-      return perServing(recipeNutrition(recipe), recipe.servings).protein >= PROTEIN_THRESHOLD
-    }
-    return true
-  })
+  const visible = filter === 'all' ? recipes : recipes.filter((recipe) => recipe.meal === filter)
 
   return (
     <section>
@@ -167,14 +151,14 @@ export default function RecipesTab() {
       {recipes.length === 0 ? (
         <div className="empty">
           <p className="empty-title">还没有菜谱</p>
-          <p className="empty-desc">菜名、做法、食材克数，四项营养自动算。蛋白每份 ≥ {PROTEIN_THRESHOLD} g 会进「高蛋白」。</p>
+          <p className="empty-desc">菜名、做法、食材克数，四项营养自动算。按餐次分类，建好后随时能改。</p>
         </div>
       ) : visible.length === 0 ? (
-        <p className="hint">这个筛选下没有菜谱。</p>
+        <p className="hint">这个餐次下还没有菜谱。</p>
       ) : (
         <div className="recipe-list">
           {visible.map((recipe) => {
-            const each = perServing(recipeNutrition(recipe), recipe.servings)
+            const total = recipeNutrition(recipe)
             return (
               <button
                 key={recipe.id}
@@ -186,7 +170,8 @@ export default function RecipesTab() {
                 <span className="recipe-card-body">
                   <span className="recipe-card-name">{recipe.name}</span>
                   <span className="recipe-card-meta">
-                    {formatKcal(each.kcal)} kcal · 蛋白 {formatGram(each.protein)} g / 份
+                    {MEAL_LABELS[recipe.meal]} · {formatKcal(total.kcal)} kcal · 蛋白{' '}
+                    {formatGram(total.protein)} g
                   </span>
                 </span>
               </button>

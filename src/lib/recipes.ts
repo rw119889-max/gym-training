@@ -1,10 +1,21 @@
-import type { Recipe } from '../types'
+import type { MealSlot, Recipe } from '../types'
 import { readJSON, writeJSON } from './storage'
 
 const KEY = 'recipes'
 
+export const MEAL_SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'pre', 'post', 'snack']
+
+export const MEAL_LABELS: Record<MealSlot, string> = {
+  breakfast: '早餐',
+  lunch: '午餐',
+  dinner: '晚餐',
+  pre: '练前餐',
+  post: '练后餐',
+  snack: '加餐',
+}
+
 export function getRecipes(): Recipe[] {
-  return readJSON<Recipe[]>(KEY, [])
+  return readJSON<Recipe[]>(KEY, []).map((recipe) => ({ ...recipe, meal: recipe.meal ?? 'lunch' }))
 }
 
 export function getRecipe(id: string): Recipe | undefined {
@@ -34,9 +45,8 @@ export function newRecipe(): Recipe {
   return {
     id: `r-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     name: '',
+    meal: 'lunch',
     method: '',
-    servings: 1,
-    quick: false,
     imageId: null,
     ingredients: [],
     createdAt: now,

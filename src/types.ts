@@ -44,12 +44,13 @@ export interface Ingredient {
   per100g: NutritionPer100g
 }
 
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'pre' | 'post' | 'snack'
+
 export interface Recipe {
   id: string
   name: string
+  meal: MealSlot
   method: string
-  servings: number
-  quick: boolean
   imageId: string | null
   ingredients: Ingredient[]
   createdAt: string

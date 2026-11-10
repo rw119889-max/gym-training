@@ -31,16 +31,6 @@ export function recipeNutrition(recipe: Recipe): Nutrition {
   }, ZERO_NUTRITION)
 }
 
-export function perServing(total: Nutrition, servings: number): Nutrition {
-  const divisor = servings > 0 ? servings : 1
-  return {
-    kcal: total.kcal / divisor,
-    protein: total.protein / divisor,
-    fat: total.fat / divisor,
-    carb: total.carb / divisor,
-  }
-}
-
 export function formatKcal(value: number): string {
   return String(Math.round(value))
 }

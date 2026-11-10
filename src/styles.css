@@ -736,6 +736,7 @@ body.card-open .tabbar {
 
 .filter-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
 }
@@ -825,9 +826,18 @@ body.card-open .tabbar {
 
 .recipe-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   margin-top: 18px;
+}
+
+.head-edit {
+  margin-left: auto;
+}
+
+.meal-picker {
+  margin-bottom: 0;
 }
 
 .macro-cards {
@@ -907,7 +917,7 @@ body.card-open .tabbar {
   margin-top: 28px;
 }
 
-.detail-actions .cta {
+.detail-actions .danger-btn {
   flex: 1;
 }
 
@@ -956,12 +966,6 @@ body.card-open .tabbar {
 .field {
   display: block;
   margin-bottom: 18px;
-}
-
-.field-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
 }
 
 .field-label {
@@ -1013,25 +1017,6 @@ body.card-open .tabbar {
   width: auto;
 }
 
-.toggle-btn {
-  width: 100%;
-  min-height: 48px;
-  padding: 0 14px;
-  font-size: 13px;
-  color: var(--muted);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  cursor: pointer;
-}
-
-.toggle-btn[aria-pressed="true"] {
-  color: #0a0b0d;
-  background: var(--accent);
-  border-color: var(--accent);
-  font-weight: 700;
-}
-
 .nutrition-preview {
   display: flex;
   flex-wrap: wrap;
@@ -1042,12 +1027,6 @@ body.card-open .tabbar {
   background: rgba(201, 255, 46, 0.05);
   border: 1px solid rgba(201, 255, 46, 0.2);
   border-radius: 14px;
-}
-
-.nutrition-per {
-  width: 100%;
-  font-size: 12px;
-  color: var(--accent);
 }
 
 .ingredient-list {

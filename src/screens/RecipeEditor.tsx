@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { Ingredient, Recipe } from '../types'
-import { getRecipe, newRecipe, saveRecipe } from '../lib/recipes'
+import { getRecipe, MEAL_LABELS, MEAL_SLOTS, newRecipe, saveRecipe } from '../lib/recipes'
 import { compressImage } from '../lib/image'
 import { putImage } from '../lib/storage'
-import { formatGram, formatKcal, perServing, recipeNutrition } from '../lib/nutrition'
+import { formatGram, formatKcal, recipeNutrition } from '../lib/nutrition'
 import RecipeImage from '../components/RecipeImage'
 
 interface Props {
@@ -37,7 +37,6 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
   const [imageBusy, setImageBusy] = useState(false)
 
   const total = recipeNutrition(draft)
-  const each = perServing(total, draft.servings)
   const canSave = draft.name.trim().length > 0
 
   const patch = (values: Partial<Recipe>) => setDraft((prev) => ({ ...prev, ...values }))
@@ -132,39 +131,28 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
         </div>
       </div>
 
-      <div className="field-row">
-        <label className="field">
-          <span className="field-label">份数</span>
-          <input
-            className="field-input"
-            type="number"
-            min={1}
-            inputMode="numeric"
-            value={draft.servings}
-            onChange={(event) => patch({ servings: Math.max(1, toNumber(event.target.value)) })}
-          />
-        </label>
-        <div className="field">
-          <span className="field-label">快手</span>
-          <button
-            type="button"
-            className="toggle-btn"
-            aria-pressed={draft.quick}
-            onClick={() => patch({ quick: !draft.quick })}
-          >
-            {draft.quick ? '20 分钟内能做好' : '标记为快手'}
-          </button>
+      <div className="field">
+        <span className="field-label">餐次</span>
+        <div className="filter-row meal-picker">
+          {MEAL_SLOTS.map((meal) => (
+            <button
+              key={meal}
+              type="button"
+              className="filter-chip"
+              aria-pressed={draft.meal === meal}
+              onClick={() => patch({ meal })}
+            >
+              {MEAL_LABELS[meal]}
+            </button>
+          ))}
         </div>
       </div>
 
       <div className="nutrition-preview">
-        <span>整份 {formatKcal(total.kcal)} kcal</span>
+        <span>热量 {formatKcal(total.kcal)} kcal</span>
         <span>蛋白 {formatGram(total.protein)} g</span>
         <span>脂肪 {formatGram(total.fat)} g</span>
         <span>碳水 {formatGram(total.carb)} g</span>
-        <span className="nutrition-per">
-          每份 {formatKcal(each.kcal)} kcal · 蛋白 {formatGram(each.protein)} g
-        </span>
       </div>
 
       <h2 className="section-title">食材与用量</h2>
