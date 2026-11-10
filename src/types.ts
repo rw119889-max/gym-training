@@ -1,0 +1,72 @@
+export type ExerciseGroup = 'squat' | 'hinge' | 'push'
+
+export interface ExerciseSymptom {
+  id: string
+  label: string
+  fix: string
+}
+
+export interface CommonMistake {
+  name: string
+  symptom: string
+  cause: string
+  fix: string
+}
+
+export interface Exercise {
+  id: string
+  name: string
+  group: ExerciseGroup
+  preChecks: [string, string, string]
+  cue: string
+  symptoms: ExerciseSymptom[]
+  commonMistakes: CommonMistake[]
+}
+
+export interface SymptomLog {
+  id: string
+  date: string
+  exerciseId: string
+  symptomId: string | null
+}
+
+export interface NutritionPer100g {
+  kcal: number
+  protein: number
+  fat: number
+  carb: number
+}
+
+export interface Ingredient {
+  id: string
+  name: string
+  grams: number
+  per100g: NutritionPer100g
+}
+
+export interface Recipe {
+  id: string
+  name: string
+  method: string
+  servings: number
+  quick: boolean
+  imageId: string | null
+  ingredients: Ingredient[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface KnowledgeCard {
+  id: string
+  title: string
+  summary: string
+  body: string[]
+  apply: string
+}
+
+export interface CardProgress {
+  cardId: string
+  stage: number
+  lastUsed: string
+  usedCount: number
+}
