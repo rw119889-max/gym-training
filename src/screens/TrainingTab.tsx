@@ -3,7 +3,7 @@ import type { ChangeEvent } from 'react'
 import ActionCard from './ActionCard'
 import ExerciseDetail from './ExerciseDetail'
 import { GROUP_LABELS } from '../data/exercises'
-import { addExercise, getExercises } from '../lib/exercises'
+import { addExercise, getExercises, getRecentExerciseIds, markRecentExercise } from '../lib/exercises'
 import type { Exercise, ExerciseGroup } from '../types'
 import { getPinnedKeys, pinKey, rankSymptoms, togglePin } from '../lib/logs'
 import type { SymptomCount } from '../lib/logs'
@@ -50,6 +50,8 @@ export default function TrainingTab() {
   const [pins, setPins] = useState<string[]>(() => getPinnedKeys())
   const [exercises, setExercises] = useState<Exercise[]>(() => getExercises())
   const [adding, setAdding] = useState(false)
+  const [query, setQuery] = useState('')
+  const [recentIds, setRecentIds] = useState<string[]>(() => getRecentExerciseIds())
   const [draftName, setDraftName] = useState('')
   const [draftGroup, setDraftGroup] = useState<ExerciseGroup>('squat')
   const [backupBusy, setBackupBusy] = useState(false)
@@ -82,6 +84,7 @@ export default function TrainingTab() {
 
   const goCard = (id: string) => {
     window.history.pushState({ gtDepth: 2 }, '')
+    setRecentIds(markRecentExercise(id))
     setView({ name: 'card', id })
   }
 
@@ -161,14 +164,35 @@ export default function TrainingTab() {
   }
 
   const ranking = buildRanking(pins, exercises)
+  const normalizedQuery = query.trim().toLowerCase()
+  const visibleExercises = exercises
+    .filter((item) => !normalizedQuery || item.name.toLowerCase().includes(normalizedQuery))
+    .sort((a, b) => {
+      const aRecent = recentIds.indexOf(a.id)
+      const bRecent = recentIds.indexOf(b.id)
+      if (aRecent < 0 && bRecent < 0) return 0
+      if (aRecent < 0) return 1
+      if (bRecent < 0) return -1
+      return aRecent - bRecent
+    })
 
   return (
     <section>
       <h1 className="page-title">动作库</h1>
       <p className="page-sub">这一组怎么练对</p>
 
+      <label className="field exercise-search">
+        <span className="field-label">快速查动作</span>
+        <input
+          className="field-input"
+          value={query}
+          placeholder="搜索动作名称"
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </label>
+
       <div className="exercise-list">
-        {exercises.map((item) => (
+        {visibleExercises.map((item) => (
           <button
             key={item.id}
             type="button"

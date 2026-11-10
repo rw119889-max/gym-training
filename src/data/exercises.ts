@@ -17,6 +17,11 @@ export const EXERCISES: Exercise[] = [
       '气：吸气把肚子顶起来（腰带位置鼓），不是提胸',
     ],
     cue: '全脚掌压地，先坐髋',
+    targetFeeling: '大腿前侧和臀部共同发力；起身时膝盖与髋部同时打开',
+    safetyNotes: [
+      '出现锐痛、麻木或疼痛持续加重时，停止本组',
+      '调整动作后仍不适，不要通过加重量硬做',
+    ],
     symptoms: [
       { id: 'lower-back', label: '腰酸 / 下背发紧', fix: '先坐髋，别让腰先起' },
       { id: 'knee-in', label: '膝盖内扣或膝前痛', fix: '膝盖推开，对准脚尖' },
@@ -54,6 +59,11 @@ export const EXERCISES: Exercise[] = [
       '紧：吸满气顶住肚子，起杠前先把杠“拉紧”',
     ],
     cue: '杠贴腿，用腿蹬地',
+    targetFeeling: '大腿后侧和臀部参与发力；杠贴近身体向上移动',
+    safetyNotes: [
+      '腰部出现锐痛、麻木或向腿部放射时，立即停止',
+      '背部无法保持稳定时，先减重或结束本组',
+    ],
     symptoms: [
       { id: 'lower-back', label: '腰酸 / 下背发紧', fix: '起杠前先拉紧杠，胸口顶住' },
       { id: 'no-hamstring', label: '大腿后侧和屁股没感觉', fix: '先送髋，再用腿压地起身' },
@@ -91,6 +101,11 @@ export const EXERCISES: Exercise[] = [
       '握：握距让小臂垂直地面，手腕立直不后折',
     ],
     cue: '肩胛夹紧，脚蹬地推',
+    targetFeeling: '胸部主动推起杠铃；肩前侧不应出现尖锐疼痛',
+    safetyNotes: [
+      '肩前侧或手腕出现锐痛时，停止本组并检查姿势',
+      '疼痛持续或影响活动范围时，不要继续加重训练',
+    ],
     symptoms: [
       { id: 'shoulder-front', label: '肩前侧紧 / 痛', fix: '肩胛夹紧，手肘收向身体' },
       { id: 'wrist', label: '手腕不适', fix: '手腕立直，杠压掌根' },

@@ -1343,6 +1343,83 @@ body.player-open .tabbar {
   border-radius: 12px;
 }
 
+.exercise-search {
+  margin-bottom: 16px;
+}
+
+.feeling-box {
+  margin-top: 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(201, 255, 46, 0.22);
+  border-radius: 14px;
+  background: rgba(201, 255, 46, 0.06);
+}
+
+.safety-list {
+  display: grid;
+  gap: 8px;
+  padding-left: 20px;
+  color: #ffcf8a;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.card-safety {
+  margin: 12px 0 18px;
+  color: #ffcf8a;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.recipe-quick-fields {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.recipe-spicy-toggle {
+  margin-top: 4px;
+}
+
+.recipe-facts {
+  margin: 14px 0 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.recipe-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.recipe-badges span {
+  padding: 3px 7px;
+  border: 1px solid rgba(201, 255, 46, 0.22);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.daily-recommendation {
+  margin: 24px 0 30px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.daily-empty {
+  margin-top: 20px;
+}
+
+@media (max-width: 480px) {
+  .recipe-quick-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation: none !important;

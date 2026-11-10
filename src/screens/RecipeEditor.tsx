@@ -148,6 +148,54 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
         </div>
       </div>
 
+      <div className="recipe-quick-fields">
+        <label className="field">
+          <span className="field-label">烹饪时长（分钟）</span>
+          <input
+            className="field-input"
+            type="number"
+            min={1}
+            max={180}
+            inputMode="numeric"
+            value={draft.cookMinutes}
+            onChange={(event) => patch({ cookMinutes: Math.max(1, toNumber(event.target.value)) })}
+          />
+        </label>
+        <label className="field">
+          <span className="field-label">用油（克）</span>
+          <input
+            className="field-input"
+            type="number"
+            min={0}
+            step="0.1"
+            inputMode="decimal"
+            value={draft.oilGrams}
+            onChange={(event) => patch({ oilGrams: Math.max(0, toNumber(event.target.value)) })}
+          />
+        </label>
+        <label className="field">
+          <span className="field-label">用盐（克）</span>
+          <input
+            className="field-input"
+            type="number"
+            min={0}
+            step="0.1"
+            inputMode="decimal"
+            value={draft.saltGrams}
+            onChange={(event) => patch({ saltGrams: Math.max(0, toNumber(event.target.value)) })}
+          />
+        </label>
+      </div>
+      <button
+        className="filter-chip recipe-spicy-toggle"
+        type="button"
+        aria-pressed={draft.spicy}
+        onClick={() => patch({ spicy: !draft.spicy })}
+      >
+        {draft.spicy ? '含辣' : '无辣'}
+      </button>
+      <p className="hint">营养数据请统一使用生重或熟重，不要混用。</p>
+
       <div className="nutrition-preview">
         <span>热量 {formatKcal(total.kcal)} kcal</span>
         <span>蛋白 {formatGram(total.protein)} g</span>

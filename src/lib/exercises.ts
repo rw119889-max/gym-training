@@ -4,6 +4,8 @@ import { readJSON, writeJSON } from './storage'
 
 const CUSTOM_KEY = 'customExercises'
 const NAME_KEY = 'exerciseNames'
+const RECENT_KEY = 'recentExercises'
+const MAX_RECENT = 5
 
 export interface ExercisePatch {
   name?: string
@@ -12,7 +14,14 @@ export interface ExercisePatch {
 }
 
 function getCustom(): Exercise[] {
-  return readJSON<Exercise[]>(CUSTOM_KEY, [])
+  return readJSON<Exercise[]>(CUSTOM_KEY, []).map((exercise) => ({
+    ...exercise,
+    targetFeeling: exercise.targetFeeling ?? '目标肌群主动发力，动作全程可控',
+    safetyNotes: exercise.safetyNotes ?? [
+      '出现锐痛、麻木或疼痛持续加重时，停止本组',
+      '调整动作后仍不适，不要通过加重量硬做',
+    ],
+  }))
 }
 
 function getNameOverrides(): Record<string, string> {
@@ -29,6 +38,16 @@ export function getExercises(): Exercise[] {
 
 export function findExercise(id: string): Exercise | undefined {
   return getExercises().find((exercise) => exercise.id === id)
+}
+
+export function getRecentExerciseIds(): string[] {
+  return readJSON<string[]>(RECENT_KEY, []).slice(0, MAX_RECENT)
+}
+
+export function markRecentExercise(id: string): string[] {
+  const next = [id, ...getRecentExerciseIds().filter((item) => item !== id)].slice(0, MAX_RECENT)
+  writeJSON(RECENT_KEY, next)
+  return next
 }
 
 export function exerciseName(id: string): string {
@@ -51,6 +70,11 @@ export function addExercise(input: ExercisePatch & { name: string }): Exercise {
       '重量：留 1–2 次余量，动作不变形',
     ],
     cue: input.cue?.trim() || '慢下，稳住，全程控制',
+    targetFeeling: '目标肌群主动发力，动作全程可控',
+    safetyNotes: [
+      '出现锐痛、麻木或疼痛持续加重时，停止本组',
+      '调整动作后仍不适，不要通过加重量硬做',
+    ],
     symptoms: [
       { id: 'form', label: '动作变形 / 控制不住', fix: '减重量，把速度放慢' },
       { id: 'pain', label: '关节不舒服', fix: '停下这组，换轻重量找感觉' },

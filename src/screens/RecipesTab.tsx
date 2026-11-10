@@ -2,7 +2,13 @@ import { useState } from 'react'
 import type { MealSlot, Recipe } from '../types'
 import RecipeEditor from './RecipeEditor'
 import RecipeImage from '../components/RecipeImage'
-import { deleteRecipe, getRecipes, MEAL_LABELS, MEAL_SLOTS } from '../lib/recipes'
+import {
+  deleteRecipe,
+  getDailyRecipes,
+  getRecipes,
+  MEAL_LABELS,
+  MEAL_SLOTS,
+} from '../lib/recipes'
 import { deleteImage } from '../lib/storage'
 import { formatGram, formatKcal, recipeNutrition } from '../lib/nutrition'
 
@@ -58,6 +64,10 @@ function RecipeDetail({ recipe, onBack, onEdit, onDelete }: DetailProps) {
           <span className="macro-label">碳水 g</span>
         </div>
       </div>
+
+      <p className="recipe-facts">
+        {recipe.cookMinutes} 分钟 · {recipe.spicy ? '含辣' : '无辣'} · 用油 {formatGram(recipe.oilGrams)}g · 用盐 {formatGram(recipe.saltGrams)}g
+      </p>
 
       <h2 className="section-title">食材与用量</h2>
       {recipe.ingredients.length === 0 ? (
@@ -128,6 +138,7 @@ export default function RecipesTab() {
   }
 
   const visible = filter === 'all' ? recipes : recipes.filter((recipe) => recipe.meal === filter)
+  const dailyRecipes = getDailyRecipes(recipes)
 
   return (
     <section>
@@ -147,6 +158,35 @@ export default function RecipesTab() {
           </button>
         ))}
       </div>
+
+      {dailyRecipes.length > 0 && (
+        <div className="daily-recommendation">
+          <h2 className="section-title">今日快手菜</h2>
+          <p className="hint">无辣、少油少盐，今天优先从这里选。</p>
+          <div className="recipe-list">
+            {dailyRecipes.map((recipe) => (
+              <button
+                key={recipe.id}
+                type="button"
+                className="recipe-card"
+                onClick={() => setView({ name: 'detail', id: recipe.id })}
+              >
+                <RecipeImage imageId={recipe.imageId} alt={recipe.name} className="recipe-thumb" />
+                <span className="recipe-card-body">
+                  <span className="recipe-card-name">{recipe.name}</span>
+                  <span className="recipe-card-meta">
+                    {recipe.cookMinutes} 分钟 · {MEAL_LABELS[recipe.meal]} · 无辣
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {recipes.length > 0 && dailyRecipes.length === 0 && (
+        <p className="hint daily-empty">还没有符合“20分钟内、无辣、少油少盐”的菜谱，先新建一道。</p>
+      )}
 
       {recipes.length === 0 ? (
         <div className="empty">
@@ -172,6 +212,12 @@ export default function RecipesTab() {
                   <span className="recipe-card-meta">
                     {MEAL_LABELS[recipe.meal]} · {formatKcal(total.kcal)} kcal · 蛋白{' '}
                     {formatGram(total.protein)} g
+                  </span>
+                  <span className="recipe-badges">
+                    <span>{recipe.cookMinutes} 分钟</span>
+                    {!recipe.spicy && <span>无辣</span>}
+                    {recipe.oilGrams <= 10 && <span>少油</span>}
+                    {recipe.saltGrams <= 3 && <span>少盐</span>}
                   </span>
                 </span>
               </button>

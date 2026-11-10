@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { VideoClip } from '../types'
-import { getExercises } from '../lib/exercises'
+import { getExercises, getRecentExerciseIds, markRecentExercise } from '../lib/exercises'
 import { inspectVideo } from '../lib/videoFile'
 import {
   addVideo,
@@ -14,7 +14,7 @@ import {
   totalVideoBytes,
   updateVideo,
 } from '../lib/videos'
-import { putPoster, putVideo } from '../lib/storage'
+import { deletePoster, deleteVideo, getVideo, putPoster, putVideo } from '../lib/storage'
 import VideoPlayer from '../components/VideoPlayer'
 import VideoThumb from '../components/VideoThumb'
 
@@ -28,7 +28,11 @@ export default function VideoTab({ active }: Props) {
   const [playing, setPlaying] = useState<VideoClip | null>(null)
   const [adding, setAdding] = useState(false)
   const [editingClip, setEditingClip] = useState<VideoClip | null>(null)
-  const [exerciseId, setExerciseId] = useState(() => getExercises()[0]?.id ?? '')
+  const [exerciseId, setExerciseId] = useState(() => {
+    const available = getExercises()
+    const recent = getRecentExerciseIds().find((id) => available.some((exercise) => exercise.id === id))
+    return recent ?? available[0]?.id ?? ''
+  })
   const [label, setLabel] = useState('')
   const [busy, setBusy] = useState(false)
   const [usage, setUsage] = useState<StorageEstimate | null>(null)
@@ -86,6 +90,12 @@ export default function VideoTab({ active }: Props) {
       const id = `v-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
       await putVideo(id, file)
       if (info.poster) await putPoster(id, info.poster)
+      const saved = await getVideo(id)
+      if (!saved) {
+        await Promise.all([deleteVideo(id), deletePoster(id)])
+        throw new Error('video-save-verification-failed')
+      }
+      markRecentExercise(exerciseId)
       addVideo({
         id,
         exerciseId,
@@ -108,7 +118,7 @@ export default function VideoTab({ active }: Props) {
   }
 
   const handleDelete = async (video: VideoClip) => {
-    if (!window.confirm('删除这条视频？手机里的原片不受影响。')) return
+    if (!window.confirm('只删除 App 内保存的副本，不会删除相册原片。删除后需重新上传。继续？')) return
     await deleteVideoClip(video.id)
     if (playing?.id === video.id) setPlaying(null)
     if (editingClip?.id === video.id) setEditingClip(null)

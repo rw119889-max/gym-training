@@ -138,6 +138,16 @@ export default function ExerciseDetail({
         <p className="cue-box-text">{exercise.cue}</p>
       </div>
 
+      <div className="feeling-box">
+        <p className="cue-box-label">应该感觉到</p>
+        <p className="cue-box-text">{exercise.targetFeeling}</p>
+      </div>
+
+      <h2 className="section-title">安全提醒</h2>
+      <ul className="safety-list">
+        {exercise.safetyNotes.map((note) => <li key={note}>{note}</li>)}
+      </ul>
+
       <h2 className="section-title">示范视频</h2>
       {videos.length === 0 ? (
         <p className="hint">还没存视频。到「视频」页上传一条，休息时就能直接看。</p>

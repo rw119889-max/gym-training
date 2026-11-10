@@ -19,6 +19,8 @@ export interface Exercise {
   group: ExerciseGroup
   preChecks: [string, string, string]
   cue: string
+  targetFeeling: string
+  safetyNotes: string[]
   symptoms: ExerciseSymptom[]
   commonMistakes: CommonMistake[]
 }
@@ -53,6 +55,10 @@ export interface Recipe {
   method: string
   imageId: string | null
   ingredients: Ingredient[]
+  cookMinutes: number
+  spicy: boolean
+  oilGrams: number
+  saltGrams: number
   createdAt: string
   updatedAt: string
 }

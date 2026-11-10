@@ -143,6 +143,7 @@ export default function ActionCard({ exercise, onExit }: Props) {
         <div className="card-body">
           <p className="card-kicker">组后 1 点自查</p>
           <h2 className="post-title">这一组哪里不对？</h2>
+          <p className="card-safety">如果出现锐痛、麻木或疼痛持续加重，不要继续硬做。</p>
           <div className="symptom-btns">
             {exercise.symptoms.map((symptom) => (
               <button
