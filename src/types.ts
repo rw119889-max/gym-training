@@ -57,17 +57,11 @@ export interface Recipe {
   updatedAt: string
 }
 
-export interface KnowledgeCard {
+export interface VideoClip {
   id: string
-  title: string
-  summary: string
-  body: string[]
-  apply: string
-}
-
-export interface CardProgress {
-  cardId: string
-  stage: number
-  lastUsed: string
-  usedCount: number
+  exerciseId: string
+  label: string
+  size: number
+  duration: number
+  createdAt: string
 }

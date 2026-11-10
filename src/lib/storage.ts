@@ -26,16 +26,20 @@ export function removeKey(key: string): void {
 }
 
 const DB_NAME = 'gym-training'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const IMAGE_STORE = 'images'
+const VIDEO_STORE = 'videos'
+const POSTER_STORE = 'videoPosters'
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION)
     request.onupgradeneeded = () => {
       const db = request.result
-      if (!db.objectStoreNames.contains(IMAGE_STORE)) {
-        db.createObjectStore(IMAGE_STORE)
+      for (const store of [IMAGE_STORE, VIDEO_STORE, POSTER_STORE]) {
+        if (!db.objectStoreNames.contains(store)) {
+          db.createObjectStore(store)
+        }
       }
     }
     request.onsuccess = () => resolve(request.result)
@@ -43,12 +47,12 @@ function openDB(): Promise<IDBDatabase> {
   })
 }
 
-export async function putImage(id: string, blob: Blob): Promise<void> {
+async function putBlob(store: string, id: string, blob: Blob): Promise<void> {
   const db = await openDB()
   try {
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(IMAGE_STORE, 'readwrite')
-      tx.objectStore(IMAGE_STORE).put(blob, id)
+      const tx = db.transaction(store, 'readwrite')
+      tx.objectStore(store).put(blob, id)
       tx.oncomplete = () => resolve()
       tx.onerror = () => reject(tx.error)
     })
@@ -57,11 +61,11 @@ export async function putImage(id: string, blob: Blob): Promise<void> {
   }
 }
 
-export async function getImage(id: string): Promise<Blob | undefined> {
+async function getBlob(store: string, id: string): Promise<Blob | undefined> {
   const db = await openDB()
   try {
     return await new Promise<Blob | undefined>((resolve, reject) => {
-      const request = db.transaction(IMAGE_STORE, 'readonly').objectStore(IMAGE_STORE).get(id)
+      const request = db.transaction(store, 'readonly').objectStore(store).get(id)
       request.onsuccess = () => resolve(request.result as Blob | undefined)
       request.onerror = () => reject(request.error)
     })
@@ -70,12 +74,12 @@ export async function getImage(id: string): Promise<Blob | undefined> {
   }
 }
 
-export async function deleteImage(id: string): Promise<void> {
+async function deleteBlob(store: string, id: string): Promise<void> {
   const db = await openDB()
   try {
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(IMAGE_STORE, 'readwrite')
-      tx.objectStore(IMAGE_STORE).delete(id)
+      const tx = db.transaction(store, 'readwrite')
+      tx.objectStore(store).delete(id)
       tx.oncomplete = () => resolve()
       tx.onerror = () => reject(tx.error)
     })
@@ -83,3 +87,15 @@ export async function deleteImage(id: string): Promise<void> {
     db.close()
   }
 }
+
+export const putImage = (id: string, blob: Blob) => putBlob(IMAGE_STORE, id, blob)
+export const getImage = (id: string) => getBlob(IMAGE_STORE, id)
+export const deleteImage = (id: string) => deleteBlob(IMAGE_STORE, id)
+
+export const putVideo = (id: string, blob: Blob) => putBlob(VIDEO_STORE, id, blob)
+export const getVideo = (id: string) => getBlob(VIDEO_STORE, id)
+export const deleteVideo = (id: string) => deleteBlob(VIDEO_STORE, id)
+
+export const putPoster = (id: string, blob: Blob) => putBlob(POSTER_STORE, id, blob)
+export const getPoster = (id: string) => getBlob(POSTER_STORE, id)
+export const deletePoster = (id: string) => deleteBlob(POSTER_STORE, id)

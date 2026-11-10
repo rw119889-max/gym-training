@@ -1,5 +1,5 @@
 import { readJSON, removeKey, writeJSON } from './storage'
-import { todayKey } from './cards'
+import { todayKey } from './date'
 
 export type CardPhase = 'pre' | 'during' | 'post' | 'rest'
 

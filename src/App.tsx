@@ -2,20 +2,23 @@ import { useEffect, useState } from 'react'
 import Landing from './screens/Landing'
 import TrainingTab from './screens/TrainingTab'
 import RecipesTab from './screens/RecipesTab'
-import KnowledgeTab from './screens/KnowledgeTab'
+import VideoTab from './screens/VideoTab'
 import { readJSON, writeJSON } from './lib/storage'
 
-type Tab = 'training' | 'recipes' | 'knowledge'
+type Tab = 'training' | 'recipes' | 'videos'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'training', label: '训练' },
   { id: 'recipes', label: '食谱' },
-  { id: 'knowledge', label: '知识' },
+  { id: 'videos', label: '视频' },
 ]
 
 export default function App() {
   const [entered, setEntered] = useState(false)
-  const [tab, setTab] = useState<Tab>(() => readJSON<Tab>('tab', 'training'))
+  const [tab, setTab] = useState<Tab>(() => {
+    const saved = readJSON<Tab>('tab', 'training')
+    return TABS.some((item) => item.id === saved) ? saved : 'training'
+  })
 
   useEffect(() => {
     writeJSON('tab', tab)
@@ -38,8 +41,8 @@ export default function App() {
         <div hidden={tab !== 'recipes'}>
           <RecipesTab />
         </div>
-        <div hidden={tab !== 'knowledge'}>
-          <KnowledgeTab />
+        <div hidden={tab !== 'videos'}>
+          <VideoTab />
         </div>
       </main>
 

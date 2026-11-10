@@ -3,6 +3,8 @@ import { getImage, putImage } from './storage'
 
 const PREFIX = 'gt.v1.'
 const VERSION = 1
+// 视频文件在 IndexedDB，元数据单独备份会变成一堆打不开的空记录
+const LOCAL_ONLY_KEYS = new Set(['gt.v1.videos'])
 
 interface BackupFile {
   version: number
@@ -24,7 +26,7 @@ export async function exportBackup(): Promise<void> {
   const data: Record<string, string> = {}
   for (let i = 0; i < localStorage.length; i += 1) {
     const key = localStorage.key(i)
-    if (!key || !key.startsWith(PREFIX)) continue
+    if (!key || !key.startsWith(PREFIX) || LOCAL_ONLY_KEYS.has(key)) continue
     const value = localStorage.getItem(key)
     if (value !== null) data[key] = value
   }

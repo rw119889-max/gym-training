@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import type { Exercise, ExerciseSymptom } from '../types'
+import type { Exercise, ExerciseSymptom, VideoClip } from '../types'
 import { addSymptomLog } from '../lib/logs'
-import { todayKey } from '../lib/cards'
+import { todayKey } from '../lib/date'
 import { clearSession, loadSession, saveSession } from '../lib/session'
 import { speak } from '../lib/speech'
+import { getExerciseVideos } from '../lib/videos'
 import { useWakeLock } from '../hooks/useWakeLock'
+import VideoPlayer from '../components/VideoPlayer'
 
 type Phase = 'pre' | 'during' | 'post' | 'rest'
 
@@ -30,6 +32,8 @@ export default function ActionCard({ exercise, onExit }: Props) {
   const [chosen, setChosen] = useState<ExerciseSymptom | null>(
     exercise.symptoms.find((item) => item.id === restored?.chosenSymptomId) ?? null,
   )
+  const [videos] = useState(() => getExerciseVideos(exercise.id))
+  const [watching, setWatching] = useState<VideoClip | null>(null)
 
   useWakeLock(true)
 
@@ -171,12 +175,25 @@ export default function ActionCard({ exercise, onExit }: Props) {
               {chosen && <p className="next-cue-note">已作为下一组唯一提示</p>}
             </div>
           </div>
-          <div className="card-actions">
+          <div className="card-actions row">
+            {videos.length > 0 && (
+              <button className="ghost-btn" type="button" onClick={() => setWatching(videos[0])}>
+                看示范
+              </button>
+            )}
             <button className="cta" type="button" onClick={nextSet}>
               开始下一组
             </button>
           </div>
         </>
+      )}
+
+      {watching && (
+        <VideoPlayer
+          clip={watching}
+          title={`${exercise.name} · ${watching.label || '示范'}`}
+          onClose={() => setWatching(null)}
+        />
       )}
     </div>
   )

@@ -1,5 +1,9 @@
-import type { Exercise } from '../types'
+import { useState } from 'react'
+import type { Exercise, VideoClip } from '../types'
 import { GROUP_LABELS } from '../data/exercises'
+import { formatDuration, getExerciseVideos } from '../lib/videos'
+import VideoPlayer from '../components/VideoPlayer'
+import VideoThumb from '../components/VideoThumb'
 
 interface Props {
   exercise: Exercise
@@ -8,6 +12,9 @@ interface Props {
 }
 
 export default function ExerciseDetail({ exercise, onBack, onStart }: Props) {
+  const [videos] = useState(() => getExerciseVideos(exercise.id))
+  const [watching, setWatching] = useState<VideoClip | null>(null)
+
   return (
     <section className="detail-page">
       <button className="back-btn" type="button" onClick={onBack}>
@@ -23,6 +30,28 @@ export default function ExerciseDetail({ exercise, onBack, onStart }: Props) {
         <p className="cue-box-label">本组唯一提示</p>
         <p className="cue-box-text">{exercise.cue}</p>
       </div>
+
+      <h2 className="section-title">示范视频</h2>
+      {videos.length === 0 ? (
+        <p className="hint">还没存视频。到「视频」页上传一条，休息时就能直接看。</p>
+      ) : (
+        <div className="video-strip">
+          {videos.map((video) => (
+            <button
+              key={video.id}
+              className="video-open"
+              type="button"
+              onClick={() => setWatching(video)}
+            >
+              <VideoThumb videoId={video.id} className="video-cover" />
+              <span className="video-item-bar">
+                <span className="video-item-label">{video.label || '示范'}</span>
+                <span className="video-item-meta">{formatDuration(video.duration)}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <h2 className="section-title">组前 3 项检查</h2>
       <ol className="detail-checks">
@@ -63,6 +92,14 @@ export default function ExerciseDetail({ exercise, onBack, onStart }: Props) {
           开始这个动作
         </button>
       </div>
+
+      {watching && (
+        <VideoPlayer
+          clip={watching}
+          title={`${exercise.name} · ${watching.label || '示范'}`}
+          onClose={() => setWatching(null)}
+        />
+      )}
     </section>
   )
 }
