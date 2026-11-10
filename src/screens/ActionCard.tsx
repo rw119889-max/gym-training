@@ -1,27 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Exercise, ExerciseSymptom } from '../types'
 import { addSymptomLog } from '../lib/logs'
 import { todayKey } from '../lib/cards'
 import { clearSession, loadSession, saveSession } from '../lib/session'
-import { playRestDone, unlockAudio } from '../lib/audio'
 import { speak } from '../lib/speech'
-import { useRestTimer } from '../hooks/useRestTimer'
 import { useWakeLock } from '../hooks/useWakeLock'
-
-const REST_SECONDS = 90
 
 type Phase = 'pre' | 'during' | 'post' | 'rest'
 
 interface Props {
   exercise: Exercise
   onExit: () => void
-}
-
-function formatMs(ms: number): string {
-  const total = Math.ceil(ms / 1000)
-  const minutes = Math.floor(total / 60)
-  const seconds = total % 60
-  return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
 export default function ActionCard({ exercise, onExit }: Props) {
@@ -41,9 +30,6 @@ export default function ActionCard({ exercise, onExit }: Props) {
   const [chosen, setChosen] = useState<ExerciseSymptom | null>(
     exercise.symptoms.find((item) => item.id === restored?.chosenSymptomId) ?? null,
   )
-  const [flashing, setFlashing] = useState(false)
-  const timer = useRestTimer()
-  const firedRef = useRef(false)
 
   useWakeLock(true)
 
@@ -56,15 +42,8 @@ export default function ActionCard({ exercise, onExit }: Props) {
       cue,
       checks,
       chosenSymptomId: chosen?.id ?? null,
-      restEndAt: phase === 'rest' ? timer.endAt : null,
     })
-  }, [exercise.id, phase, setNo, cue, checks, chosen, timer.endAt])
-
-  useEffect(() => {
-    if (restored?.phase === 'rest' && restored.restEndAt) {
-      timer.startAt(restored.restEndAt)
-    }
-  }, [])
+  }, [exercise.id, phase, setNo, cue, checks, chosen])
 
   useEffect(() => {
     document.body.classList.add('card-open')
@@ -81,7 +60,6 @@ export default function ActionCard({ exercise, onExit }: Props) {
   }
 
   const startSet = () => {
-    unlockAudio()
     setPhase('during')
   }
 
@@ -89,32 +67,17 @@ export default function ActionCard({ exercise, onExit }: Props) {
     addSymptomLog(exercise.id, symptom ? symptom.id : null)
     setChosen(symptom)
     if (symptom) setCue(symptom.fix)
-    firedRef.current = false
-    timer.start(REST_SECONDS)
     setPhase('rest')
   }
 
   const nextSet = () => {
-    timer.stop()
     setPhase('pre')
     setSetNo((n) => n + 1)
     setChecks(exercise.preChecks.map(() => false))
   }
 
-  useEffect(() => {
-    if (phase !== 'rest' || !timer.finished || firedRef.current) return
-    firedRef.current = true
-    playRestDone()
-    setFlashing(true)
-    const id = window.setTimeout(() => {
-      setFlashing(false)
-      nextSet()
-    }, 1600)
-    return () => window.clearTimeout(id)
-  }, [phase, timer.finished])
-
   return (
-    <div className={`card-mode${flashing ? ' flash' : ''}`}>
+    <div className="card-mode">
       <div className="card-top">
         <button className="icon-btn" type="button" onClick={exit} aria-label="退出动作卡">
           ✕
@@ -197,8 +160,8 @@ export default function ActionCard({ exercise, onExit }: Props) {
       {phase === 'rest' && (
         <>
           <div className="card-body center">
-            <p className="card-kicker">休息</p>
-            <p className="countdown">{formatMs(timer.remainingMs)}</p>
+            <p className="card-kicker">休息 · 下一组别再犯</p>
+            <p className="rest-hint">组间计时和铃声用训记的，这里只留提示</p>
             <div className="next-cue">
               <p className="next-cue-label">
                 下一组提示
@@ -208,15 +171,9 @@ export default function ActionCard({ exercise, onExit }: Props) {
               {chosen && <p className="next-cue-note">已作为下一组唯一提示</p>}
             </div>
           </div>
-          <div className="card-actions row">
-            <button className="ghost-btn" type="button" onClick={() => timer.adjust(-15)}>
-              −15s
-            </button>
-            <button className="ghost-btn" type="button" onClick={() => timer.adjust(15)}>
-              +15s
-            </button>
+          <div className="card-actions">
             <button className="cta" type="button" onClick={nextSet}>
-              下一组
+              开始下一组
             </button>
           </div>
         </>

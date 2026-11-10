@@ -502,22 +502,6 @@ body.card-open .tabbar {
   display: none;
 }
 
-.card-mode.flash::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  background: var(--accent);
-  opacity: 0;
-  pointer-events: none;
-  animation: restFlash 0.8s ease-out 2;
-}
-
-@keyframes restFlash {
-  0% { opacity: 0.42; }
-  100% { opacity: 0; }
-}
-
 .card-top {
   display: flex;
   align-items: center;
@@ -709,12 +693,10 @@ body.card-open .tabbar {
   border-style: dashed;
 }
 
-.countdown {
-  font-size: clamp(64px, 22vw, 120px);
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;
+.rest-hint {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .next-cue {

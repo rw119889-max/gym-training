@@ -11,7 +11,6 @@ export interface CardSession {
   cue: string
   checks: boolean[]
   chosenSymptomId: string | null
-  restEndAt: number | null
 }
 
 const KEY = 'cardSession'
