@@ -42,7 +42,7 @@ export default function App() {
           <RecipesTab />
         </div>
         <div hidden={tab !== 'videos'}>
-          <VideoTab />
+          <VideoTab active={tab === 'videos'} />
         </div>
       </main>
 

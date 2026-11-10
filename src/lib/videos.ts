@@ -22,6 +22,24 @@ export function addVideo(video: VideoClip): void {
   writeJSON(KEY, [video, ...getVideos()])
 }
 
+export function updateVideo(
+  id: string,
+  patch: { exerciseId?: string; label?: string },
+): void {
+  writeJSON(
+    KEY,
+    getVideos().map((video) =>
+      video.id === id
+        ? {
+            ...video,
+            exerciseId: patch.exerciseId ?? video.exerciseId,
+            label: patch.label === undefined ? video.label : patch.label,
+          }
+        : video,
+    ),
+  )
+}
+
 export async function deleteVideoClip(id: string): Promise<void> {
   writeJSON(
     KEY,

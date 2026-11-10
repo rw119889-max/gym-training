@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { VideoClip } from '../types'
-import { EXERCISES } from '../data/exercises'
+import { getExercises } from '../lib/exercises'
 import { inspectVideo } from '../lib/videoFile'
 import {
   addVideo,
@@ -12,22 +12,35 @@ import {
   MAX_CLIP_BYTES,
   MAX_TOTAL_BYTES,
   totalVideoBytes,
+  updateVideo,
 } from '../lib/videos'
 import { putPoster, putVideo } from '../lib/storage'
 import VideoPlayer from '../components/VideoPlayer'
 import VideoThumb from '../components/VideoThumb'
 
-export default function VideoTab() {
+interface Props {
+  active: boolean
+}
+
+export default function VideoTab({ active }: Props) {
   const [clips, setClips] = useState<VideoClip[]>(() => getVideos())
+  const [exercises, setExercises] = useState(() => getExercises())
   const [playing, setPlaying] = useState<VideoClip | null>(null)
   const [adding, setAdding] = useState(false)
-  const [exerciseId, setExerciseId] = useState(() => EXERCISES[0]?.id ?? '')
+  const [editingClip, setEditingClip] = useState<VideoClip | null>(null)
+  const [exerciseId, setExerciseId] = useState(() => getExercises()[0]?.id ?? '')
   const [label, setLabel] = useState('')
   const [busy, setBusy] = useState(false)
   const [usage, setUsage] = useState<StorageEstimate | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const refresh = () => setClips(getVideos())
+
+  useEffect(() => {
+    if (!active) return
+    setExercises(getExercises())
+    setClips(getVideos())
+  }, [active])
 
   useEffect(() => {
     let cancelled = false
@@ -98,14 +111,34 @@ export default function VideoTab() {
     if (!window.confirm('删除这条视频？手机里的原片不受影响。')) return
     await deleteVideoClip(video.id)
     if (playing?.id === video.id) setPlaying(null)
+    if (editingClip?.id === video.id) setEditingClip(null)
     refresh()
   }
 
-  const exerciseName = (id: string) => EXERCISES.find((exercise) => exercise.id === id)?.name ?? '动作'
-  const groups = EXERCISES.map((exercise) => ({
-    exercise,
-    videos: clips.filter((clip) => clip.exerciseId === exercise.id),
-  })).filter((group) => group.videos.length > 0)
+  const startEditClip = (clip: VideoClip) => {
+    setAdding(false)
+    setEditingClip(clip)
+    setExerciseId(clip.exerciseId)
+    setLabel(clip.label)
+  }
+
+  const saveEditClip = () => {
+    if (!editingClip) return
+    updateVideo(editingClip.id, { exerciseId, label: label.trim() })
+    if (playing?.id === editingClip.id) setPlaying(null)
+    setEditingClip(null)
+    setLabel('')
+    refresh()
+  }
+
+  const exerciseName = (id: string) =>
+    exercises.find((exercise) => exercise.id === id)?.name ?? '已删除的动作'
+  const groups = exercises
+    .map((exercise) => ({
+      exercise,
+      videos: clips.filter((clip) => clip.exerciseId === exercise.id),
+    }))
+    .filter((group) => group.videos.length > 0)
 
   const used = clips.reduce((sum, clip) => sum + clip.size, 0)
 
@@ -114,7 +147,7 @@ export default function VideoTab() {
       <h1 className="page-title">视频</h1>
       <p className="page-sub">动作不熟就点开看 · 一个动作可以存多条</p>
 
-      {adding ? (
+      {editingClip ? (
         <div className="video-upload">
           <label className="field">
             <span className="field-label">动作</span>
@@ -123,7 +156,49 @@ export default function VideoTab() {
               value={exerciseId}
               onChange={(event) => setExerciseId(event.target.value)}
             >
-              {EXERCISES.map((exercise) => (
+              {exercises.map((exercise) => (
+                <option key={exercise.id} value={exercise.id}>
+                  {exercise.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span className="field-label">标注（可选）</span>
+            <input
+              className="field-input"
+              value={label}
+              maxLength={20}
+              placeholder="如：侧面 / 起杠 / 最后一组"
+              onChange={(event) => setLabel(event.target.value)}
+            />
+          </label>
+          <div className="backup-actions">
+            <button className="save-btn" type="button" onClick={saveEditClip}>
+              保存
+            </button>
+            <button
+              className="ghost-btn small"
+              type="button"
+              onClick={() => {
+                setEditingClip(null)
+                setLabel('')
+              }}
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      ) : adding ? (
+        <div className="video-upload">
+          <label className="field">
+            <span className="field-label">动作</span>
+            <select
+              className="field-input"
+              value={exerciseId}
+              onChange={(event) => setExerciseId(event.target.value)}
+            >
+              {exercises.map((exercise) => (
                 <option key={exercise.id} value={exercise.id}>
                   {exercise.name}
                 </option>
@@ -167,7 +242,11 @@ export default function VideoTab() {
         </button>
       )}
 
-      {groups.length === 0 && !adding ? (
+      {exercises.length === 0 && (
+        <p className="hint">还没有动作。先到「训练」页添加动作，视频才能绑定。</p>
+      )}
+
+      {groups.length === 0 && !adding && !editingClip ? (
         <div className="empty">
           <p className="empty-title">还没有视频</p>
           <p className="empty-desc">
@@ -189,6 +268,14 @@ export default function VideoTab() {
                         {formatDuration(video.duration)} · {formatBytes(video.size)}
                       </span>
                     </span>
+                  </button>
+                  <button
+                    className="video-edit"
+                    type="button"
+                    aria-label={`修改 ${video.label || '视频'}`}
+                    onClick={() => startEditClip(video)}
+                  >
+                    改
                   </button>
                   <button
                     className="video-delete"

@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import ActionCard from './ActionCard'
 import ExerciseDetail from './ExerciseDetail'
-import { EXERCISES, GROUP_LABELS } from '../data/exercises'
+import { GROUP_LABELS } from '../data/exercises'
+import { addExercise, getExercises } from '../lib/exercises'
+import type { Exercise, ExerciseGroup } from '../types'
 import { getPinnedKeys, pinKey, rankSymptoms, togglePin } from '../lib/logs'
 import type { SymptomCount } from '../lib/logs'
 import { exportBackup, importBackup } from '../lib/backup'
@@ -20,10 +22,10 @@ interface RankedRow extends SymptomCount {
   title: string
 }
 
-function buildRanking(pins: string[]): RankedRow[] {
+function buildRanking(pins: string[], exercises: Exercise[]): RankedRow[] {
   const rows: RankedRow[] = []
   for (const item of rankSymptoms()) {
-    const exercise = EXERCISES.find((e) => e.id === item.exerciseId)
+    const exercise = exercises.find((e) => e.id === item.exerciseId)
     const symptom = exercise?.symptoms.find((s) => s.id === item.symptomId)
     if (!exercise || !symptom) continue
     rows.push({
@@ -46,6 +48,10 @@ export default function TrainingTab() {
     return active ? { name: 'card', id: active.exerciseId } : { name: 'list' }
   })
   const [pins, setPins] = useState<string[]>(() => getPinnedKeys())
+  const [exercises, setExercises] = useState<Exercise[]>(() => getExercises())
+  const [adding, setAdding] = useState(false)
+  const [draftName, setDraftName] = useState('')
+  const [draftGroup, setDraftGroup] = useState<ExerciseGroup>('squat')
   const [backupBusy, setBackupBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const viewRef = useRef(view)
@@ -91,6 +97,19 @@ export default function TrainingTab() {
     )
   }
 
+  const refreshExercises = () => setExercises(getExercises())
+
+  const handleAdd = () => {
+    const name = draftName.trim()
+    if (!name) return
+    const created = addExercise({ name, group: draftGroup })
+    refreshExercises()
+    setDraftName('')
+    setDraftGroup('squat')
+    setAdding(false)
+    goDetail(created.id)
+  }
+
   const handleExport = async () => {
     setBackupBusy(true)
     try {
@@ -117,7 +136,7 @@ export default function TrainingTab() {
     }
   }
 
-  const exercise = view.name === 'list' ? undefined : EXERCISES.find((e) => e.id === view.id)
+  const exercise = view.name === 'list' ? undefined : exercises.find((e) => e.id === view.id)
 
   if (view.name === 'card' && exercise) {
     return <ActionCard exercise={exercise} onExit={back} />
@@ -129,11 +148,19 @@ export default function TrainingTab() {
         exercise={exercise}
         onBack={back}
         onStart={() => goCard(exercise.id)}
+        onChanged={refreshExercises}
+        onDeleted={() => {
+          refreshExercises()
+          if (window.history.state?.gtDepth) {
+            window.history.replaceState({ gtDepth: 0 }, '')
+          }
+          setView({ name: 'list' })
+        }}
       />
     )
   }
 
-  const ranking = buildRanking(pins)
+  const ranking = buildRanking(pins, exercises)
 
   return (
     <section>
@@ -141,7 +168,7 @@ export default function TrainingTab() {
       <p className="page-sub">这一组怎么练对</p>
 
       <div className="exercise-list">
-        {EXERCISES.map((item) => (
+        {exercises.map((item) => (
           <button
             key={item.id}
             type="button"
@@ -155,6 +182,64 @@ export default function TrainingTab() {
           </button>
         ))}
       </div>
+
+      {adding ? (
+        <div className="exercise-add">
+          <label className="field">
+            <span className="field-label">动作名称</span>
+            <input
+              className="field-input"
+              value={draftName}
+              maxLength={20}
+              placeholder="如：杠铃划船"
+              autoFocus
+              onChange={(event) => setDraftName(event.target.value)}
+            />
+          </label>
+          <p className="field-label">类型</p>
+          <div className="filter-row">
+            {(Object.keys(GROUP_LABELS) as ExerciseGroup[]).map((group) => (
+              <button
+                key={group}
+                type="button"
+                className="filter-chip"
+                aria-pressed={draftGroup === group}
+                onClick={() => setDraftGroup(group)}
+              >
+                {GROUP_LABELS[group]}
+              </button>
+            ))}
+          </div>
+          <div className="backup-actions">
+            <button
+              className="save-btn"
+              type="button"
+              disabled={!draftName.trim()}
+              onClick={handleAdd}
+            >
+              添加
+            </button>
+            <button
+              className="ghost-btn small"
+              type="button"
+              onClick={() => {
+                setAdding(false)
+                setDraftName('')
+              }}
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          className="ghost-btn small exercise-add-btn"
+          type="button"
+          onClick={() => setAdding(true)}
+        >
+          + 添加动作
+        </button>
+      )}
 
       <h2 className="section-title">我的高频错误</h2>
       {ranking.length === 0 ? (
