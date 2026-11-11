@@ -3,17 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#0a0b0d">
+  <meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f7f8f4" media="(prefers-color-scheme: light)">
   <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="./icons/apple-touch-180.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="自律更自由">
   <title>自律更自由</title>
-  <script type="module" crossorigin src="./assets/index-kB6hxI6l.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-jfgTyFTA.css">
+  <script>
+    // 首帧前套用强制主题，避免浅色用户看到一帧深色闪白
+    (function () {
+      try {
+        var raw = localStorage.getItem('gt.v1.themeMode')
+        var mode = raw ? JSON.parse(raw) : 'auto'
+        if (mode === 'light' || mode === 'dark') {
+          document.documentElement.setAttribute('data-theme', mode)
+        }
+      } catch (e) {}
+    })()
+  </script>
+  <script type="module" crossorigin src="./assets/index-DZpOytYn.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-B5AIFK4C.css">
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root"></div>
 </body>
 </html>
