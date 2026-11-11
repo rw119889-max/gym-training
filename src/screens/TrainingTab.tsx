@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import ActionCard from './ActionCard'
 import ExerciseDetail from './ExerciseDetail'
-import { GROUP_LABELS } from '../data/exercises'
+import { GROUP_HINTS, GROUP_LABELS } from '../data/exercises'
 import { addExercise, getExercises, getRecentExerciseIds, markRecentExercise } from '../lib/exercises'
 import type { Exercise, ExerciseGroup } from '../types'
 import { getPinnedKeys, pinKey, rankSymptoms, togglePin } from '../lib/logs'
@@ -10,11 +10,26 @@ import type { SymptomCount } from '../lib/logs'
 import { exportBackup, importBackup } from '../lib/backup'
 import { clearSession, loadSession } from '../lib/session'
 
-type View = { name: 'list' } | { name: 'detail'; id: string } | { name: 'card'; id: string }
+const GROUPS = Object.keys(GROUP_LABELS) as ExerciseGroup[]
+
+type View =
+  | { name: 'categories' }
+  | { name: 'list'; group: ExerciseGroup }
+  | { name: 'detail'; id: string }
+  | { name: 'card'; id: string }
 
 function depthOf(view: View): number {
-  if (view.name === 'list') return 0
-  return view.name === 'detail' ? 1 : 2
+  if (view.name === 'categories') return 0
+  if (view.name === 'list') return 1
+  return view.name === 'detail' ? 2 : 3
+}
+
+function groupFromView(view: View, exercises: Exercise[]): ExerciseGroup | undefined {
+  if (view.name === 'list') return view.group
+  if (view.name === 'detail' || view.name === 'card') {
+    return exercises.find((item) => item.id === view.id)?.group
+  }
+  return undefined
 }
 
 interface RankedRow extends SymptomCount {
@@ -47,23 +62,25 @@ interface Props {
 }
 
 export default function TrainingTab({ active }: Props) {
+  const [exercises, setExercises] = useState<Exercise[]>(() => getExercises())
   const [view, setView] = useState<View>(() => {
-    const active = loadSession()
-    return active ? { name: 'card', id: active.exerciseId } : { name: 'list' }
+    const session = loadSession()
+    return session ? { name: 'card', id: session.exerciseId } : { name: 'categories' }
   })
   const [pins, setPins] = useState<string[]>(() => getPinnedKeys())
-  const [exercises, setExercises] = useState<Exercise[]>(() => getExercises())
   const [adding, setAdding] = useState(false)
   const [query, setQuery] = useState('')
   const [recentIds, setRecentIds] = useState<string[]>(() => getRecentExerciseIds())
   const [draftName, setDraftName] = useState('')
-  const [draftGroup, setDraftGroup] = useState<ExerciseGroup>('squat')
+  const [draftGroup, setDraftGroup] = useState<ExerciseGroup>('legs')
   const [backupBusy, setBackupBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const viewRef = useRef(view)
   viewRef.current = view
   const activeRef = useRef(active)
   activeRef.current = active
+  const exercisesRef = useRef(exercises)
+  exercisesRef.current = exercises
 
   useEffect(() => {
     const depth = depthOf(viewRef.current)
@@ -72,25 +89,50 @@ export default function TrainingTab({ active }: Props) {
     const onPop = (event: PopStateEvent) => {
       if (!activeRef.current) return
       const current = viewRef.current
-      if (current.name === 'list') return
+      if (current.name === 'categories') return
       const target =
         event.state && typeof event.state.gtDepth === 'number' ? event.state.gtDepth : 0
-      if (current.name === 'card' && target < 2) clearSession()
-      if (target <= 0) setView({ name: 'list' })
-      else if (target === 1) setView({ name: 'detail', id: current.id })
+      if (current.name === 'card' && target < 3) clearSession()
+      if (target <= 0) {
+        setView({ name: 'categories' })
+      } else if (target === 1) {
+        const group =
+          (event.state?.group as ExerciseGroup | undefined) ??
+          groupFromView(current, exercisesRef.current) ??
+          'legs'
+        setAdding(false)
+        setView({ name: 'list', group })
+      } else if (target === 2 && current.name === 'card') {
+        setView({ name: 'detail', id: current.id })
+      }
     }
 
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
+  const refreshExercises = () => {
+    const next = getExercises()
+    exercisesRef.current = next
+    setExercises(next)
+  }
+
+  const goCategory = (group: ExerciseGroup) => {
+    window.history.pushState({ gtDepth: 1, group }, '')
+    setQuery('')
+    setAdding(false)
+    setView({ name: 'list', group })
+  }
+
   const goDetail = (id: string) => {
-    window.history.pushState({ gtDepth: 1 }, '')
+    const group = exercisesRef.current.find((item) => item.id === id)?.group
+    window.history.pushState({ gtDepth: 2, group }, '')
     setView({ name: 'detail', id })
   }
 
   const goCard = (id: string) => {
-    window.history.pushState({ gtDepth: 2 }, '')
+    const group = exercisesRef.current.find((item) => item.id === id)?.group
+    window.history.pushState({ gtDepth: 3, group }, '')
     setRecentIds(markRecentExercise(id))
     setView({ name: 'card', id })
   }
@@ -102,12 +144,15 @@ export default function TrainingTab({ active }: Props) {
       return
     }
     const current = viewRef.current
-    setView(
-      current.name === 'card' ? { name: 'detail', id: current.id } : { name: 'list' },
-    )
+    if (current.name === 'card') {
+      setView({ name: 'detail', id: current.id })
+    } else if (current.name === 'detail') {
+      const group = groupFromView(current, exercisesRef.current) ?? 'legs'
+      setView({ name: 'list', group })
+    } else {
+      setView({ name: 'categories' })
+    }
   }
-
-  const refreshExercises = () => setExercises(getExercises())
 
   const handleAdd = () => {
     const name = draftName.trim()
@@ -115,7 +160,6 @@ export default function TrainingTab({ active }: Props) {
     const created = addExercise({ name, group: draftGroup })
     refreshExercises()
     setDraftName('')
-    setDraftGroup('squat')
     setAdding(false)
     goDetail(created.id)
   }
@@ -146,7 +190,10 @@ export default function TrainingTab({ active }: Props) {
     }
   }
 
-  const exercise = view.name === 'list' ? undefined : exercises.find((e) => e.id === view.id)
+  const exercise =
+    view.name === 'detail' || view.name === 'card'
+      ? exercises.find((item) => item.id === view.id)
+      : undefined
 
   if (view.name === 'card' && exercise) {
     return <ActionCard exercise={exercise} onExit={back} />
@@ -156,121 +203,189 @@ export default function TrainingTab({ active }: Props) {
     return (
       <ExerciseDetail
         exercise={exercise}
+        backLabel={`← ${GROUP_LABELS[exercise.group]}`}
         onBack={back}
         onStart={() => goCard(exercise.id)}
         onChanged={refreshExercises}
         onDeleted={() => {
+          const group = exercise.group
           refreshExercises()
-          if (window.history.state?.gtDepth) {
-            window.history.replaceState({ gtDepth: 0 }, '')
+          const depth = window.history.state?.gtDepth
+          if (typeof depth === 'number' && depth > 0) {
+            window.history.replaceState({ gtDepth: 1, group }, '')
           }
-          setView({ name: 'list' })
+          setView({ name: 'list', group })
         }}
       />
     )
   }
 
+  if (view.name === 'list') {
+    const group = view.group
+    const normalizedQuery = query.trim().toLowerCase()
+    const visibleExercises = exercises
+      .filter((item) => item.group === group)
+      .filter((item) => !normalizedQuery || item.name.toLowerCase().includes(normalizedQuery))
+      .sort((a, b) => {
+        const aRecent = recentIds.indexOf(a.id)
+        const bRecent = recentIds.indexOf(b.id)
+        if (aRecent < 0 && bRecent < 0) return 0
+        if (aRecent < 0) return 1
+        if (bRecent < 0) return -1
+        return aRecent - bRecent
+      })
+
+    return (
+      <section>
+        <button className="back-btn" type="button" onClick={back}>
+          ← 动作库
+        </button>
+        <h1 className="page-title">{GROUP_LABELS[group]}</h1>
+        <p className="page-sub">{GROUP_HINTS[group]}</p>
+
+        <label className="field exercise-search">
+          <span className="field-label">本类快速查</span>
+          <input
+            className="field-input"
+            value={query}
+            placeholder="搜索动作名称"
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </label>
+
+        <div className="exercise-list">
+          {visibleExercises.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="exercise-row"
+              onClick={() => goDetail(item.id)}
+            >
+              <span>{item.name}</span>
+              <span className="exercise-meta">
+                {recentIds.includes(item.id) ? '最近练过' : `${item.symptoms.length} 项症状`}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {visibleExercises.length === 0 && (
+          <div className="empty">
+            <p className="empty-title">这一类还没有这个动作</p>
+            <p className="empty-desc">换个关键词，或在下面自己添加一个。</p>
+          </div>
+        )}
+
+        {adding ? (
+          <div className="exercise-add">
+            <label className="field">
+              <span className="field-label">动作名称</span>
+              <input
+                className="field-input"
+                value={draftName}
+                maxLength={20}
+                placeholder="如：杠铃划船"
+                autoFocus
+                onChange={(event) => setDraftName(event.target.value)}
+              />
+            </label>
+            <p className="field-label">类型</p>
+            <div className="filter-row">
+              {GROUPS.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className="filter-chip"
+                  aria-pressed={draftGroup === item}
+                  onClick={() => setDraftGroup(item)}
+                >
+                  {GROUP_LABELS[item]}
+                </button>
+              ))}
+            </div>
+            <div className="backup-actions">
+              <button
+                className="save-btn"
+                type="button"
+                disabled={!draftName.trim()}
+                onClick={handleAdd}
+              >
+                添加
+              </button>
+              <button
+                className="ghost-btn small"
+                type="button"
+                onClick={() => {
+                  setAdding(false)
+                  setDraftName('')
+                }}
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            className="ghost-btn small exercise-add-btn"
+            type="button"
+            onClick={() => {
+              setDraftGroup(group)
+              setAdding(true)
+            }}
+          >
+            + 添加动作
+          </button>
+        )}
+      </section>
+    )
+  }
+
+  // 兜底：详情/卡片里的动作已被删除
+  if (view.name === 'detail' || view.name === 'card') {
+    return (
+      <section>
+        <div className="empty">
+          <p className="empty-title">这个动作不见了</p>
+          <p className="empty-desc">可能刚被删掉。回到动作库重新选一个。</p>
+        </div>
+        <button className="ghost-btn small" type="button" onClick={back}>
+          返回
+        </button>
+      </section>
+    )
+  }
+
   const ranking = buildRanking(pins, exercises)
-  const normalizedQuery = query.trim().toLowerCase()
-  const visibleExercises = exercises
-    .filter((item) => !normalizedQuery || item.name.toLowerCase().includes(normalizedQuery))
-    .sort((a, b) => {
-      const aRecent = recentIds.indexOf(a.id)
-      const bRecent = recentIds.indexOf(b.id)
-      if (aRecent < 0 && bRecent < 0) return 0
-      if (aRecent < 0) return 1
-      if (bRecent < 0) return -1
-      return aRecent - bRecent
-    })
 
   return (
     <section>
-      <h1 className="page-title">动作库</h1>
-      <p className="page-sub">这一组怎么练对</p>
+      <h1 className="page-title">训练</h1>
+      <p className="page-sub">先选大类，再挑今天练的动作</p>
 
-      <label className="field exercise-search">
-        <span className="field-label">快速查动作</span>
-        <input
-          className="field-input"
-          value={query}
-          placeholder="搜索动作名称"
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </label>
-
-      <div className="exercise-list">
-        {visibleExercises.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className="exercise-row"
-            onClick={() => goDetail(item.id)}
-          >
-            <span>{item.name}</span>
-            <span className="exercise-meta">
-              {GROUP_LABELS[item.group]} · {item.symptoms.length} 项症状
-            </span>
-          </button>
-        ))}
+      <div className="group-list">
+        {GROUPS.map((group) => {
+          const count = exercises.filter((item) => item.group === group).length
+          return (
+            <button
+              key={group}
+              type="button"
+              className="group-card"
+              onClick={() => goCategory(group)}
+            >
+              <span className="group-card-body">
+                <span className="group-card-title">{GROUP_LABELS[group]}</span>
+                <span className="group-card-sub">{GROUP_HINTS[group]}</span>
+              </span>
+              <span className="group-card-side">
+                <span className="group-card-count">{count} 个动作</span>
+                <span className="group-card-arrow" aria-hidden="true">
+                  →
+                </span>
+              </span>
+            </button>
+          )
+        })}
       </div>
-
-      {adding ? (
-        <div className="exercise-add">
-          <label className="field">
-            <span className="field-label">动作名称</span>
-            <input
-              className="field-input"
-              value={draftName}
-              maxLength={20}
-              placeholder="如：杠铃划船"
-              autoFocus
-              onChange={(event) => setDraftName(event.target.value)}
-            />
-          </label>
-          <p className="field-label">类型</p>
-          <div className="filter-row">
-            {(Object.keys(GROUP_LABELS) as ExerciseGroup[]).map((group) => (
-              <button
-                key={group}
-                type="button"
-                className="filter-chip"
-                aria-pressed={draftGroup === group}
-                onClick={() => setDraftGroup(group)}
-              >
-                {GROUP_LABELS[group]}
-              </button>
-            ))}
-          </div>
-          <div className="backup-actions">
-            <button
-              className="save-btn"
-              type="button"
-              disabled={!draftName.trim()}
-              onClick={handleAdd}
-            >
-              添加
-            </button>
-            <button
-              className="ghost-btn small"
-              type="button"
-              onClick={() => {
-                setAdding(false)
-                setDraftName('')
-              }}
-            >
-              取消
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          className="ghost-btn small exercise-add-btn"
-          type="button"
-          onClick={() => setAdding(true)}
-        >
-          + 添加动作
-        </button>
-      )}
 
       <h2 className="section-title">我的高频错误</h2>
       {ranking.length === 0 ? (

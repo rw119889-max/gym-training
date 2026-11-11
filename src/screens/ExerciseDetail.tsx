@@ -12,6 +12,7 @@ import VideoThumb from '../components/VideoThumb'
 
 interface Props {
   exercise: Exercise
+  backLabel?: string
   onBack: () => void
   onStart: () => void
   onChanged: () => void
@@ -20,6 +21,7 @@ interface Props {
 
 export default function ExerciseDetail({
   exercise,
+  backLabel = '← 动作库',
   onBack,
   onStart,
   onChanged,
@@ -122,7 +124,7 @@ export default function ExerciseDetail({
   return (
     <section>
       <button className="back-btn" type="button" onClick={onBack}>
-        ← 动作库
+        {backLabel}
       </button>
 
       <header className="detail-head">

@@ -13,9 +13,22 @@ export interface ExercisePatch {
   cue?: string
 }
 
+// 旧版分组已合并到三大类，读到旧数据时顺手迁移
+const GROUP_MIGRATION: Record<string, ExerciseGroup> = {
+  squat: 'legs',
+  hinge: 'legs',
+  push: 'chest',
+}
+
+function normalizeGroup(group: string | undefined): ExerciseGroup {
+  if (group === 'legs' || group === 'chest' || group === 'back') return group
+  return (group && GROUP_MIGRATION[group]) || 'legs'
+}
+
 function getCustom(): Exercise[] {
   return readJSON<Exercise[]>(CUSTOM_KEY, []).map((exercise) => ({
     ...exercise,
+    group: normalizeGroup(exercise.group),
     targetFeeling: exercise.targetFeeling ?? '目标肌群主动发力，动作全程可控',
     safetyNotes: exercise.safetyNotes ?? [
       '出现锐痛、麻木或疼痛持续加重时，停止本组',
@@ -63,7 +76,7 @@ export function addExercise(input: ExercisePatch & { name: string }): Exercise {
   const exercise: Exercise = {
     id: `x-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`,
     name,
-    group: input.group ?? 'squat',
+    group: input.group ?? 'legs',
     preChecks: [
       '站好：脚踩实，身体在杠 / 器械的正下方',
       '核心：吸一口气绷住，腰不塌',

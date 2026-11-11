@@ -229,6 +229,90 @@ body::after {
 
 /* ---------- 动作库 ---------- */
 
+.group-list {
+  display: grid;
+  gap: 12px;
+}
+
+.group-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  min-height: 92px;
+  padding: 18px 18px 18px 22px;
+  overflow: hidden;
+  text-align: left;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: border-color 0.18s, transform 0.18s;
+}
+
+.group-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18px;
+  bottom: 18px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  opacity: 0.75;
+}
+
+.group-card:active {
+  transform: scale(0.985);
+  border-color: rgba(201, 255, 46, 0.35);
+}
+
+.group-card:focus-visible {
+  outline: 2px solid rgba(201, 255, 46, 0.5);
+  outline-offset: 2px;
+}
+
+.group-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.group-card-title {
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.group-card-sub {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.group-card-side {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.group-card-count {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.group-card-arrow {
+  font-size: 18px;
+  color: var(--accent);
+}
+
 .exercise-list {
   display: grid;
   gap: 10px;

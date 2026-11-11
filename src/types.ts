@@ -1,4 +1,4 @@
-export type ExerciseGroup = 'squat' | 'hinge' | 'push'
+export type ExerciseGroup = 'legs' | 'chest' | 'back'
 
 export interface ExerciseSymptom {
   id: string
