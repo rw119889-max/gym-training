@@ -1,7 +1,7 @@
 {
   "name": "自律更自由",
   "short_name": "训练",
-  "description": "这一组怎么练对、今天吃什么、每天学一点",
+  "description": "这一组怎么练对、今天吃什么、动作不熟看本机示范",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
