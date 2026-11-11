@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { Ingredient, Recipe } from '../types'
 import { getRecipe, MEAL_LABELS, MEAL_SLOTS, newRecipe, saveRecipe } from '../lib/recipes'
 import { compressImage } from '../lib/image'
-import { putImage } from '../lib/storage'
+import { deleteImage, putImage } from '../lib/storage'
 import { formatGram, recipeNutrition } from '../lib/nutrition'
 import RecipeImage from '../components/RecipeImage'
 import NumberField from '../components/NumberField'
@@ -12,6 +12,12 @@ interface Props {
   recipeId: string | null
   onBack: () => void
   onSaved: (id: string) => void
+}
+
+interface PendingImage {
+  id: string
+  blob: Blob
+  url: string
 }
 
 const MACRO_FIELDS: { key: keyof Ingredient['per100g']; label: string }[] = [
@@ -28,16 +34,16 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
     }
     return newRecipe()
   })
-  const [preview, setPreview] = useState<string | null>(null)
-  const [pendingImage, setPendingImage] = useState<Blob | null>(null)
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([])
+  const [removedIds, setRemovedIds] = useState<string[]>([])
   const [imageBusy, setImageBusy] = useState(false)
   const [saving, setSaving] = useState(false)
+  const urlsRef = useRef<string[]>([])
 
   useEffect(() => {
-    return () => {
-      if (preview) URL.revokeObjectURL(preview)
-    }
-  }, [preview])
+    const urls = urlsRef.current
+    return () => urls.forEach((url) => URL.revokeObjectURL(url))
+  }, [])
 
   const total = recipeNutrition(draft)
   const canSave = draft.name.trim().length > 0
@@ -75,15 +81,24 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
   }
 
   const pickImage = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+    const files = [...(event.target.files ?? [])]
     event.target.value = ''
-    if (!file) return
+    if (files.length === 0) return
     setImageBusy(true)
     try {
-      const blob = await compressImage(file)
-      setPreview(URL.createObjectURL(blob))
-      setPendingImage(blob)
-      patch({ imageId: draft.id })
+      const added: PendingImage[] = []
+      for (const file of files) {
+        const blob = await compressImage(file)
+        const id = `ri-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+        const url = URL.createObjectURL(blob)
+        urlsRef.current.push(url)
+        added.push({ id, blob, url })
+      }
+      setPendingImages((prev) => [...prev, ...added])
+      setDraft((prev) => ({
+        ...prev,
+        imageIds: [...prev.imageIds, ...added.map((item) => item.id)],
+      }))
     } catch {
       window.alert('图片处理失败，换一张试试')
     } finally {
@@ -91,11 +106,24 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
     }
   }
 
+  const removeImage = (id: string) => {
+    const pending = pendingImages.find((item) => item.id === id)
+    if (pending) {
+      URL.revokeObjectURL(pending.url)
+      urlsRef.current = urlsRef.current.filter((url) => url !== pending.url)
+      setPendingImages((prev) => prev.filter((item) => item.id !== id))
+    } else {
+      setRemovedIds((prev) => [...prev, id])
+    }
+    setDraft((prev) => ({ ...prev, imageIds: prev.imageIds.filter((item) => item !== id) }))
+  }
+
   const save = async () => {
     if (!canSave || saving) return
     setSaving(true)
     try {
-      if (pendingImage) await putImage(draft.id, pendingImage)
+      for (const item of pendingImages) await putImage(item.id, item.blob)
+      for (const id of removedIds) await deleteImage(id)
       saveRecipe({ ...draft, name: draft.name.trim(), updatedAt: new Date().toISOString() })
       onSaved(draft.id)
     } catch {
@@ -126,16 +154,34 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
       </label>
 
       <div className="field">
-        <span className="field-label">菜谱图片</span>
-        <div className="image-picker">
-          {preview ? (
-            <img className="recipe-image editor-image" src={preview} alt="菜谱预览" />
-          ) : (
-            <RecipeImage imageId={draft.imageId} alt="菜谱图片" className="editor-image" />
-          )}
-          <label className="ghost-btn small">
-            {imageBusy ? '处理中…' : draft.imageId ? '换一张' : '选择图片'}
-            <input type="file" accept="image/*" hidden onChange={pickImage} disabled={imageBusy} />
+        <span className="field-label">
+          菜谱图片{draft.imageIds.length > 0 ? '（第一张为封面）' : ''}
+        </span>
+        <div className="image-picker-grid">
+          {draft.imageIds.map((id, index) => {
+            const pending = pendingImages.find((item) => item.id === id)
+            return (
+              <div key={id} className="image-picker-cell">
+                {pending ? (
+                  <img className="recipe-image editor-image" src={pending.url} alt={`图片 ${index + 1}`} />
+                ) : (
+                  <RecipeImage imageId={id} alt={`图片 ${index + 1}`} className="editor-image" />
+                )}
+                {index === 0 && <span className="cover-badge">封面</span>}
+                <button
+                  className="image-remove"
+                  type="button"
+                  aria-label={`删除第 ${index + 1} 张图片`}
+                  onClick={() => removeImage(id)}
+                >
+                  ×
+                </button>
+              </div>
+            )
+          })}
+          <label className="image-add-cell">
+            {imageBusy ? '处理中…' : '+ 加图片'}
+            <input type="file" accept="image/*" multiple hidden disabled={imageBusy} onChange={pickImage} />
           </label>
         </div>
       </div>
@@ -198,7 +244,9 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
       >
         {draft.spicy ? '含辣' : '无辣'}
       </button>
-      <p className="hint">营养数据请统一使用生重或熟重，不要混用。</p>
+      <p className="hint">
+        营养按食材克数自动求和。克数按「实际吃进去的」填最准（如去头去刺后的量），生重熟重不要混用。
+      </p>
 
       <div className="nutrition-preview">
         <span>蛋白 {formatGram(total.protein)} g</span>
@@ -265,6 +313,17 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
           value={draft.method}
           placeholder="一、二、三……"
           onChange={(event) => patch({ method: event.target.value })}
+        />
+      </label>
+
+      <label className="field">
+        <span className="field-label">实测笔记</span>
+        <textarea
+          className="field-input method-input"
+          rows={4}
+          value={draft.notes}
+          placeholder="做过一次后记：实际吃了多少克、这餐大概拿到多少蛋白/脂肪/碳水、下次怎么调整"
+          onChange={(event) => patch({ notes: event.target.value })}
         />
       </label>
 

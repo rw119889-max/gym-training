@@ -18,7 +18,8 @@ describe('newRecipe', () => {
     expect(recipe.spicy).toBe(false)
     expect(recipe.oilGrams).toBe(10)
     expect(recipe.saltGrams).toBe(3)
-    expect(recipe.imageId).toBeNull()
+    expect(recipe.imageIds).toEqual([])
+    expect(recipe.notes).toBe('')
   })
 })
 
@@ -42,6 +43,12 @@ describe('saveRecipe / getRecipe / deleteRecipe', () => {
     expect(getRecipes()).toHaveLength(2)
   })
 
+  it('多图顺序保存后不变', () => {
+    const recipe = { ...newRecipe(), name: '多图', imageIds: ['a', 'b', 'c'] }
+    saveRecipe(recipe)
+    expect(getRecipe(recipe.id)?.imageIds).toEqual(['a', 'b', 'c'])
+  })
+
   it('删除后不再存在', () => {
     const recipe = { ...newRecipe(), name: 'A' }
     saveRecipe(recipe)
@@ -49,10 +56,10 @@ describe('saveRecipe / getRecipe / deleteRecipe', () => {
     expect(getRecipes()).toHaveLength(0)
   })
 
-  it('读取旧数据时补齐缺失的默认值', () => {
+  it('读取旧数据时补齐缺失的默认值，单图自动迁移成数组', () => {
     localStorage.setItem(
       'gt.v1.recipes',
-      JSON.stringify([{ id: 'old', name: '旧菜', method: '', imageId: null, ingredients: [] }]),
+      JSON.stringify([{ id: 'old', name: '旧菜', method: '', imageId: 'legacy-img', ingredients: [] }]),
     )
     const [recipe] = getRecipes()
     expect(recipe.meal).toBe('lunch')
@@ -60,5 +67,7 @@ describe('saveRecipe / getRecipe / deleteRecipe', () => {
     expect(recipe.spicy).toBe(false)
     expect(recipe.oilGrams).toBe(10)
     expect(recipe.saltGrams).toBe(3)
+    expect(recipe.imageIds).toEqual(['legacy-img'])
+    expect(recipe.notes).toBe('')
   })
 })

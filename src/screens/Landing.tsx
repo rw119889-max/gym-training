@@ -1,3 +1,5 @@
+import { APP_VERSION } from '../version'
+
 interface Props {
   onStart: () => void
 }
@@ -9,6 +11,7 @@ export default function Landing({ onStart }: Props) {
         <p className="eyebrow">GYM TRAINING</p>
         <h1 className="hero">自律更自由</h1>
         <div className="rule" />
+        <p className="version-badge">{APP_VERSION}</p>
         <button className="start" type="button" onClick={onStart}>
           开始训练吧！
           <svg

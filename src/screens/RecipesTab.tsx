@@ -39,7 +39,20 @@ function RecipeDetail({ recipe, onBack, onEdit, onDelete }: DetailProps) {
         ← 食谱
       </button>
 
-      <RecipeImage imageId={recipe.imageId} alt={recipe.name} className="detail-image" />
+      {recipe.imageIds.length === 0 ? (
+        <RecipeImage imageId={null} alt={recipe.name} className="detail-image" />
+      ) : (
+        <div className="detail-images">
+          {recipe.imageIds.map((id, index) => (
+            <RecipeImage
+              key={id}
+              imageId={id}
+              alt={`${recipe.name} · 图 ${index + 1}`}
+              className="detail-image"
+            />
+          ))}
+        </div>
+      )}
 
       <div className="recipe-head">
         <h1 className="page-title">{recipe.name}</h1>
@@ -84,6 +97,11 @@ function RecipeDetail({ recipe, onBack, onEdit, onDelete }: DetailProps) {
 
       <h2 className="section-title">做法</h2>
       <p className="method-text">{recipe.method || '还没有写做法。'}</p>
+
+      <h2 className="section-title">实测笔记</h2>
+      <p className="method-text">
+        {recipe.notes || '还没记。做一次之后，把实际吃了多少、这餐拿到的营养、下次怎么调整写进编辑页。'}
+      </p>
 
       <div className="detail-actions">
         <button className="danger-btn" type="button" onClick={onDelete}>
@@ -175,7 +193,7 @@ export default function RecipesTab({ active }: Props) {
         onEdit={() => goEdit(current.id)}
         onDelete={() => {
           if (!window.confirm(`删除「${current.name}」？`)) return
-          if (current.imageId) void deleteImage(current.imageId)
+          for (const id of current.imageIds) void deleteImage(id)
           deleteRecipe(current.id)
           refresh()
           back()
@@ -223,7 +241,11 @@ export default function RecipesTab({ active }: Props) {
                 className="recipe-card"
                 onClick={() => goDetail(recipe.id)}
               >
-                <RecipeImage imageId={recipe.imageId} alt={recipe.name} className="recipe-thumb" />
+                <RecipeImage
+                  imageId={recipe.imageIds[0] ?? null}
+                  alt={recipe.name}
+                  className="recipe-thumb"
+                />
                 <span className="recipe-card-body">
                   <span className="recipe-card-name">{recipe.name}</span>
                   <span className="recipe-card-meta">

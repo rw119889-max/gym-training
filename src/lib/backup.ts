@@ -1,4 +1,5 @@
 import { getRecipes } from './recipes'
+import { getPhotos } from './exercisePhotos'
 import { clearImages, getImage, putImage } from './storage'
 
 const PREFIX = 'gt.v1.'
@@ -33,9 +34,16 @@ export async function exportBackup(): Promise<void> {
 
   const images: Record<string, string> = {}
   for (const recipe of getRecipes()) {
-    if (!recipe.imageId || images[recipe.imageId]) continue
-    const blob = await getImage(recipe.imageId)
-    if (blob) images[recipe.imageId] = await blobToDataUrl(blob)
+    for (const id of recipe.imageIds) {
+      if (images[id]) continue
+      const blob = await getImage(id)
+      if (blob) images[id] = await blobToDataUrl(blob)
+    }
+  }
+  for (const photo of getPhotos()) {
+    if (images[photo.id]) continue
+    const blob = await getImage(photo.id)
+    if (blob) images[photo.id] = await blobToDataUrl(blob)
   }
 
   const payload: BackupFile = {

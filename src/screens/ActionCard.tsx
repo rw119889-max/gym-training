@@ -33,7 +33,7 @@ export default function ActionCard({ exercise, onExit }: Props) {
   const [chosen, setChosen] = useState<ExerciseSymptom | null>(
     exercise.symptoms.find((item) => item.id === restored?.chosenSymptomId) ?? null,
   )
-  const [videos] = useState(() => getExerciseVideos(exercise.id))
+  const videos = getExerciseVideos(exercise.id)
   const [watching, setWatching] = useState<VideoClip | null>(null)
   const trapRef = useFocusTrap<HTMLDivElement>()
 

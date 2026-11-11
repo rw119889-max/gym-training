@@ -14,15 +14,23 @@ export const MEAL_LABELS: Record<MealSlot, string> = {
   snack: '加餐',
 }
 
+// 旧数据只有 imageId 单图、没有 notes；读取时补齐，并把单图迁移成 imageIds 数组
+function normalizeRecipe(raw: Recipe): Recipe {
+  const { imageId, ...rest } = raw as Recipe & { imageId?: string | null }
+  return {
+    ...rest,
+    meal: rest.meal ?? 'lunch',
+    cookMinutes: rest.cookMinutes ?? 15,
+    spicy: rest.spicy ?? false,
+    oilGrams: rest.oilGrams ?? 10,
+    saltGrams: rest.saltGrams ?? 3,
+    imageIds: rest.imageIds ?? (imageId ? [imageId] : []),
+    notes: rest.notes ?? '',
+  }
+}
+
 export function getRecipes(): Recipe[] {
-  return readJSON<Recipe[]>(KEY, []).map((recipe) => ({
-    ...recipe,
-    meal: recipe.meal ?? 'lunch',
-    cookMinutes: recipe.cookMinutes ?? 15,
-    spicy: recipe.spicy ?? false,
-    oilGrams: recipe.oilGrams ?? 10,
-    saltGrams: recipe.saltGrams ?? 3,
-  }))
+  return readJSON<Recipe[]>(KEY, []).map(normalizeRecipe)
 }
 
 export function getRecipe(id: string): Recipe | undefined {
@@ -54,7 +62,8 @@ export function newRecipe(): Recipe {
     name: '',
     meal: 'lunch',
     method: '',
-    imageId: null,
+    imageIds: [],
+    notes: '',
     ingredients: [],
     cookMinutes: 15,
     spicy: false,

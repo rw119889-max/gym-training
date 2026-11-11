@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { VideoClip } from '../types'
-import { getExercises, getRecentExerciseIds, markRecentExercise } from '../lib/exercises'
+import { exerciseName, getExercises } from '../lib/exercises'
 import { inspectVideo } from '../lib/videoFile'
 import {
   addVideo,
@@ -24,15 +24,11 @@ interface Props {
 
 export default function VideoTab({ active }: Props) {
   const [clips, setClips] = useState<VideoClip[]>(() => getVideos())
-  const [exercises, setExercises] = useState(() => getExercises())
+  const [exercises] = useState(() => getExercises())
   const [playing, setPlaying] = useState<VideoClip | null>(null)
   const [adding, setAdding] = useState(false)
   const [editingClip, setEditingClip] = useState<VideoClip | null>(null)
-  const [exerciseId, setExerciseId] = useState(() => {
-    const available = getExercises()
-    const recent = getRecentExerciseIds().find((id) => available.some((exercise) => exercise.id === id))
-    return recent ?? available[0]?.id ?? ''
-  })
+  const [exerciseId, setExerciseId] = useState(() => getExercises()[0]?.id ?? '')
   const [label, setLabel] = useState('')
   const [busy, setBusy] = useState(false)
   const [usage, setUsage] = useState<StorageEstimate | null>(null)
@@ -42,7 +38,6 @@ export default function VideoTab({ active }: Props) {
 
   useEffect(() => {
     if (!active) return
-    setExercises(getExercises())
     setClips(getVideos())
   }, [active])
 
@@ -64,10 +59,6 @@ export default function VideoTab({ active }: Props) {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    if (!exerciseId) {
-      window.alert('先到「训练」页添加一个动作，视频才能绑定。')
-      return
-    }
 
     if (
       file.size > MAX_CLIP_BYTES &&
@@ -99,7 +90,6 @@ export default function VideoTab({ active }: Props) {
         await Promise.all([deleteVideo(id), deletePoster(id)])
         throw new Error('video-save-verification-failed')
       }
-      markRecentExercise(exerciseId)
       addVideo({
         id,
         exerciseId,
@@ -145,8 +135,6 @@ export default function VideoTab({ active }: Props) {
     refresh()
   }
 
-  const exerciseName = (id: string) =>
-    exercises.find((exercise) => exercise.id === id)?.name ?? '已删除的动作'
   const groups = exercises
     .map((exercise) => ({
       key: exercise.id,
@@ -257,14 +245,10 @@ export default function VideoTab({ active }: Props) {
           <input ref={fileRef} type="file" accept="video/*" hidden onChange={handleFile} />
           <p className="hint">原片直接存本机，不压缩。建议先在相册裁到 15–60 秒，超过 200 MB 会提示。</p>
         </div>
-      ) : exercises.length > 0 ? (
+      ) : (
         <button className="ghost-btn small video-add" type="button" onClick={() => setAdding(true)}>
           + 上传视频
         </button>
-      ) : null}
-
-      {exercises.length === 0 && (
-        <p className="hint">还没有动作。先到「训练」页添加动作，视频才能绑定。</p>
       )}
 
       {groups.length === 0 && !adding && !editingClip ? (

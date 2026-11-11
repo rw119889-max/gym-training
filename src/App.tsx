@@ -3,6 +3,7 @@ import Landing from './screens/Landing'
 import TrainingTab from './screens/TrainingTab'
 import RecipesTab from './screens/RecipesTab'
 import VideoTab from './screens/VideoTab'
+import { APP_VERSION } from './version'
 import { readJSON, writeJSON } from './lib/storage'
 
 type Tab = 'training' | 'recipes' | 'videos'
@@ -32,6 +33,7 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <span className="brand">自律更自由</span>
+        <span className="version-badge">{APP_VERSION}</span>
       </header>
 
       <main className="tab-content">

@@ -1,139 +1,31 @@
 import { useState } from 'react'
-import type { Exercise, ExerciseGroup, VideoClip } from '../types'
-import { GROUP_LABELS } from '../data/exercises'
-import {
-  deleteExercise,
-  isCustomExercise,
-  updateExercise,
-} from '../lib/exercises'
-import { deleteVideoClip, formatDuration, getExerciseVideos } from '../lib/videos'
+import type { Exercise, VideoClip } from '../types'
+import { formatDuration, getExerciseVideos } from '../lib/videos'
+import { getArticleView } from '../lib/articles'
+import ExerciseNotes from '../components/ExerciseNotes'
+import ExercisePhotos from '../components/ExercisePhotos'
 import VideoPlayer from '../components/VideoPlayer'
 import VideoThumb from '../components/VideoThumb'
 
 interface Props {
   exercise: Exercise
-  backLabel?: string
   onBack: () => void
   onStart: () => void
-  onChanged: () => void
-  onDeleted: () => void
+  onArticle: () => void
 }
 
-export default function ExerciseDetail({
-  exercise,
-  backLabel = '← 动作库',
-  onBack,
-  onStart,
-  onChanged,
-  onDeleted,
-}: Props) {
-  const [videos] = useState(() => getExerciseVideos(exercise.id))
+export default function ExerciseDetail({ exercise, onBack, onStart, onArticle }: Props) {
+  const videos = getExerciseVideos(exercise.id)
+  const article = getArticleView(exercise.id)
   const [watching, setWatching] = useState<VideoClip | null>(null)
-  const [editing, setEditing] = useState(false)
-  const [draftName, setDraftName] = useState(exercise.name)
-  const [draftCue, setDraftCue] = useState(exercise.cue)
-  const [draftGroup, setDraftGroup] = useState<ExerciseGroup>(exercise.group)
-  const custom = isCustomExercise(exercise.id)
-
-  const startEdit = () => {
-    setDraftName(exercise.name)
-    setDraftCue(exercise.cue)
-    setDraftGroup(exercise.group)
-    setEditing(true)
-  }
-
-  const saveEdit = () => {
-    const name = draftName.trim()
-    if (!name) return
-    updateExercise(exercise.id, { name, cue: draftCue, group: draftGroup })
-    onChanged()
-    setEditing(false)
-  }
-
-  const handleDelete = async () => {
-    if (!window.confirm(`删除「${exercise.name}」这个动作？`)) return
-    if (
-      videos.length > 0 &&
-      !window.confirm(`这个动作下还有 ${videos.length} 条视频，会一起删掉。继续？`)
-    ) {
-      return
-    }
-    for (const clip of videos) await deleteVideoClip(clip.id)
-    deleteExercise(exercise.id)
-    onDeleted()
-  }
-
-  if (editing) {
-    return (
-      <section>
-        <div className="editor-top">
-          <h1 className="page-title">编辑动作</h1>
-          <button className="save-btn" type="button" disabled={!draftName.trim()} onClick={saveEdit}>
-            保存
-          </button>
-        </div>
-
-        <label className="field">
-          <span className="field-label">动作名称</span>
-          <input
-            className="field-input"
-            value={draftName}
-            maxLength={20}
-            autoFocus
-            onChange={(event) => setDraftName(event.target.value)}
-          />
-        </label>
-
-        {custom ? (
-          <>
-            <p className="field-label">类型</p>
-            <div className="filter-row">
-              {(Object.keys(GROUP_LABELS) as ExerciseGroup[]).map((group) => (
-                <button
-                  key={group}
-                  type="button"
-                  className="filter-chip"
-                  aria-pressed={draftGroup === group}
-                  onClick={() => setDraftGroup(group)}
-                >
-                  {GROUP_LABELS[group]}
-                </button>
-              ))}
-            </div>
-            <label className="field cue-edit-field">
-              <span className="field-label">本组唯一提示</span>
-              <input
-                className="field-input"
-                value={draftCue}
-                maxLength={30}
-                onChange={(event) => setDraftCue(event.target.value)}
-              />
-            </label>
-          </>
-        ) : (
-          <p className="hint">内置动作只改名称，组前检查和提示保持不变。</p>
-        )}
-
-        <button className="text-btn" type="button" onClick={() => setEditing(false)}>
-          取消
-        </button>
-      </section>
-    )
-  }
 
   return (
     <section>
       <button className="back-btn" type="button" onClick={onBack}>
-        {backLabel}
+        ← 动作库
       </button>
 
-      <header className="detail-head">
-        <h1 className="page-title">{exercise.name}</h1>
-        <span className="group-tag">{GROUP_LABELS[exercise.group]}</span>
-        <button className="ghost-btn small head-edit" type="button" onClick={startEdit}>
-          编辑
-        </button>
-      </header>
+      <h1 className="page-title">{exercise.name}</h1>
 
       <div className="cue-box">
         <p className="cue-box-label">本组唯一提示</p>
@@ -149,6 +41,19 @@ export default function ExerciseDetail({
       <ul className="safety-list">
         {exercise.safetyNotes.map((note) => <li key={note}>{note}</li>)}
       </ul>
+
+      {article && (
+        <>
+          <h2 className="section-title">深度文章</h2>
+          <button className="article-entry" type="button" onClick={onArticle}>
+            <span className="article-entry-title">{article.title}</span>
+            <span className="article-entry-intro">{article.intro}</span>
+            <span className="article-entry-meta">
+              {article.overridden ? '已改写 · 点开读' : '内置底稿 · 点开读'}
+            </span>
+          </button>
+        </>
+      )}
 
       <h2 className="section-title">示范视频</h2>
       {videos.length === 0 ? (
@@ -171,6 +76,8 @@ export default function ExerciseDetail({
           ))}
         </div>
       )}
+
+      <ExercisePhotos exerciseId={exercise.id} />
 
       <h2 className="section-title">组前 3 项检查</h2>
       <ol className="detail-checks">
@@ -210,17 +117,13 @@ export default function ExerciseDetail({
         </>
       )}
 
+      <ExerciseNotes exerciseId={exercise.id} />
+
       <div className="detail-cta">
         <button className="cta" type="button" onClick={onStart}>
           开始这个动作
         </button>
       </div>
-
-      {custom && (
-        <button className="text-btn" type="button" onClick={() => void handleDelete()}>
-          删除这个动作
-        </button>
-      )}
 
       {watching && (
         <VideoPlayer

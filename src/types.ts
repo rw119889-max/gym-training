@@ -1,5 +1,3 @@
-export type ExerciseGroup = 'legs' | 'chest' | 'back'
-
 export interface ExerciseSymptom {
   id: string
   label: string
@@ -16,7 +14,6 @@ export interface CommonMistake {
 export interface Exercise {
   id: string
   name: string
-  group: ExerciseGroup
   preChecks: [string, string, string]
   cue: string
   targetFeeling: string
@@ -52,7 +49,8 @@ export interface Recipe {
   name: string
   meal: MealSlot
   method: string
-  imageId: string | null
+  imageIds: string[]
+  notes: string
   ingredients: Ingredient[]
   cookMinutes: number
   spicy: boolean
@@ -69,4 +67,29 @@ export interface VideoClip {
   size: number
   duration: number
   createdAt: string
+}
+
+export type ExerciseNoteTag = 'mistake' | 'activation' | 'muscles' | 'feeling'
+
+export interface ExercisePhoto {
+  id: string
+  exerciseId: string
+  label: string
+  createdAt: string
+}
+
+export interface ExerciseNote {
+  id: string
+  exerciseId: string
+  tag: ExerciseNoteTag | null
+  text: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Article {
+  exerciseId: string
+  title: string
+  intro: string
+  body: string
 }
