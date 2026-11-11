@@ -42,7 +42,11 @@ function buildRanking(pins: string[], exercises: Exercise[]): RankedRow[] {
     .slice(0, 5)
 }
 
-export default function TrainingTab() {
+interface Props {
+  active: boolean
+}
+
+export default function TrainingTab({ active }: Props) {
   const [view, setView] = useState<View>(() => {
     const active = loadSession()
     return active ? { name: 'card', id: active.exerciseId } : { name: 'list' }
@@ -58,12 +62,15 @@ export default function TrainingTab() {
   const fileRef = useRef<HTMLInputElement>(null)
   const viewRef = useRef(view)
   viewRef.current = view
+  const activeRef = useRef(active)
+  activeRef.current = active
 
   useEffect(() => {
     const depth = depthOf(viewRef.current)
-    if (depth > 0) window.history.pushState({ gtDepth: depth }, '')
+    if (activeRef.current && depth > 0) window.history.pushState({ gtDepth: depth }, '')
 
     const onPop = (event: PopStateEvent) => {
+      if (!activeRef.current) return
       const current = viewRef.current
       if (current.name === 'list') return
       const target =
@@ -128,7 +135,7 @@ export default function TrainingTab() {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    if (!window.confirm('导入会覆盖这台手机上的现有数据，继续？')) return
+    if (!window.confirm('导入会用备份覆盖这台手机上的文字数据与菜谱图片（本机视频保留，不受影响）。继续？')) return
     setBackupBusy(true)
     try {
       await importBackup(file)
@@ -199,7 +206,7 @@ export default function TrainingTab() {
             className="exercise-row"
             onClick={() => goDetail(item.id)}
           >
-            <span className="exercise-name">{item.name}</span>
+            <span>{item.name}</span>
             <span className="exercise-meta">
               {GROUP_LABELS[item.group]} · {item.symptoms.length} 项症状
             </span>

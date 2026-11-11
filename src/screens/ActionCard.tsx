@@ -6,6 +6,7 @@ import { clearSession, loadSession, saveSession } from '../lib/session'
 import { speak } from '../lib/speech'
 import { getExerciseVideos } from '../lib/videos'
 import { useWakeLock } from '../hooks/useWakeLock'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import VideoPlayer from '../components/VideoPlayer'
 
 type Phase = 'pre' | 'during' | 'post' | 'rest'
@@ -34,6 +35,7 @@ export default function ActionCard({ exercise, onExit }: Props) {
   )
   const [videos] = useState(() => getExerciseVideos(exercise.id))
   const [watching, setWatching] = useState<VideoClip | null>(null)
+  const trapRef = useFocusTrap<HTMLDivElement>()
 
   useWakeLock(true)
 
@@ -81,7 +83,7 @@ export default function ActionCard({ exercise, onExit }: Props) {
   }
 
   return (
-    <div className="card-mode">
+    <div className="card-mode" ref={trapRef}>
       <div className="card-top">
         <button className="icon-btn" type="button" onClick={exit} aria-label="退出动作卡">
           ✕

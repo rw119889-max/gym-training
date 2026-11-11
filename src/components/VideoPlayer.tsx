@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { VideoClip } from '../types'
 import { getVideo } from '../lib/storage'
+import { useFocusTrap } from '../hooks/useFocusTrap'
+import { useOverlayHistory } from '../hooks/useOverlayHistory'
 
 interface Props {
   clip: VideoClip
@@ -14,6 +16,8 @@ export default function VideoPlayer({ clip, title, onClose }: Props) {
   const [muted, setMuted] = useState(true)
   const [slow, setSlow] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const trapRef = useFocusTrap<HTMLDivElement>()
+  useOverlayHistory(true, true, onClose)
 
   useEffect(() => {
     let objectUrl: string | null = null
@@ -70,7 +74,7 @@ export default function VideoPlayer({ clip, title, onClose }: Props) {
   }
 
   return (
-    <div className="video-player" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="video-player" role="dialog" aria-modal="true" aria-label={title} ref={trapRef}>
       <div className="video-player-top">
         <span className="video-player-title">{title}</span>
         <button className="icon-btn" type="button" onClick={onClose} aria-label="关闭视频">

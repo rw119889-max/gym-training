@@ -1,5 +1,5 @@
 import { getRecipes } from './recipes'
-import { getImage, putImage } from './storage'
+import { clearImages, getImage, putImage } from './storage'
 
 const PREFIX = 'gt.v1.'
 const VERSION = 1
@@ -62,12 +62,21 @@ export async function importBackup(file: File): Promise<void> {
     throw new Error('备份文件格式不对')
   }
 
+  // 整库替换：清掉备份覆盖的文字数据（视频元数据保留在本机），再写入备份
+  const stale: string[] = []
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i)
+    if (key && key.startsWith(PREFIX) && !LOCAL_ONLY_KEYS.has(key)) stale.push(key)
+  }
+  for (const key of stale) localStorage.removeItem(key)
+
   for (const [key, value] of Object.entries(parsed.data)) {
-    if (key.startsWith(PREFIX) && typeof value === 'string') {
+    if (key.startsWith(PREFIX) && !LOCAL_ONLY_KEYS.has(key) && typeof value === 'string') {
       localStorage.setItem(key, value)
     }
   }
 
+  await clearImages()
   if (parsed.images && typeof parsed.images === 'object') {
     for (const [id, dataUrl] of Object.entries(parsed.images)) {
       if (typeof dataUrl !== 'string') continue

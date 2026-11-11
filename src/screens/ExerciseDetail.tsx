@@ -63,7 +63,7 @@ export default function ExerciseDetail({
 
   if (editing) {
     return (
-      <section className="detail-page">
+      <section>
         <div className="editor-top">
           <h1 className="page-title">编辑动作</h1>
           <button className="save-btn" type="button" disabled={!draftName.trim()} onClick={saveEdit}>
@@ -120,7 +120,7 @@ export default function ExerciseDetail({
   }
 
   return (
-    <section className="detail-page">
+    <section>
       <button className="back-btn" type="button" onClick={onBack}>
         ← 动作库
       </button>
@@ -160,7 +160,7 @@ export default function ExerciseDetail({
               type="button"
               onClick={() => setWatching(video)}
             >
-              <VideoThumb videoId={video.id} className="video-cover" />
+              <VideoThumb videoId={video.id} />
               <span className="video-item-bar">
                 <span className="video-item-label">{video.label || '示范'}</span>
                 <span className="video-item-meta">{formatDuration(video.duration)}</span>

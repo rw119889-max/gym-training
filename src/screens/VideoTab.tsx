@@ -64,6 +64,10 @@ export default function VideoTab({ active }: Props) {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
+    if (!exerciseId) {
+      window.alert('先到「训练」页添加一个动作，视频才能绑定。')
+      return
+    }
 
     if (
       file.size > MAX_CLIP_BYTES &&
@@ -145,10 +149,17 @@ export default function VideoTab({ active }: Props) {
     exercises.find((exercise) => exercise.id === id)?.name ?? '已删除的动作'
   const groups = exercises
     .map((exercise) => ({
-      exercise,
+      key: exercise.id,
+      name: exercise.name,
       videos: clips.filter((clip) => clip.exerciseId === exercise.id),
     }))
     .filter((group) => group.videos.length > 0)
+  const orphaned = clips.filter(
+    (clip) => !exercises.some((exercise) => exercise.id === clip.exerciseId),
+  )
+  if (orphaned.length > 0) {
+    groups.push({ key: '__orphaned__', name: '已删除的动作（可删除或改绑）', videos: orphaned })
+  }
 
   const used = clips.reduce((sum, clip) => sum + clip.size, 0)
 
@@ -246,11 +257,11 @@ export default function VideoTab({ active }: Props) {
           <input ref={fileRef} type="file" accept="video/*" hidden onChange={handleFile} />
           <p className="hint">原片直接存本机，不压缩。建议先在相册裁到 15–60 秒，超过 200 MB 会提示。</p>
         </div>
-      ) : (
+      ) : exercises.length > 0 ? (
         <button className="ghost-btn small video-add" type="button" onClick={() => setAdding(true)}>
           + 上传视频
         </button>
-      )}
+      ) : null}
 
       {exercises.length === 0 && (
         <p className="hint">还没有动作。先到「训练」页添加动作，视频才能绑定。</p>
@@ -265,13 +276,13 @@ export default function VideoTab({ active }: Props) {
         </div>
       ) : (
         groups.map((group) => (
-          <div key={group.exercise.id} className="video-group">
-            <h2 className="section-title">{group.exercise.name}</h2>
+          <div key={group.key} className="video-group">
+            <h2 className="section-title">{group.name}</h2>
             <div className="video-grid">
               {group.videos.map((video) => (
                 <div key={video.id} className="video-item">
                   <button className="video-open" type="button" onClick={() => setPlaying(video)}>
-                    <VideoThumb videoId={video.id} className="video-cover" />
+                    <VideoThumb videoId={video.id} />
                     <span className="video-item-bar">
                       <span className="video-item-label">{video.label || '示范'}</span>
                       <span className="video-item-meta">

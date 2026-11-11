@@ -1,5 +1,6 @@
 import type { SymptomLog } from '../types'
 import { readJSON, writeJSON } from './storage'
+import { todayKey } from './date'
 
 const LOG_KEY = 'symptomLogs'
 const PIN_KEY = 'pinnedSymptoms'
@@ -15,18 +16,11 @@ export function pinKey(exerciseId: string, symptomId: string): string {
   return `${exerciseId}:${symptomId}`
 }
 
-function today(): string {
-  const d = new Date()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${month}-${day}`
-}
-
 export function addSymptomLog(exerciseId: string, symptomId: string | null): void {
   const logs = readJSON<SymptomLog[]>(LOG_KEY, [])
   const entry: SymptomLog = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    date: today(),
+    date: todayKey(),
     exerciseId,
     symptomId,
   }

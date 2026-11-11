@@ -1,19 +1,22 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { MealSlot, Recipe } from '../types'
 import RecipeEditor from './RecipeEditor'
 import RecipeImage from '../components/RecipeImage'
 import {
   deleteRecipe,
-  getDailyRecipes,
   getRecipes,
   MEAL_LABELS,
   MEAL_SLOTS,
 } from '../lib/recipes'
 import { deleteImage } from '../lib/storage'
-import { formatGram, formatKcal, recipeNutrition } from '../lib/nutrition'
+import { formatGram, recipeNutrition } from '../lib/nutrition'
 
 type View = { name: 'list' } | { name: 'detail'; id: string } | { name: 'edit'; id: string | null }
 type Filter = 'all' | MealSlot
+
+interface Props {
+  active: boolean
+}
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: '全部' },
@@ -48,10 +51,6 @@ function RecipeDetail({ recipe, onBack, onEdit, onDelete }: DetailProps) {
 
       <div className="macro-cards">
         <div className="macro-card">
-          <span className="macro-value">{formatKcal(total.kcal)}</span>
-          <span className="macro-label">kcal</span>
-        </div>
-        <div className="macro-card">
           <span className="macro-value">{formatGram(total.protein)}</span>
           <span className="macro-label">蛋白 g</span>
         </div>
@@ -78,9 +77,6 @@ function RecipeDetail({ recipe, onBack, onEdit, onDelete }: DetailProps) {
             <li key={item.id}>
               <span className="ingredient-name">{item.name || '未命名食材'}</span>
               <span className="ingredient-grams">{formatGram(item.grams)} g</span>
-              <span className="ingredient-kcal">
-                {formatKcal((item.per100g.kcal * item.grams) / 100)} kcal
-              </span>
             </li>
           ))}
         </ul>
@@ -98,21 +94,72 @@ function RecipeDetail({ recipe, onBack, onEdit, onDelete }: DetailProps) {
   )
 }
 
-export default function RecipesTab() {
+export default function RecipesTab({ active }: Props) {
   const [view, setView] = useState<View>({ name: 'list' })
   const [recipes, setRecipes] = useState<Recipe[]>(() => getRecipes())
   const [filter, setFilter] = useState<Filter>('all')
+  const viewRef = useRef(view)
+  viewRef.current = view
+  const activeRef = useRef(active)
+  activeRef.current = active
+
+  useEffect(() => {
+    const onPop = (event: PopStateEvent) => {
+      if (!activeRef.current) return
+      const current = viewRef.current
+      if (current.name === 'list') return
+      const target = typeof event.state?.gtDepth === 'number' ? event.state.gtDepth : 0
+      if (target <= 0) setView({ name: 'list' })
+      else if (target === 1) {
+        if (current.id) setView({ name: 'detail', id: current.id })
+        else setView({ name: 'list' })
+      }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   const refresh = () => setRecipes(getRecipes())
 
+  const goDetail = (id: string) => {
+    window.history.pushState({ gtDepth: 1 }, '')
+    setView({ name: 'detail', id })
+  }
+
+  const goEdit = (id: string) => {
+    window.history.pushState({ gtDepth: 2 }, '')
+    setView({ name: 'edit', id })
+  }
+
+  const goNew = () => {
+    window.history.pushState({ gtDepth: 1 }, '')
+    setView({ name: 'edit', id: null })
+  }
+
+  const back = () => {
+    const depth = window.history.state?.gtDepth
+    if (typeof depth === 'number' && depth > 0) {
+      window.history.back()
+      return
+    }
+    const current = viewRef.current
+    setView(
+      current.name === 'edit' && current.id
+        ? { name: 'detail', id: current.id }
+        : { name: 'list' },
+    )
+  }
+
   if (view.name === 'edit') {
+    const editingExisting = view.id !== null
     return (
       <RecipeEditor
         recipeId={view.id}
-        onBack={() => setView(view.id ? { name: 'detail', id: view.id } : { name: 'list' })}
+        onBack={back}
         onSaved={(id) => {
           refresh()
-          setView({ name: 'detail', id })
+          if (editingExisting) window.history.back()
+          else setView({ name: 'detail', id })
         }}
       />
     )
@@ -124,21 +171,20 @@ export default function RecipesTab() {
     return (
       <RecipeDetail
         recipe={current}
-        onBack={() => setView({ name: 'list' })}
-        onEdit={() => setView({ name: 'edit', id: current.id })}
+        onBack={back}
+        onEdit={() => goEdit(current.id)}
         onDelete={() => {
           if (!window.confirm(`删除「${current.name}」？`)) return
           if (current.imageId) void deleteImage(current.imageId)
           deleteRecipe(current.id)
           refresh()
-          setView({ name: 'list' })
+          back()
         }}
       />
     )
   }
 
   const visible = filter === 'all' ? recipes : recipes.filter((recipe) => recipe.meal === filter)
-  const dailyRecipes = getDailyRecipes(recipes)
 
   return (
     <section>
@@ -159,39 +205,10 @@ export default function RecipesTab() {
         ))}
       </div>
 
-      {dailyRecipes.length > 0 && (
-        <div className="daily-recommendation">
-          <h2 className="section-title">今日快手菜</h2>
-          <p className="hint">无辣、少油少盐，今天优先从这里选。</p>
-          <div className="recipe-list">
-            {dailyRecipes.map((recipe) => (
-              <button
-                key={recipe.id}
-                type="button"
-                className="recipe-card"
-                onClick={() => setView({ name: 'detail', id: recipe.id })}
-              >
-                <RecipeImage imageId={recipe.imageId} alt={recipe.name} className="recipe-thumb" />
-                <span className="recipe-card-body">
-                  <span className="recipe-card-name">{recipe.name}</span>
-                  <span className="recipe-card-meta">
-                    {recipe.cookMinutes} 分钟 · {MEAL_LABELS[recipe.meal]} · 无辣
-                  </span>
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {recipes.length > 0 && dailyRecipes.length === 0 && (
-        <p className="hint daily-empty">还没有符合“20分钟内、无辣、少油少盐”的菜谱，先新建一道。</p>
-      )}
-
       {recipes.length === 0 ? (
         <div className="empty">
           <p className="empty-title">还没有菜谱</p>
-          <p className="empty-desc">菜名、做法、食材克数，四项营养自动算。按餐次分类，建好后随时能改。</p>
+          <p className="empty-desc">菜名、做法、食材克数，蛋白/脂肪/碳水自动算。按餐次分类，建好后随时能改。</p>
         </div>
       ) : visible.length === 0 ? (
         <p className="hint">这个餐次下还没有菜谱。</p>
@@ -204,14 +221,14 @@ export default function RecipesTab() {
                 key={recipe.id}
                 type="button"
                 className="recipe-card"
-                onClick={() => setView({ name: 'detail', id: recipe.id })}
+                onClick={() => goDetail(recipe.id)}
               >
                 <RecipeImage imageId={recipe.imageId} alt={recipe.name} className="recipe-thumb" />
                 <span className="recipe-card-body">
                   <span className="recipe-card-name">{recipe.name}</span>
                   <span className="recipe-card-meta">
-                    {MEAL_LABELS[recipe.meal]} · {formatKcal(total.kcal)} kcal · 蛋白{' '}
-                    {formatGram(total.protein)} g
+                    {MEAL_LABELS[recipe.meal]} · 蛋白 {formatGram(total.protein)} g · 脂肪{' '}
+                    {formatGram(total.fat)} g · 碳水 {formatGram(total.carb)} g
                   </span>
                   <span className="recipe-badges">
                     <span>{recipe.cookMinutes} 分钟</span>
@@ -226,7 +243,7 @@ export default function RecipesTab() {
         </div>
       )}
 
-      <button className="cta new-recipe" type="button" onClick={() => setView({ name: 'edit', id: null })}>
+      <button className="cta new-recipe" type="button" onClick={goNew}>
         + 新建菜谱
       </button>
     </section>

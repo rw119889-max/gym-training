@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { Ingredient, Recipe } from '../types'
 import { getRecipe, MEAL_LABELS, MEAL_SLOTS, newRecipe, saveRecipe } from '../lib/recipes'
 import { compressImage } from '../lib/image'
 import { putImage } from '../lib/storage'
-import { formatGram, formatKcal, recipeNutrition } from '../lib/nutrition'
+import { formatGram, recipeNutrition } from '../lib/nutrition'
 import RecipeImage from '../components/RecipeImage'
+import NumberField from '../components/NumberField'
 
 interface Props {
   recipeId: string | null
@@ -14,16 +15,10 @@ interface Props {
 }
 
 const MACRO_FIELDS: { key: keyof Ingredient['per100g']; label: string }[] = [
-  { key: 'kcal', label: '热量 kcal' },
   { key: 'protein', label: '蛋白 g' },
   { key: 'fat', label: '脂肪 g' },
   { key: 'carb', label: '碳水 g' },
 ]
-
-function toNumber(value: string): number {
-  const parsed = Number.parseFloat(value)
-  return Number.isFinite(parsed) ? parsed : 0
-}
 
 export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
   const [draft, setDraft] = useState<Recipe>(() => {
@@ -34,7 +29,15 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
     return newRecipe()
   })
   const [preview, setPreview] = useState<string | null>(null)
+  const [pendingImage, setPendingImage] = useState<Blob | null>(null)
   const [imageBusy, setImageBusy] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview)
+    }
+  }, [preview])
 
   const total = recipeNutrition(draft)
   const canSave = draft.name.trim().length > 0
@@ -62,7 +65,7 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
       id: `i-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name: '',
       grams: 100,
-      per100g: { kcal: 0, protein: 0, fat: 0, carb: 0 },
+      per100g: { protein: 0, fat: 0, carb: 0 },
     }
     setDraft((prev) => ({ ...prev, ingredients: [...prev.ingredients, item] }))
   }
@@ -78,9 +81,8 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
     setImageBusy(true)
     try {
       const blob = await compressImage(file)
-      await putImage(draft.id, blob)
-      if (preview) URL.revokeObjectURL(preview)
       setPreview(URL.createObjectURL(blob))
+      setPendingImage(blob)
       patch({ imageId: draft.id })
     } catch {
       window.alert('图片处理失败，换一张试试')
@@ -89,20 +91,27 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
     }
   }
 
-  const save = () => {
-    if (!canSave) return
-    saveRecipe({ ...draft, name: draft.name.trim(), updatedAt: new Date().toISOString() })
-    onSaved(draft.id)
+  const save = async () => {
+    if (!canSave || saving) return
+    setSaving(true)
+    try {
+      if (pendingImage) await putImage(draft.id, pendingImage)
+      saveRecipe({ ...draft, name: draft.name.trim(), updatedAt: new Date().toISOString() })
+      onSaved(draft.id)
+    } catch {
+      window.alert('保存失败，手机空间可能不够了，清理后再试。')
+      setSaving(false)
+    }
   }
 
   return (
     <section className="editor">
       <div className="editor-top">
-        <button className="back-btn" type="button" onClick={onBack}>
+        <button className="back-btn" type="button" disabled={saving} onClick={onBack}>
           ← 返回
         </button>
-        <button className="save-btn" type="button" disabled={!canSave} onClick={save}>
-          保存
+        <button className="save-btn" type="button" disabled={!canSave || saving || imageBusy} onClick={save}>
+          {saving ? '保存中…' : '保存'}
         </button>
       </div>
 
@@ -151,38 +160,33 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
       <div className="recipe-quick-fields">
         <label className="field">
           <span className="field-label">烹饪时长（分钟）</span>
-          <input
+          <NumberField
             className="field-input"
-            type="number"
             min={1}
             max={180}
             inputMode="numeric"
             value={draft.cookMinutes}
-            onChange={(event) => patch({ cookMinutes: Math.max(1, toNumber(event.target.value)) })}
+            onValue={(cookMinutes) => patch({ cookMinutes })}
           />
         </label>
         <label className="field">
           <span className="field-label">用油（克）</span>
-          <input
+          <NumberField
             className="field-input"
-            type="number"
             min={0}
             step="0.1"
-            inputMode="decimal"
             value={draft.oilGrams}
-            onChange={(event) => patch({ oilGrams: Math.max(0, toNumber(event.target.value)) })}
+            onValue={(oilGrams) => patch({ oilGrams })}
           />
         </label>
         <label className="field">
           <span className="field-label">用盐（克）</span>
-          <input
+          <NumberField
             className="field-input"
-            type="number"
             min={0}
             step="0.1"
-            inputMode="decimal"
             value={draft.saltGrams}
-            onChange={(event) => patch({ saltGrams: Math.max(0, toNumber(event.target.value)) })}
+            onValue={(saltGrams) => patch({ saltGrams })}
           />
         </label>
       </div>
@@ -197,7 +201,6 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
       <p className="hint">营养数据请统一使用生重或熟重，不要混用。</p>
 
       <div className="nutrition-preview">
-        <span>热量 {formatKcal(total.kcal)} kcal</span>
         <span>蛋白 {formatGram(total.protein)} g</span>
         <span>脂肪 {formatGram(total.fat)} g</span>
         <span>碳水 {formatGram(total.carb)} g</span>
@@ -225,13 +228,11 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
             </div>
             <label className="field">
               <span className="field-label">用量（克）</span>
-              <input
+              <NumberField
                 className="field-input"
-                type="number"
                 min={0}
-                inputMode="decimal"
                 value={item.grams}
-                onChange={(event) => patchIngredient(item.id, { grams: toNumber(event.target.value) })}
+                onValue={(grams) => patchIngredient(item.id, { grams })}
               />
             </label>
             <p className="field-label">每 100 g 营养</p>
@@ -239,14 +240,12 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
               {MACRO_FIELDS.map((field) => (
                 <label key={field.key} className="field">
                   <span className="field-label">{field.label}</span>
-                  <input
+                  <NumberField
                     className="field-input"
-                    type="number"
                     min={0}
                     step="0.1"
-                    inputMode="decimal"
                     value={item.per100g[field.key]}
-                    onChange={(event) => patchPer100g(item.id, field.key, toNumber(event.target.value))}
+                    onValue={(value) => patchPer100g(item.id, field.key, value)}
                   />
                 </label>
               ))}
@@ -269,8 +268,8 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
         />
       </label>
 
-      <button className="cta editor-save" type="button" disabled={!canSave} onClick={save}>
-        保存菜谱
+      <button className="cta editor-save" type="button" disabled={!canSave || saving || imageBusy} onClick={save}>
+        {saving ? '保存中…' : '保存菜谱'}
       </button>
     </section>
   )

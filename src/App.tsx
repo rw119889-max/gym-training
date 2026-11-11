@@ -36,10 +36,10 @@ export default function App() {
 
       <main className="tab-content">
         <div hidden={tab !== 'training'}>
-          <TrainingTab />
+          <TrainingTab active={tab === 'training'} />
         </div>
         <div hidden={tab !== 'recipes'}>
-          <RecipesTab />
+          <RecipesTab active={tab === 'recipes'} />
         </div>
         <div hidden={tab !== 'videos'}>
           <VideoTab active={tab === 'videos'} />

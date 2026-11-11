@@ -25,32 +25,6 @@ export function getRecipes(): Recipe[] {
   }))
 }
 
-export function isQuickFitnessRecipe(recipe: Recipe): boolean {
-  return (
-    recipe.cookMinutes <= 20 &&
-    recipe.spicy === false &&
-    recipe.oilGrams <= 10 &&
-    recipe.saltGrams <= 3
-  )
-}
-
-function dailySeed(date = new Date()): number {
-  const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
-  return [...key].reduce((sum, char) => sum + char.charCodeAt(0), 0)
-}
-
-export function getDailyRecipes(recipes: Recipe[], date = new Date()): Recipe[] {
-  const eligible = recipes.filter(isQuickFitnessRecipe)
-  if (eligible.length === 0) return []
-  const seed = dailySeed(date)
-  const picks: Recipe[] = []
-  for (let offset = 0; offset < eligible.length && picks.length < 3; offset += 1) {
-    const recipe = eligible[(seed + offset) % eligible.length]
-    if (!picks.some((item) => item.id === recipe.id)) picks.push(recipe)
-  }
-  return picks
-}
-
 export function getRecipe(id: string): Recipe | undefined {
   return getRecipes().find((recipe) => recipe.id === id)
 }

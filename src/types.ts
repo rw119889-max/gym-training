@@ -33,7 +33,6 @@ export interface SymptomLog {
 }
 
 export interface NutritionPer100g {
-  kcal: number
   protein: number
   fat: number
   carb: number
