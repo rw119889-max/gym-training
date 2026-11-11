@@ -1,4 +1,4 @@
-const CACHE = 'gym-training-mwbp5bq5'
+const CACHE = 'gym-training-mwbrn8mj'
 
 async function precacheBuildAssets(cache, scope) {
   const shell = await cache.match(`${scope}index.html`)
