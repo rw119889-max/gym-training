@@ -1,4 +1,4 @@
-const CACHE = 'gym-training-mwc62c49'
+const CACHE = 'gym-training-mweivjvz'
 
 // 预缓存清单：只放绝对必要的启动资源。
 // 注意不能把 registration.scope 本身放进来——站点挂了分享码校验时根地址会返回 403，
