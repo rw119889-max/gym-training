@@ -1,32 +1,10 @@
-export interface ExerciseSymptom {
-  id: string
-  label: string
-  fix: string
-}
+export type ExerciseCategory = 'push' | 'pull' | 'legs'
 
-export interface CommonMistake {
-  name: string
-  symptom: string
-  cause: string
-  fix: string
-}
-
-export interface Exercise {
+export interface ExerciseProfile {
   id: string
   name: string
-  preChecks: [string, string, string]
-  cue: string
-  targetFeeling: string
-  safetyNotes: string[]
-  symptoms: ExerciseSymptom[]
-  commonMistakes: CommonMistake[]
-}
-
-export interface SymptomLog {
-  id: string
-  date: string
-  exerciseId: string
-  symptomId: string | null
+  category?: ExerciseCategory
+  createdAt: string
 }
 
 export interface NutritionPer100g {
@@ -56,6 +34,7 @@ export interface Recipe {
   spicy: boolean
   oilGrams: number
   saltGrams: number
+  price: number
   createdAt: string
   updatedAt: string
 }
@@ -69,8 +48,6 @@ export interface VideoClip {
   createdAt: string
 }
 
-export type ExerciseNoteTag = 'mistake' | 'activation' | 'muscles' | 'feeling'
-
 export interface ExercisePhoto {
   id: string
   exerciseId: string
@@ -80,16 +57,25 @@ export interface ExercisePhoto {
 
 export interface ExerciseNote {
   id: string
-  exerciseId: string
-  tag: ExerciseNoteTag | null
+  exerciseId: string | null
+  title?: string
   text: string
+  html?: string
+  pinned?: boolean
   createdAt: string
   updatedAt: string
 }
 
-export interface Article {
+export type ArticleBlock =
+  | { type: 'text'; text: string }
+  | { type: 'image'; imageId?: string; src?: string }
+
+export interface SavedArticle {
+  id: string
   exerciseId: string
   title: string
-  intro: string
   body: string
+  blocks?: ArticleBlock[]
+  createdAt: string
+  updatedAt: string
 }

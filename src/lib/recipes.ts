@@ -26,7 +26,13 @@ function normalizeRecipe(raw: Recipe): Recipe {
     saltGrams: rest.saltGrams ?? 3,
     imageIds: rest.imageIds ?? (imageId ? [imageId] : []),
     notes: rest.notes ?? '',
+    price: rest.price ?? 0,
   }
+}
+
+export function formatPrice(price: number): string {
+  if (!(price > 0)) return '未标价'
+  return `¥${Math.round(price * 100) / 100}`
 }
 
 export function getRecipes(): Recipe[] {
@@ -69,6 +75,7 @@ export function newRecipe(): Recipe {
     spicy: false,
     oilGrams: 10,
     saltGrams: 3,
+    price: 0,
     createdAt: now,
     updatedAt: now,
   }

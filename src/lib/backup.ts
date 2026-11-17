@@ -1,5 +1,8 @@
 import { getRecipes } from './recipes'
 import { getPhotos } from './exercisePhotos'
+import { getSavedArticles } from './savedArticles'
+import { getExerciseNotes } from './exerciseNotes'
+import { collectMediaIds } from './noteMedia'
 import { clearImages, getImage, putImage } from './storage'
 
 const PREFIX = 'gt.v1.'
@@ -44,6 +47,20 @@ export async function exportBackup(): Promise<void> {
     if (images[photo.id]) continue
     const blob = await getImage(photo.id)
     if (blob) images[photo.id] = await blobToDataUrl(blob)
+  }
+  for (const article of getSavedArticles()) {
+    for (const block of article.blocks ?? []) {
+      if (block.type !== 'image' || !block.imageId || images[block.imageId]) continue
+      const blob = await getImage(block.imageId)
+      if (blob) images[block.imageId] = await blobToDataUrl(blob)
+    }
+  }
+  for (const note of getExerciseNotes()) {
+    for (const id of collectMediaIds(note.html).imageIds) {
+      if (images[id]) continue
+      const blob = await getImage(id)
+      if (blob) images[id] = await blobToDataUrl(blob)
+    }
   }
 
   const payload: BackupFile = {

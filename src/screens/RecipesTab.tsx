@@ -4,6 +4,7 @@ import RecipeEditor from './RecipeEditor'
 import RecipeImage from '../components/RecipeImage'
 import {
   deleteRecipe,
+  formatPrice,
   getRecipes,
   MEAL_LABELS,
   MEAL_SLOTS,
@@ -35,13 +36,16 @@ function RecipeDetail({ recipe, onBack, onEdit, onDelete }: DetailProps) {
 
   return (
     <section>
-      <button className="back-btn" type="button" onClick={onBack}>
-        ← 食谱
-      </button>
+      <div className="detail-top">
+        <button className="back-btn" type="button" onClick={onBack}>
+          ← 食谱
+        </button>
+        <button className="ghost-btn small" type="button" onClick={onEdit}>
+          编辑
+        </button>
+      </div>
 
-      {recipe.imageIds.length === 0 ? (
-        <RecipeImage imageId={null} alt={recipe.name} className="detail-image" />
-      ) : (
+      {recipe.imageIds.length > 0 && (
         <div className="detail-images">
           {recipe.imageIds.map((id, index) => (
             <RecipeImage
@@ -57,9 +61,6 @@ function RecipeDetail({ recipe, onBack, onEdit, onDelete }: DetailProps) {
       <div className="recipe-head">
         <h1 className="page-title">{recipe.name}</h1>
         <span className="group-tag">{MEAL_LABELS[recipe.meal]}</span>
-        <button className="ghost-btn small head-edit" type="button" onClick={onEdit}>
-          编辑
-        </button>
       </div>
 
       <div className="macro-cards">
@@ -78,7 +79,7 @@ function RecipeDetail({ recipe, onBack, onEdit, onDelete }: DetailProps) {
       </div>
 
       <p className="recipe-facts">
-        {recipe.cookMinutes} 分钟 · {recipe.spicy ? '含辣' : '无辣'} · 用油 {formatGram(recipe.oilGrams)}g · 用盐 {formatGram(recipe.saltGrams)}g
+        {recipe.cookMinutes} 分钟 · {recipe.spicy ? '含辣' : '无辣'} · 用油 {formatGram(recipe.oilGrams)}g · 用盐 {formatGram(recipe.saltGrams)}g · {formatPrice(recipe.price)}
       </p>
 
       <h2 className="section-title">食材与用量</h2>
@@ -257,6 +258,7 @@ export default function RecipesTab({ active }: Props) {
                     {!recipe.spicy && <span>无辣</span>}
                     {recipe.oilGrams <= 10 && <span>少油</span>}
                     {recipe.saltGrams <= 3 && <span>少盐</span>}
+                    {recipe.price > 0 && <span>{formatPrice(recipe.price)}</span>}
                   </span>
                 </span>
               </button>

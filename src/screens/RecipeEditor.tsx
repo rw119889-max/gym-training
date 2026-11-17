@@ -235,6 +235,16 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
             onValue={(saltGrams) => patch({ saltGrams })}
           />
         </label>
+        <label className="field">
+          <span className="field-label">整道菜价格（元）</span>
+          <NumberField
+            className="field-input"
+            min={0}
+            step="0.1"
+            value={draft.price}
+            onValue={(price) => patch({ price })}
+          />
+        </label>
       </div>
       <button
         className="filter-chip recipe-spicy-toggle"

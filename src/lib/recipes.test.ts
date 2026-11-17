@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   deleteRecipe,
+  formatPrice,
   getRecipe,
   getRecipes,
   newRecipe,
@@ -20,6 +21,16 @@ describe('newRecipe', () => {
     expect(recipe.saltGrams).toBe(3)
     expect(recipe.imageIds).toEqual([])
     expect(recipe.notes).toBe('')
+    expect(recipe.price).toBe(0)
+  })
+})
+
+describe('formatPrice', () => {
+  it('0 视为未标价，其余按元显示并抹掉浮点尾巴', () => {
+    expect(formatPrice(0)).toBe('未标价')
+    expect(formatPrice(28)).toBe('¥28')
+    expect(formatPrice(28.5)).toBe('¥28.5')
+    expect(formatPrice(0.1 + 0.2)).toBe('¥0.3')
   })
 })
 
@@ -69,5 +80,6 @@ describe('saveRecipe / getRecipe / deleteRecipe', () => {
     expect(recipe.saltGrams).toBe(3)
     expect(recipe.imageIds).toEqual(['legacy-img'])
     expect(recipe.notes).toBe('')
+    expect(recipe.price).toBe(0)
   })
 })

@@ -1,7 +1,7 @@
 const MAX_EDGE = 1200
 const QUALITY = 0.82
 
-export async function compressImage(file: File): Promise<Blob> {
+export async function compressImage(file: Blob): Promise<Blob> {
   const bitmap = await createImageBitmap(file)
   const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height))
   const canvas = document.createElement('canvas')
