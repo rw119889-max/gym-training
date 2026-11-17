@@ -2205,6 +2205,35 @@ html:has(body.note-composing) {
   border-radius: var(--r-sm);
 }
 
+.note-compose-body font[size='1'] { font-size: 12px; }
+.note-compose-body font[size='2'] { font-size: 14px; }
+.note-compose-body font[size='3'] { font-size: 16px; }
+.note-compose-body font[size='4'] { font-size: 18px; }
+.note-compose-body font[size='5'] { font-size: 20px; }
+.note-compose-body font[size='6'] { font-size: 24px; }
+.note-compose-body font[size='7'] { font-size: 28px; }
+
+.note-compose-body div[data-todo] {
+  position: relative;
+  padding-left: 26px;
+}
+
+.note-compose-body div[data-todo] input[type='checkbox'] {
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.note-compose-body div[data-todo='1'] {
+  color: var(--faint);
+  text-decoration: line-through;
+}
+
 .note-toolbar {
   position: sticky;
   bottom: var(--kb-offset, 0px);
@@ -2256,6 +2285,17 @@ html:has(body.note-composing) {
   background: var(--surface-2);
 }
 
+.note-tool.is-on {
+  color: var(--accent);
+  background: var(--surface-2);
+}
+
+.note-tool-aa {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
 .note-tool-media {
   position: relative;
   cursor: pointer;
@@ -2266,12 +2306,43 @@ html:has(body.note-composing) {
   pointer-events: none;
 }
 
-.note-tool-sep {
-  flex: none;
-  width: 1px;
-  height: 20px;
-  margin: 0 2px;
-  background: var(--line);
+.note-pop {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 10px;
+  right: 10px;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-2, 0 8px 24px rgb(0 0 0 / 0.18));
+}
+
+.note-pop-row {
+  display: flex;
+  gap: 6px;
+}
+
+.note-pop-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 36px;
+  padding: 0 6px;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--text);
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.note-pop-btn:active {
+  background: var(--surface-3);
 }
 
 .note-tool-status {

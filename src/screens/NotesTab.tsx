@@ -25,6 +25,8 @@ const ALLOWED_TAGS = new Set([
   'UL', 'OL', 'LI', 'H1', 'H2', 'H3', 'BLOCKQUOTE', 'PRE', 'CODE',
 ])
 const DROPPED_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT'])
+const ALIGN_TAGS = new Set(['DIV', 'P', 'H1', 'H2', 'H3', 'BLOCKQUOTE', 'PRE', 'LI'])
+const ALIGN_VALUES = new Set(['left', 'center', 'right', 'justify'])
 
 interface Draft {
   id: string | null
@@ -106,10 +108,20 @@ function serializeNote(editor: HTMLElement): string {
         : ''
     }
     if (tag === 'BR') return '<br>'
+    if (tag === 'INPUT') return ''
     const inner = Array.from(node.childNodes).map(serializeNode).join('')
+    if (tag === 'FONT') {
+      const size = node.getAttribute('size') ?? ''
+      return /^[1-7]$/.test(size) ? `<font size="${size}">${inner}</font>` : inner
+    }
     if (!ALLOWED_TAGS.has(tag)) return inner
     const lower = tag.toLowerCase()
-    return `<${lower}>${inner}</${lower}>`
+    const attrs: string[] = []
+    const align = node.getAttribute('align') || node.style.textAlign || ''
+    if (ALIGN_TAGS.has(tag) && ALIGN_VALUES.has(align)) attrs.push(`align="${align}"`)
+    const todo = node.getAttribute('data-todo')
+    if (tag === 'DIV' && (todo === '0' || todo === '1')) attrs.push(`data-todo="${todo}"`)
+    return `<${lower}${attrs.length ? ' ' + attrs.join(' ') : ''}>${inner}</${lower}>`
   }
   return Array.from(editor.childNodes).map(serializeNode).join('')
 }
@@ -135,6 +147,7 @@ function NoteEditor({
     initial.text.trim().length > 0 || hasNoteMedia(initial.html),
   )
   const [charCount, setCharCount] = useState(initial.text.replace(/\s/g, '').length)
+  const [pop, setPop] = useState<null | 'font' | 'para' | 'align'>(null)
   const createdAtRef = useRef(initial.createdAt)
 
   const editorRef = useRef<HTMLDivElement>(null)
@@ -189,6 +202,13 @@ function NoteEditor({
       // 部分浏览器不支持，退回默认行为
     }
     refreshHasContent()
+    for (const todo of Array.from(editor.querySelectorAll('div[data-todo]'))) {
+      if (todo.querySelector('input')) continue
+      const box = document.createElement('input')
+      box.type = 'checkbox'
+      box.checked = todo.getAttribute('data-todo') === '1'
+      todo.prepend(box)
+    }
     let cancelled = false
 
     for (const img of Array.from(editor.querySelectorAll('img[data-image-id]'))) {
@@ -378,6 +398,28 @@ function NoteEditor({
     runCommand('formatBlock', current === 'h2' ? 'p' : 'h2')
   }
 
+  const popAction = (command: string, value?: string) => {
+    runCommand(command, value)
+    setPop(null)
+  }
+
+  const insertTodo = () => {
+    insertHtml('<div data-todo="0"><input type="checkbox"><br></div><div><br></div>')
+    setPop(null)
+  }
+
+  // 弹层开着时，点正文或别处就收起；点弹层自身和开关按钮不收起
+  useEffect(() => {
+    if (!pop) return
+    const close = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (target.closest('.note-pop') || target.closest('[data-pop-btn]')) return
+      setPop(null)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [pop])
+
   const leave = () => {
     if (dirty && !window.confirm('还没保存，离开会丢掉这次的修改。继续？')) return
     onBack()
@@ -536,75 +578,107 @@ function NoteEditor({
           markDirty()
           refreshHasContent()
         }}
+        onClick={(event) => {
+          const target = event.target
+          if (target instanceof HTMLInputElement && target.type === 'checkbox') {
+            const todo = target.closest('div[data-todo]')
+            if (todo) {
+              todo.setAttribute('data-todo', target.checked ? '1' : '0')
+              markDirty()
+            }
+          }
+        }}
         onPaste={onPaste}
       />
 
       <div className="note-toolbar">
+        {pop && (
+          <div className="note-pop" onMouseDown={(event) => event.preventDefault()}>
+            {pop === 'font' && (
+              <>
+                <div className="note-pop-row">
+                  <button className="note-pop-btn" type="button" onClick={() => popAction('fontSize', '2')}>小</button>
+                  <button className="note-pop-btn" type="button" onClick={() => popAction('fontSize', '3')}>标准</button>
+                  <button className="note-pop-btn" type="button" onClick={() => popAction('fontSize', '5')}>大</button>
+                  <button className="note-pop-btn" type="button" onClick={() => popAction('fontSize', '7')}>特大</button>
+                </div>
+                <div className="note-pop-row">
+                  <button className="note-pop-btn" type="button" aria-label="加粗" onClick={() => popAction('bold')}><b>B</b></button>
+                  <button className="note-pop-btn" type="button" aria-label="斜体" onClick={() => popAction('italic')}><i>I</i></button>
+                  <button className="note-pop-btn" type="button" aria-label="下划线" onClick={() => popAction('underline')}><u>U</u></button>
+                  <button className="note-pop-btn" type="button" aria-label="删除线" onClick={() => popAction('strikeThrough')}><s>S</s></button>
+                </div>
+              </>
+            )}
+            {pop === 'para' && (
+              <div className="note-pop-row">
+                <button className="note-pop-btn" type="button" onClick={() => { toggleHeading(); setPop(null) }}>小标题</button>
+                <button className="note-pop-btn" type="button" onClick={() => popAction('insertUnorderedList')}>• 列表</button>
+                <button className="note-pop-btn" type="button" onClick={() => popAction('insertOrderedList')}>1. 列表</button>
+              </div>
+            )}
+            {pop === 'align' && (
+              <div className="note-pop-row">
+                <button className="note-pop-btn" type="button" onClick={() => popAction('justifyLeft')}>居左</button>
+                <button className="note-pop-btn" type="button" onClick={() => popAction('justifyCenter')}>居中</button>
+                <button className="note-pop-btn" type="button" onClick={() => popAction('justifyRight')}>居右</button>
+              </div>
+            )}
+          </div>
+        )}
         <button
-          className="note-tool"
+          className={pop === 'font' ? 'note-tool is-on' : 'note-tool'}
           type="button"
-          aria-label="加粗"
+          aria-label="字体设置"
+          data-pop-btn
           onMouseDown={(event) => event.preventDefault()}
-          onClick={() => runCommand('bold')}
+          onClick={() => setPop(pop === 'font' ? null : 'font')}
         >
-          <b>B</b>
+          <span className="note-tool-aa">Aa</span>
+        </button>
+        <button
+          className={pop === 'para' ? 'note-tool is-on' : 'note-tool'}
+          type="button"
+          aria-label="段落样式"
+          data-pop-btn
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setPop(pop === 'para' ? null : 'para')}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="4" y="4.5" width="6.5" height="15" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            <rect x="13.5" y="4.5" width="6.5" height="15" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          </svg>
+        </button>
+        <button
+          className={pop === 'align' ? 'note-tool is-on' : 'note-tool'}
+          type="button"
+          aria-label="对齐方式"
+          data-pop-btn
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setPop(pop === 'align' ? null : 'align')}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M4 6.5h16M4 12h11M4 17.5h14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
+          </svg>
         </button>
         <button
           className="note-tool"
           type="button"
-          aria-label="斜体"
+          aria-label="待办清单"
           onMouseDown={(event) => event.preventDefault()}
-          onClick={() => runCommand('italic')}
+          onClick={insertTodo}
         >
-          <i>I</i>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="4" y="4.5" width="16" height="15" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M8.5 12l2.6 2.6 4.9-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
-        <button
-          className="note-tool"
-          type="button"
-          aria-label="下划线"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => runCommand('underline')}
-        >
-          <u>U</u>
-        </button>
-        <button
-          className="note-tool"
-          type="button"
-          aria-label="删除线"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => runCommand('strikeThrough')}
-        >
-          <s>S</s>
-        </button>
-        <span className="note-tool-sep" />
-        <button
-          className="note-tool"
-          type="button"
-          aria-label="标题"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={toggleHeading}
-        >
-          H
-        </button>
-        <button
-          className="note-tool"
-          type="button"
-          aria-label="无序列表"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => runCommand('insertUnorderedList')}
-        >
-          •
-        </button>
-        <button
-          className="note-tool"
-          type="button"
-          aria-label="有序列表"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => runCommand('insertOrderedList')}
-        >
-          1.
-        </button>
-        <span className="note-tool-sep" />
         <label
           className={busy ? 'note-tool note-tool-media is-busy' : 'note-tool note-tool-media'}
           aria-label="插入图片"
