@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, ClipboardEvent } from 'react'
-import type { ExerciseNote, ExerciseProfile } from '../types'
-import { getExerciseProfiles } from '../lib/exerciseProfiles'
+import type { ExerciseNote } from '../types'
 import {
   addExerciseNote,
   deleteExerciseNote,
+  filterNotes,
   getExerciseNotes,
+  NOTE_SORTS,
   sortNotes,
   toggleNotePin,
   updateExerciseNote,
 } from '../lib/exerciseNotes'
+import type { NoteSort } from '../lib/exerciseNotes'
 import { collectMediaIds, hasNoteMedia, textToHtml } from '../lib/noteMedia'
 import { compressImage } from '../lib/image'
 import { inspectVideo } from '../lib/videoFile'
-import { deleteImage, deleteVideo, getImage, getVideo, putImage, putVideo } from '../lib/storage'
+import { deleteImage, deleteVideo, getImage, getVideo, putImage, putVideo, readJSON, writeJSON } from '../lib/storage'
 import { useOverlayHistory } from '../hooks/useOverlayHistory'
 
 const MAX_VIDEO_BYTES = 200 * 1024 * 1024
@@ -29,8 +31,8 @@ interface Draft {
   title: string
   text: string
   html?: string
-  exerciseId: string | null
   pinned: boolean
+  createdAt: string
 }
 
 interface Props {
@@ -59,9 +61,15 @@ function draftOf(note: ExerciseNote): Draft {
     title: note.title ?? '',
     text: note.text,
     html: note.html,
-    exerciseId: note.exerciseId,
     pinned: note.pinned === true,
+    createdAt: note.createdAt,
   }
+}
+
+function formatNoteTime(iso: string): string {
+  const d = new Date(iso)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
 function firstLine(text: string): string {
@@ -108,27 +116,26 @@ function serializeNote(editor: HTMLElement): string {
 
 function NoteEditor({
   initial,
-  exercises,
   onSave,
   onDelete,
   onBack,
   onDirtyChange,
 }: {
   initial: Draft
-  exercises: ExerciseProfile[]
   onSave: (draft: Draft) => void
   onDelete?: () => void
   onBack: () => void
   onDirtyChange: (dirty: boolean) => void
 }) {
   const [title, setTitle] = useState(initial.title)
-  const [exerciseId, setExerciseId] = useState<string | null>(initial.exerciseId)
   const [pinned, setPinned] = useState(initial.pinned)
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
   const [hasContent, setHasContent] = useState(
     initial.text.trim().length > 0 || hasNoteMedia(initial.html),
   )
+  const [charCount, setCharCount] = useState(initial.text.replace(/\s/g, '').length)
+  const createdAtRef = useRef(initial.createdAt)
 
   const editorRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLInputElement>(null)
@@ -181,6 +188,7 @@ function NoteEditor({
     } catch {
       // 部分浏览器不支持，退回默认行为
     }
+    refreshHasContent()
     let cancelled = false
 
     for (const img of Array.from(editor.querySelectorAll('img[data-image-id]'))) {
@@ -240,6 +248,7 @@ function NoteEditor({
     const editor = editorRef.current
     if (!editor) return
     setHasContent(editor.innerText.trim().length > 0 || !!editor.querySelector('img, video'))
+    setCharCount(editor.innerText.replace(/\s/g, '').length)
   }
 
   const insertHtml = (html: string) => {
@@ -397,7 +406,7 @@ function NoteEditor({
     }
 
     savedRef.current = true
-    onSave({ id: initial.id, title, text, html, exerciseId, pinned })
+    onSave({ id: initial.id, title, text, html, pinned, createdAt: createdAtRef.current })
   }
 
   return (
@@ -508,24 +517,11 @@ function NoteEditor({
         }}
       />
 
-      <label className="note-link-row">
-        <span>关联动作</span>
-        <select
-          value={exerciseId ?? ''}
-          aria-label="关联动作"
-          onChange={(event) => {
-            setExerciseId(event.target.value || null)
-            markDirty()
-          }}
-        >
-          <option value="">不关联</option>
-          {exercises.map((exercise) => (
-            <option key={exercise.id} value={exercise.id}>
-              {exercise.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="note-meta-row">
+        <span>{formatNoteTime(createdAtRef.current)}</span>
+        <span className="note-meta-sep">|</span>
+        <span aria-label={`正文 ${charCount} 字`}>{charCount}字</span>
+      </div>
 
       <div
         ref={editorRef}
@@ -653,9 +649,13 @@ function NoteEditor({
 }
 
 export default function NotesTab({ active }: Props) {
-  const [exercises, setExercises] = useState<ExerciseProfile[]>(() => getExerciseProfiles())
   const [notes, setNotes] = useState<ExerciseNote[]>(() => getExerciseNotes())
   const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<NoteSort>(() => {
+    const saved = readJSON<string>('noteSort', 'updated-desc')
+    return NOTE_SORTS.includes(saved as NoteSort) ? (saved as NoteSort) : 'updated-desc'
+  })
+  const [filter, setFilter] = useState<string>(() => readJSON<string>('noteFilter', 'all'))
   const [draft, setDraft] = useState<Draft | null>(null)
   const dirtyRef = useRef(false)
   const confirmedRef = useRef(false)
@@ -687,7 +687,6 @@ export default function NotesTab({ active }: Props) {
 
   useEffect(() => {
     if (!active) return
-    setExercises(getExerciseProfiles())
     setNotes(getExerciseNotes())
   }, [active])
 
@@ -716,24 +715,35 @@ export default function NotesTab({ active }: Props) {
 
   const refresh = () => setNotes(getExerciseNotes())
 
-  const nameOf = (exerciseId: string | null) =>
-    exerciseId ? (exercises.find((item) => item.id === exerciseId)?.name ?? '已删除的动作') : ''
-
   const keyword = query.trim().toLowerCase()
+  const filterOptions = ['all', 'pinned']
+  const activeFilter = filterOptions.includes(filter) ? filter : 'all'
   const visible = sortNotes(
-    keyword
-      ? notes.filter((note) =>
-          `${note.title ?? ''}\n${note.text}\n${nameOf(note.exerciseId)}`
-            .toLowerCase()
-            .includes(keyword),
-        )
-      : notes,
+    filterNotes(
+      keyword
+        ? notes.filter((note) =>
+            `${note.title ?? ''}\n${note.text}`.toLowerCase().includes(keyword),
+          )
+        : notes,
+      activeFilter,
+    ),
+    sort,
   )
+
+  const changeSort = (next: NoteSort) => {
+    setSort(next)
+    writeJSON('noteSort', next)
+  }
+
+  const changeFilter = (next: string) => {
+    setFilter(next)
+    writeJSON('noteFilter', next)
+  }
 
   const startNew = () => {
     listScrollRef.current = window.scrollY
     dirtyRef.current = false
-    setDraft({ id: null, title: '', text: '', exerciseId: null, pinned: false })
+    setDraft({ id: null, title: '', text: '', pinned: false, createdAt: new Date().toISOString() })
   }
 
   const startEdit = (note: ExerciseNote) => {
@@ -748,7 +758,6 @@ export default function NotesTab({ active }: Props) {
         title: next.title,
         text: next.text,
         html: next.html,
-        exerciseId: next.exerciseId,
         pinned: next.pinned,
       })
     } else {
@@ -756,7 +765,6 @@ export default function NotesTab({ active }: Props) {
         title: next.title,
         text: next.text,
         html: next.html,
-        exerciseId: next.exerciseId,
         pinned: next.pinned,
       })
     }
@@ -790,7 +798,6 @@ export default function NotesTab({ active }: Props) {
       <NoteEditor
         key={draft.id ?? 'new'}
         initial={draft}
-        exercises={exercises}
         onSave={saveDraft}
         onDelete={draft.id ? removeDraft : undefined}
         onBack={() => {
@@ -821,6 +828,53 @@ export default function NotesTab({ active }: Props) {
         </button>
       </div>
 
+      {notes.length > 0 && (
+        <div className="notes-view-row">
+          <label className="notes-view-ctl">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M4 5.5h16M7 12h10M10 18.5h4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+            <select
+              value={activeFilter}
+              aria-label="筛选笔记"
+              onChange={(event) => changeFilter(event.target.value)}
+            >
+              <option value="all">全部笔记</option>
+              <option value="pinned">只看置顶</option>
+            </select>
+          </label>
+          <label className="notes-view-ctl">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M8 5.5v13m0 0l-3.5-3.5M8 18.5l3.5-3.5M16 18.5v-13m0 0l-3.5 3.5M16 5.5l3.5 3.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <select
+              value={sort}
+              aria-label="排序方式"
+              onChange={(event) => changeSort(event.target.value as NoteSort)}
+            >
+              <option value="updated-desc">最近更新</option>
+              <option value="created-desc">最近创建</option>
+              <option value="created-asc">最早创建</option>
+              <option value="title">按标题</option>
+            </select>
+          </label>
+          <span className="notes-view-count">{visible.length} 条</span>
+        </div>
+      )}
+
       {notes.length === 0 && (
         <p className="hint notes-empty">还没有笔记。点「+ 新笔记」，像备忘录一样随手记一条。</p>
       )}
@@ -834,7 +888,6 @@ export default function NotesTab({ active }: Props) {
             const title = (note.title ?? '').trim()
             const heading = title || firstLine(note.text) || '无标题'
             const preview = title ? note.text.trim() : restOf(note.text)
-            const linkedName = nameOf(note.exerciseId)
 
             return (
               <li key={note.id} className="memo-card">
@@ -846,7 +899,6 @@ export default function NotesTab({ active }: Props) {
                   <span className="memo-title">{heading}</span>
                   {preview && <span className="memo-preview">{preview}</span>}
                   <span className="memo-meta">
-                    {linkedName && <span className="memo-exercise">{linkedName}</span>}
                     <span className="memo-date">{note.updatedAt.slice(0, 10)}</span>
                   </span>
                 </button>

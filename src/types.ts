@@ -57,7 +57,6 @@ export interface ExercisePhoto {
 
 export interface ExerciseNote {
   id: string
-  exerciseId: string | null
   title?: string
   text: string
   html?: string

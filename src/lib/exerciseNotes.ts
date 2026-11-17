@@ -5,7 +5,6 @@ import { hasNoteMedia } from './noteMedia'
 const KEY = 'exerciseNotes'
 
 export interface NoteInput {
-  exerciseId: string | null
   title?: string
   text: string
   html?: string
@@ -13,7 +12,6 @@ export interface NoteInput {
 }
 
 export interface NotePatch {
-  exerciseId?: string | null
   title?: string
   text?: string
   html?: string
@@ -23,7 +21,6 @@ export interface NotePatch {
 export function getExerciseNotes(): ExerciseNote[] {
   return readJSON<ExerciseNote[]>(KEY, []).map((note) => ({
     id: note.id,
-    exerciseId: note.exerciseId ?? null,
     title: typeof note.title === 'string' ? note.title : '',
     text: note.text,
     html: typeof note.html === 'string' ? note.html : undefined,
@@ -33,19 +30,41 @@ export function getExerciseNotes(): ExerciseNote[] {
   }))
 }
 
-export function getNotesOfExercise(exerciseId: string): ExerciseNote[] {
-  return getExerciseNotes().filter((note) => note.exerciseId === exerciseId)
-}
+// 置顶在前，其余按所选模式排；时间相同按创建时间兜底
+export type NoteSort = 'updated-desc' | 'created-desc' | 'created-asc' | 'title'
 
-// 置顶在前，其余按最近更新排；时间相同按创建时间兜底
-export function sortNotes(notes: ExerciseNote[]): ExerciseNote[] {
+export const NOTE_SORTS: NoteSort[] = ['updated-desc', 'created-desc', 'created-asc', 'title']
+
+export function sortNotes(notes: ExerciseNote[], sort: NoteSort = 'updated-desc'): ExerciseNote[] {
+  const byMode = (a: ExerciseNote, b: ExerciseNote): number => {
+    switch (sort) {
+      case 'created-desc':
+        return a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0
+      case 'created-asc':
+        return a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0
+      case 'title': {
+        const ta = (a.title ?? '').trim() || a.text.trim().split('\n')[0].trim()
+        const tb = (b.title ?? '').trim() || b.text.trim().split('\n')[0].trim()
+        return ta.localeCompare(tb, 'zh-Hans-CN')
+      }
+      default:
+        return a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0
+    }
+  }
   return [...notes].sort((a, b) => {
     const pinA = a.pinned ? 1 : 0
     const pinB = b.pinned ? 1 : 0
     if (pinA !== pinB) return pinB - pinA
-    if (a.updatedAt !== b.updatedAt) return a.updatedAt < b.updatedAt ? 1 : -1
+    const order = byMode(a, b)
+    if (order !== 0) return order
     return a.createdAt < b.createdAt ? 1 : -1
   })
+}
+
+// 'pinned' 只看置顶；其余值一律全部
+export function filterNotes(notes: ExerciseNote[], filter: string): ExerciseNote[] {
+  if (filter === 'pinned') return notes.filter((note) => note.pinned === true)
+  return notes
 }
 
 export function addExerciseNote(input: NoteInput): ExerciseNote | null {
@@ -56,7 +75,6 @@ export function addExerciseNote(input: NoteInput): ExerciseNote | null {
   const now = new Date().toISOString()
   const note: ExerciseNote = {
     id: `n-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    exerciseId: input.exerciseId,
     title,
     text,
     html: input.html,
@@ -80,7 +98,6 @@ export function updateExerciseNote(id: string, patch: NotePatch): void {
       if (!title && !text && !hasNoteMedia(html)) return note
       return {
         ...note,
-        exerciseId: patch.exerciseId === undefined ? note.exerciseId : patch.exerciseId,
         title,
         text,
         html,
