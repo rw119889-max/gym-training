@@ -347,6 +347,32 @@ textarea {
   background: var(--accent);
 }
 
+/* ---------- 全局滚动条：跟随主题配色（横向吸附轨道各自隐藏，不受影响） ---------- */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-ctl) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--line-ctl);
+  border: 2px solid var(--bg);
+  border-radius: var(--r-full);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-ring);
+}
+
 :focus-visible {
   /* 不再顺手改 border-radius：否则圆形按钮一聚焦就被压成 8px 圆角 */
   outline: 2px solid var(--accent-ring);
@@ -1614,6 +1640,732 @@ body::after {
   background: var(--accent-06);
   border: 1px solid var(--accent-28);
   border-radius: var(--r-full);
+}
+
+/* ---------- 凯圣王 × 谭成义 · 跟练系列 ---------- */
+
+.coach-card {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  width: 100%;
+  min-height: 96px;
+  padding: var(--s4);
+  text-align: left;
+  color: var(--text);
+  background-color: var(--surface-1);
+  background-image: linear-gradient(120deg, var(--accent-06) 0%, var(--info-12) 100%),
+    linear-gradient(180deg, var(--card-hi) 0%, transparent 46%);
+  border: 1px solid var(--accent-28);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+  transition: transform var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease);
+}
+
+.coach-card:hover {
+  border-color: var(--accent-ring);
+  box-shadow: var(--shadow-accent);
+}
+
+.coach-card:active {
+  transform: scale(0.99);
+}
+
+.coach-card-glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  color: var(--accent-text);
+  background: linear-gradient(135deg, var(--accent-12) 0%, var(--info-12) 100%);
+  border: 1px solid var(--accent-28);
+  border-radius: var(--r-md);
+}
+
+.coach-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.coach-card-name {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.coach-card-name .category-en {
+  white-space: nowrap;
+}
+
+.coach-card-meta {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.coach-principle {
+  padding: var(--s4);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.coach-principle-title {
+  margin-bottom: var(--s2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--faint);
+}
+
+.coach-principle p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+
+.plan-day-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  margin-top: var(--s5);
+}
+
+.plan-day-card {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  width: 100%;
+  min-height: 96px;
+  padding: var(--s4);
+  text-align: left;
+  color: var(--text);
+  background-color: var(--surface-1);
+  background-image: linear-gradient(180deg, var(--card-hi) 0%, transparent 46%);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+  transition: transform var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+
+.plan-day-card:hover {
+  background-color: var(--surface-2);
+  box-shadow: var(--shadow-2);
+}
+
+.plan-day-card.is-push:hover {
+  border-color: var(--accent-28);
+}
+
+.plan-day-card.is-pull:hover {
+  border-color: var(--info-28);
+}
+
+.plan-day-card:active {
+  transform: scale(0.99);
+  background-color: var(--surface-3);
+}
+
+.plan-day-glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  font-size: 24px;
+  font-weight: 750;
+  border-radius: var(--r-md);
+}
+
+.plan-day-card.is-push .plan-day-glyph {
+  color: var(--accent-text);
+  background: var(--accent-06);
+  border: 1px solid var(--accent-28);
+}
+
+.plan-day-card.is-pull .plan-day-glyph {
+  color: var(--info);
+  background: var(--info-12);
+  border: 1px solid var(--info-28);
+}
+
+.plan-day-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.plan-day-name {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.plan-day-focus {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.plan-day-card.is-push .plan-day-focus {
+  color: var(--accent-text);
+}
+
+.plan-day-card.is-pull .plan-day-focus {
+  color: var(--info);
+}
+
+.plan-day-meta {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.plan-source {
+  margin-top: var(--s6);
+}
+
+/* ---------- 计划详情：动作手风琴 ---------- */
+
+.plan-exercise-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  list-style: none;
+}
+
+.plan-exercise {
+  overflow: hidden;
+  background-color: var(--surface-1);
+  background-image: linear-gradient(180deg, var(--card-hi) 0%, transparent 46%);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-1);
+  transition: border-color var(--t-fast) var(--ease);
+}
+
+.plan-exercise-list.is-push .plan-exercise.is-open {
+  border-color: var(--accent-28);
+}
+
+.plan-exercise-list.is-pull .plan-exercise.is-open {
+  border-color: var(--info-28);
+}
+
+.plan-exercise-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--s4);
+  text-align: left;
+  color: var(--text);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.plan-exercise-index {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-top: 1px;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--r-full);
+}
+
+.plan-exercise-list.is-push .plan-exercise-index {
+  color: var(--accent-text);
+  background: var(--accent-06);
+  border: 1px solid var(--accent-28);
+}
+
+.plan-exercise-list.is-pull .plan-exercise-index {
+  color: var(--info);
+  background: var(--info-12);
+  border: 1px solid var(--info-28);
+}
+
+.plan-exercise-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.plan-exercise-name {
+  font-size: 15.5px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.plan-exercise-muscles {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.plan-exercise-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: 2px;
+}
+
+.plan-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--r-full);
+  border: 1px solid var(--line);
+}
+
+.plan-chip.is-sets {
+  color: var(--text-2);
+  background: var(--surface-2);
+}
+
+.plan-chip.is-control {
+  color: var(--success);
+  background: var(--success-12);
+  border-color: var(--success-28);
+}
+
+.plan-chip.is-failure {
+  color: var(--warning);
+  background: var(--warning-12);
+  border-color: var(--warning-28);
+}
+
+.plan-exercise-chevron {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 28px;
+  color: var(--faint);
+  transition: transform var(--t-base) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.plan-exercise-chevron svg {
+  width: 18px;
+  height: 18px;
+}
+
+.plan-exercise.is-open .plan-exercise-chevron {
+  transform: rotate(180deg);
+}
+
+.plan-exercise-list.is-push .plan-exercise.is-open .plan-exercise-chevron {
+  color: var(--accent-text);
+}
+
+.plan-exercise-list.is-pull .plan-exercise.is-open .plan-exercise-chevron {
+  color: var(--info);
+}
+
+.plan-tips {
+  margin: 0;
+  padding: 0 var(--s4) var(--s4) 56px;
+  list-style: none;
+  animation: fadeUp var(--t-base) var(--ease);
+}
+
+.plan-tips li {
+  position: relative;
+  padding-left: 14px;
+  margin-bottom: var(--s2);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+
+.plan-tips li:last-child {
+  margin-bottom: 0;
+}
+
+.plan-tips li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+}
+
+.plan-exercise-list.is-push .plan-tips li::before {
+  background: var(--accent-28);
+}
+
+.plan-exercise-list.is-pull .plan-tips li::before {
+  background: var(--info-28);
+}
+
+@media (max-width: 380px) {
+  .plan-tips {
+    padding-left: var(--s4);
+  }
+}
+
+/* ---------- 教练系列总纲 / 动作深化 ---------- */
+
+.plan-exercise-body {
+  padding: 0 var(--s4) var(--s4) 56px;
+  animation: fadeUp var(--t-base) var(--ease);
+}
+
+.plan-exercise-body .plan-tips {
+  padding: 0;
+  margin-bottom: var(--s3);
+  animation: none;
+}
+
+.plan-block {
+  margin-top: var(--s3);
+}
+
+.plan-block-title {
+  margin: 0 0 var(--s2);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.guide-videos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
+.video-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--accent-text);
+  background: var(--accent-06);
+  border: 1px solid var(--accent-28);
+  border-radius: var(--r-full);
+  text-decoration: none;
+  transition: border-color var(--t-fast) var(--ease);
+}
+
+.video-link:hover {
+  border-color: var(--line-strong);
+}
+
+.video-link.is-douyin {
+  color: var(--info);
+  background: var(--info-12);
+  border-color: var(--info-28);
+}
+
+.guide-lines {
+  display: grid;
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-lines li,
+.guide-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.guide-line {
+  margin: 0 0 var(--s2);
+}
+
+.guide-line-text {
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+
+.source-chip {
+  flex: none;
+  padding: 1px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  white-space: nowrap;
+}
+
+.plan-regpro {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s3);
+}
+
+.plan-adjust {
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.plan-adjust .guide-line-text {
+  color: var(--text);
+}
+
+.faq-list {
+  display: grid;
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.faq-item {
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.faq-q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.faq-chevron {
+  flex: none;
+  color: var(--faint);
+  transition: transform var(--t-base) var(--ease);
+}
+
+.faq-item.is-open .faq-chevron {
+  transform: rotate(90deg);
+}
+
+.faq-a {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  padding: 0 12px 10px;
+}
+
+.guide-entry {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  margin: var(--s3) 0;
+  padding: 12px 14px;
+  color: var(--text);
+  text-align: left;
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-1);
+  cursor: pointer;
+}
+
+.guide-entry-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.guide-entry-title {
+  font-size: 14.5px;
+  font-weight: 650;
+}
+
+.guide-entry-meta {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.guide-section {
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+
+.guide-section-title {
+  margin: 0 0 var(--s3);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.guide-table {
+  width: 100%;
+  margin: var(--s3) 0;
+  font-size: 12.5px;
+  border-collapse: collapse;
+}
+
+.guide-table th,
+.guide-table td {
+  padding: 7px 8px;
+  line-height: 1.5;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+.guide-table th {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.guide-table td {
+  color: var(--text-2);
+}
+
+.guide-chain {
+  display: grid;
+  gap: var(--s2);
+  margin: var(--s3) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-chain li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.guide-chain-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-text);
+}
+
+.guide-chain-steps {
+  font-size: 13px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.guide-motto {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: var(--s3) 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.guide-redline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: var(--s3) 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.6;
+  color: var(--danger);
+  background: var(--danger-12);
+  border: 1px solid var(--danger-28);
+  border-radius: var(--r-md);
+}
+
+.guide-glossary {
+  display: grid;
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-glossary li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.guide-term {
+  flex: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+@media (max-width: 560px) {
+  .plan-regpro {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 380px) {
+  .plan-exercise-body {
+    padding-left: var(--s4);
+  }
 }
 
 /* ---------- 食谱 ---------- */

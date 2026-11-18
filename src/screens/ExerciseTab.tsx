@@ -5,12 +5,16 @@ import ExerciseVideos from '../components/ExerciseVideos'
 import ExercisePhotos from '../components/ExercisePhotos'
 import SavedArticles from '../components/SavedArticles'
 import {
-  EXERCISE_CATEGORIES,
+  PICKABLE_CATEGORIES,
   addExerciseProfile,
   categoryLabel,
   getExerciseProfiles,
   updateExerciseProfile,
 } from '../lib/exerciseProfiles'
+import { COACH_SERIES, PLAN_DAYS, findPlanDay } from '../lib/coachPlans'
+import type { PlanDay, PlanExercise } from '../lib/coachPlans'
+import { GUIDE_SOURCE_LABELS, SERIES_GUIDE } from '../lib/coachGuide'
+import type { GuideItem, GuideSource } from '../lib/coachGuide'
 import { getExercisePhotos } from '../lib/exercisePhotos'
 import { getSavedArticlesOfExercise } from '../lib/savedArticles'
 import { formatBytes, getVideos } from '../lib/videos'
@@ -25,6 +29,9 @@ type Route =
   | { level: 'category'; category: Bucket }
   | { level: 'exercise'; exerciseId: string }
   | { level: 'media'; kind: MediaKind; exerciseId: string }
+  | { level: 'coaches' }
+  | { level: 'plan'; day: PlanDay }
+  | { level: 'guide' }
 
 interface EditorState {
   id: string | null
@@ -38,6 +45,333 @@ interface Props {
 
 function bucketOf(item: ExerciseProfile): Bucket {
   return item.category ?? 'unassigned'
+}
+
+function PlanExerciseCard({
+  exercise,
+  index,
+  defaultOpen,
+}: {
+  exercise: PlanExercise
+  index: number
+  defaultOpen: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  const hasRegression = (exercise.regression?.length ?? 0) > 0
+  const hasProgression = (exercise.progression?.length ?? 0) > 0
+
+  return (
+    <li className={open ? 'plan-exercise is-open' : 'plan-exercise'}>
+      <button
+        type="button"
+        className="plan-exercise-head"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <span className="plan-exercise-index" aria-hidden="true">
+          {index + 1}
+        </span>
+        <span className="plan-exercise-main">
+          <span className="plan-exercise-name">{exercise.name}</span>
+          <span className="plan-exercise-muscles">{exercise.muscles}</span>
+          <span className="plan-exercise-tags">
+            <span className="plan-chip is-sets">{exercise.sets}</span>
+            <span
+              className={exercise.toFailure ? 'plan-chip is-failure' : 'plan-chip is-control'}
+            >
+              {exercise.intensity}
+            </span>
+          </span>
+        </span>
+        <span className="plan-exercise-chevron" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9.5l6 6 6-6" />
+          </svg>
+        </span>
+      </button>
+      {open && (
+        <div className="plan-exercise-body">
+          <ul className="plan-tips">
+            {exercise.tips.map((tip) => (
+              <li key={tip}>{tip}</li>
+            ))}
+          </ul>
+          {exercise.video && (
+            <div className="guide-videos">
+              <a
+                className="video-link"
+                href={exercise.video.bilibili}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                ▶ B站标准演示 · {exercise.video.chapter}（{formatTimestamp(exercise.video.seconds)} 起）
+              </a>
+              <a
+                className="video-link is-douyin"
+                href={exercise.video.douyin}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                抖音同章节
+              </a>
+            </div>
+          )}
+          {exercise.notes && exercise.notes.length > 0 && (
+            <div className="plan-block">
+              <h3 className="plan-block-title">教练补充</h3>
+              <GuideLines items={exercise.notes} />
+            </div>
+          )}
+          {hasRegression || hasProgression ? (
+            <div className="plan-block plan-regpro">
+              {hasRegression && (
+                <div className="plan-regpro-col">
+                  <h3 className="plan-block-title">退阶</h3>
+                  <GuideLines items={exercise.regression ?? []} />
+                </div>
+              )}
+              {hasProgression && (
+                <div className="plan-regpro-col">
+                  <h3 className="plan-block-title">进阶</h3>
+                  <GuideLines items={exercise.progression ?? []} />
+                </div>
+              )}
+            </div>
+          ) : null}
+          {exercise.adjust && (
+            <div className="plan-block plan-adjust">
+              <h3 className="plan-block-title">次数 / 重量怎么调</h3>
+              <p className="guide-line-text">{exercise.adjust}</p>
+            </div>
+          )}
+          {exercise.faq && exercise.faq.length > 0 && (
+            <div className="plan-block">
+              <h3 className="plan-block-title">常见问题</h3>
+              <FaqList entries={exercise.faq} />
+            </div>
+          )}
+        </div>
+      )}
+    </li>
+  )
+}
+
+function formatTimestamp(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+function SourceChip({ source }: { source: GuideSource }) {
+  return <span className="source-chip">{GUIDE_SOURCE_LABELS[source]}</span>
+}
+
+function GuideLine({ item }: { item: GuideItem }) {
+  return (
+    <p className="guide-line">
+      <span className="guide-line-text">{item.text}</span>
+      <SourceChip source={item.source} />
+    </p>
+  )
+}
+
+function GuideLines({ items }: { items: GuideItem[] }) {
+  return (
+    <ul className="guide-lines">
+      {items.map((item) => (
+        <li key={item.text}>
+          <span className="guide-line-text">{item.text}</span>
+          <SourceChip source={item.source} />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function FaqList({ entries }: { entries: { q: string; a: string; source: GuideSource }[] }) {
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
+  return (
+    <ul className="faq-list">
+      {entries.map((entry, index) => (
+        <li key={entry.q} className={openIndex === index ? 'faq-item is-open' : 'faq-item'}>
+          <button
+            type="button"
+            className="faq-q"
+            aria-expanded={openIndex === index}
+            onClick={() => setOpenIndex((prev) => (prev === index ? null : index))}
+          >
+            <span>{entry.q}</span>
+            <span className="faq-chevron" aria-hidden="true">
+              ›
+            </span>
+          </button>
+          {openIndex === index && (
+            <p className="faq-a">
+              <span className="guide-line-text">{entry.a}</span>
+              <SourceChip source={entry.source} />
+            </p>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function SeriesGuide({ onBack }: { onBack: () => void }) {
+  const g = SERIES_GUIDE
+  return (
+    <section>
+      <button className="back-btn" type="button" onClick={onBack}>
+        ← {COACH_SERIES.title}
+      </button>
+      <h1 className="page-title">系列总纲</h1>
+      <p className="page-sub">次数 / 重量 / 休息怎么安排 · 每条都标来源</p>
+
+      <div className="guide-section">
+        <h2 className="guide-section-title">1 · 排课与红线</h2>
+        <GuideLine item={g.schedule.split} />
+        <GuideLines items={g.schedule.redLines} />
+        <GuideLine item={g.schedule.exampleWeek} />
+        <GuideLine item={g.schedule.threeDayWeek} />
+        <GuideLines items={g.schedule.volumeCap} />
+        <GuideLine item={g.schedule.frequencyWhy} />
+      </div>
+
+      <div className="guide-section">
+        <h2 className="guide-section-title">2 · 一次训练流程</h2>
+        <div className="guide-videos">
+          <a
+            className="video-link"
+            href="https://www.bilibili.com/video/BV1CSoKBaEgK?t=4660"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            ▶ 推日热身 · 谭指导（B站 77:40 起）
+          </a>
+          <a
+            className="video-link"
+            href="https://www.bilibili.com/video/BV1v5opBhEDc?t=4804"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            ▶ 拉日热身 · 谭指导带练（B站 80:04 起）
+          </a>
+        </div>
+        <GuideLines items={g.session.steps} />
+        <table className="guide-table">
+          <thead>
+            <tr>
+              <th>类型</th>
+              <th>次数</th>
+              <th>组间歇</th>
+              <th>来源</th>
+            </tr>
+          </thead>
+          <tbody>
+            {g.session.restTable.map((row) => (
+              <tr key={row.type}>
+                <td>{row.type}</td>
+                <td>{row.reps}</td>
+                <td>{row.rest}</td>
+                <td>
+                  <SourceChip source={row.source} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <GuideLine item={g.session.restPrinciple} />
+      </div>
+
+      <div className="guide-section">
+        <h2 className="guide-section-title">3 · 递进法则</h2>
+        <GuideLine item={g.progression.oneLiner} />
+        <GuideLines items={g.progression.start} />
+        <ol className="guide-chain">
+          {g.progression.chain.map((phase) => (
+            <li key={phase.label}>
+              <span className="guide-chain-label">{phase.label}</span>
+              <span className="guide-chain-steps">{phase.steps.join(' → ')}</span>
+              <SourceChip source={phase.source} />
+            </li>
+          ))}
+        </ol>
+        <GuideLine item={g.progression.advanceRule} />
+        <table className="guide-table">
+          <thead>
+            <tr>
+              <th>情况</th>
+              <th>怎么办</th>
+              <th>来源</th>
+            </tr>
+          </thead>
+          <tbody>
+            {g.progression.decisionFlow.map((row) => (
+              <tr key={row.condition}>
+                <td>{row.condition}</td>
+                <td>{row.action}</td>
+                <td>
+                  <SourceChip source={row.source} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <GuideLine item={g.progression.recordLoop} />
+        <GuideLine item={g.progression.intraSet} />
+        <GuideLines items={g.progression.setsRule} />
+        <GuideLine item={g.progression.isolationNote} />
+      </div>
+
+      <div className="guide-section">
+        <h2 className="guide-section-title">4 · 力竭口径</h2>
+        <GuideLine item={g.failure.compound} />
+        <GuideLine item={g.failure.isolation} />
+        <p className="guide-motto">
+          {g.failure.motto.text}
+          <SourceChip source={g.failure.motto.source} />
+        </p>
+      </div>
+
+      <div className="guide-section">
+        <h2 className="guide-section-title">5 · 减载与疲劳</h2>
+        <GuideLines items={g.deload.monitoring} />
+        <GuideLines items={g.deload.signals} />
+        <GuideLine item={g.deload.signalRule} />
+        <p className="guide-redline">
+          {g.deload.redLine.text}
+          <SourceChip source={g.deload.redLine.source} />
+        </p>
+        <GuideLines items={g.deload.steps} />
+        <GuideLine item={g.deload.premise} />
+      </div>
+
+      <div className="guide-section">
+        <h2 className="guide-section-title">6 · 一个月后微调</h2>
+        <GuideLines items={g.monthTuning} />
+      </div>
+
+      <div className="guide-section">
+        <h2 className="guide-section-title">7 · 名词表</h2>
+        <ul className="guide-glossary">
+          {g.glossary.map((entry) => (
+            <li key={entry.term}>
+              <span className="guide-term">{entry.term}</span>
+              <span className="guide-line-text">{entry.def}</span>
+              <SourceChip source={entry.source} />
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="guide-section">
+        <h2 className="guide-section-title">8 · 常见问题</h2>
+        <FaqList entries={g.faq} />
+      </div>
+
+      <p className="hint plan-source">{COACH_SERIES.sourceNote}</p>
+    </section>
+  )
 }
 
 function ExerciseEditor({
@@ -71,7 +405,7 @@ function ExerciseEditor({
         onChange={(event) => setName(event.target.value)}
       />
       <div className="category-picks">
-        {EXERCISE_CATEGORIES.map((item) => (
+        {PICKABLE_CATEGORIES.map((item) => (
           <button
             key={item.id}
             type="button"
@@ -141,6 +475,16 @@ export default function ExerciseTab({ active }: Props) {
     setRoute((prev) =>
       prev.level === 'media' ? { level: 'exercise', exerciseId: prev.exerciseId } : prev,
     )
+  })
+
+  useOverlayHistory(active, route.level === 'plan', () => {
+    setEditing(null)
+    setRoute((prev) => (prev.level === 'plan' ? { level: 'coaches' } : prev))
+  })
+
+  useOverlayHistory(active, route.level === 'guide', () => {
+    setEditing(null)
+    setRoute((prev) => (prev.level === 'guide' ? { level: 'coaches' } : prev))
   })
 
   const startAdd = () => {
@@ -360,6 +704,108 @@ export default function ExerciseTab({ active }: Props) {
     )
   }
 
+  if (route.level === 'plan') {
+    const day = findPlanDay(route.day)
+
+    return (
+      <section>
+        <button className="back-btn" type="button" onClick={() => setRoute({ level: 'coaches' })}>
+          ← {COACH_SERIES.title}
+        </button>
+
+        <div className="group-head">
+          <h1 className="page-title">{day.label}</h1>
+          <span className="group-count">{day.exercises.length} 个动作</span>
+        </div>
+        <p className="page-sub">
+          {day.focus} · 按顺序练，点动作展开要点
+        </p>
+
+        <ol className={`plan-exercise-list is-${day.id}`}>
+          {day.exercises.map((exercise, index) => (
+            <PlanExerciseCard
+              key={exercise.id}
+              exercise={exercise}
+              index={index}
+              defaultOpen={index === 0}
+            />
+          ))}
+        </ol>
+
+        <p className="hint plan-source">{COACH_SERIES.sourceNote}</p>
+      </section>
+    )
+  }
+
+  if (route.level === 'guide') {
+    return <SeriesGuide onBack={() => setRoute({ level: 'coaches' })} />
+  }
+
+  if (route.level === 'coaches') {
+    return (
+      <section>
+        <button className="back-btn" type="button" onClick={goHome}>
+          ← 动作
+        </button>
+
+        <h1 className="page-title">{COACH_SERIES.title}</h1>
+        <p className="page-sub">
+          {COACH_SERIES.seriesName} · {COACH_SERIES.keptNote}
+        </p>
+
+        <div className="coach-principle">
+          <h2 className="coach-principle-title">训练逻辑</h2>
+          <p>{COACH_SERIES.principle}</p>
+        </div>
+
+        <button type="button" className="guide-entry" onClick={() => setRoute({ level: 'guide' })}>
+          <span className="guide-entry-body">
+            <span className="guide-entry-title">系列总纲 · 次数/重量/休息怎么安排</span>
+            <span className="guide-entry-meta">
+              递进链 · 力竭口径 · 减载5信号 · 一个月后微调 · 名词表 · FAQ
+            </span>
+          </span>
+          <span className="module-row-arrow" aria-hidden="true">
+            ›
+          </span>
+        </button>
+
+        <div className="plan-day-list">
+          {PLAN_DAYS.map((day) => {
+            const names = day.exercises.slice(0, 3).map((exercise) => exercise.name).join('、')
+            return (
+              <button
+                key={day.id}
+                type="button"
+                className={`plan-day-card is-${day.id}`}
+                onClick={() => setRoute({ level: 'plan', day: day.id })}
+              >
+                <span className="plan-day-glyph" aria-hidden="true">
+                  {day.label.charAt(0)}
+                </span>
+                <span className="plan-day-body">
+                  <span className="plan-day-name">
+                    {day.label}
+                    <span className="category-en">{day.en}</span>
+                  </span>
+                  <span className="plan-day-focus">{day.focus}</span>
+                  <span className="plan-day-meta">
+                    {day.exercises.length} 个动作 · {names} 等
+                  </span>
+                </span>
+                <span className="module-row-arrow" aria-hidden="true">
+                  ›
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        <p className="hint plan-source">{COACH_SERIES.sourceNote}</p>
+      </section>
+    )
+  }
+
   if (route.level === 'category') {
     const label = route.category === 'unassigned' ? '未分类' : categoryLabel(route.category)
     const items = exercises.filter((item) => bucketOf(item) === route.category)
@@ -438,10 +884,10 @@ export default function ExerciseTab({ active }: Props) {
   return (
     <section>
       <h1 className="page-title">动作</h1>
-      <p className="page-sub">按推、拉、腿分开存；点进去是自己的动作</p>
+      <p className="page-sub">按推、拉分开存；点进去是自己的动作</p>
 
       <div className="category-list">
-        {EXERCISE_CATEGORIES.map((item) => {
+        {PICKABLE_CATEGORIES.map((item) => {
           const list = exercises.filter((exercise) => exercise.category === item.id)
           const names = list.slice(0, 3).map((exercise) => exercise.name).join('、')
           return (
@@ -484,7 +930,7 @@ export default function ExerciseTab({ active }: Props) {
             <span className="category-body">
               <span className="category-name">未分类</span>
               <span className="category-meta">
-                {unassigned.length} 个动作 · 点进去改成推、拉或腿
+                {unassigned.length} 个动作 · 点进去改成推或拉
               </span>
             </span>
             <span className="module-row-arrow" aria-hidden="true">
@@ -493,6 +939,32 @@ export default function ExerciseTab({ active }: Props) {
           </button>
         )}
       </div>
+
+      <h2 className="section-title">跟练系列</h2>
+      <button
+        type="button"
+        className="coach-card"
+        onClick={() => {
+          setEditing(null)
+          setRoute({ level: 'coaches' })
+        }}
+      >
+        <span className="coach-card-glyph" aria-hidden="true">
+          凯谭
+        </span>
+        <span className="coach-card-body">
+          <span className="coach-card-name">
+            {COACH_SERIES.title}
+            <span className="category-en">PPL SERIES</span>
+          </span>
+          <span className="coach-card-meta">
+            推拉分化 · 推日 / 拉日各 5 个动作 · 组次与要点齐全 · 腿日已去掉
+          </span>
+        </span>
+        <span className="module-row-arrow" aria-hidden="true">
+          ›
+        </span>
+      </button>
 
       <h2 className="section-title">数据</h2>
       <p className="hint">数据只在这台手机上。换手机、清理浏览器前，先导出备份。</p>

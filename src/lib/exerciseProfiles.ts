@@ -9,6 +9,9 @@ export const EXERCISE_CATEGORIES: { id: ExerciseCategory; label: string; en: str
   { id: 'legs', label: '腿', en: 'LEGS' },
 ]
 
+// 首页与新增/编辑只开放推、拉；腿类别仍保留在数据里，旧动作与备份不受影响
+export const PICKABLE_CATEGORIES = EXERCISE_CATEGORIES.filter((item) => item.id !== 'legs')
+
 // 先把杠铃卧推做透；后续动作从页面里自己加
 const SEED: ExerciseProfile[] = [
   {
