@@ -1839,10 +1839,6 @@ body::after {
   text-overflow: ellipsis;
 }
 
-.plan-source {
-  margin-top: var(--s6);
-}
-
 /* ---------- 计划详情：动作手风琴 ---------- */
 
 .plan-exercise-list {
@@ -3956,6 +3952,137 @@ body.player-open .tabbar {
 .tabbar button:focus-visible {
   outline: 2px solid var(--accent-ring);
   outline-offset: -4px;
+}
+
+/* ---------- 跟练打卡 ---------- */
+
+.training-checkin {
+  margin-top: var(--s6);
+  padding: var(--s4);
+  background-color: var(--surface-1);
+  background-image: linear-gradient(180deg, var(--card-hi) 0%, transparent 46%);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-1);
+}
+
+.training-checkin.is-pull {
+  border-left-color: var(--info);
+}
+
+.training-checkin-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.training-checkin-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--faint);
+}
+
+.training-checkin-seq {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.training-checkin.is-push .training-checkin-seq {
+  color: var(--accent-text);
+}
+
+.training-checkin.is-pull .training-checkin-seq {
+  color: var(--info);
+}
+
+.training-checkin-meta {
+  margin-top: var(--s1);
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.training-checkin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s4);
+}
+
+.training-checkin-done {
+  flex: 1 1 100%;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--success);
+}
+
+.training-stats {
+  margin-top: var(--s5);
+  padding: var(--s4);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.training-stats-title {
+  margin-bottom: var(--s2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--faint);
+}
+
+.training-stats-line {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.training-stats-meta {
+  margin-top: var(--s1);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--faint);
+}
+
+.training-stats-toggle {
+  margin-top: var(--s3);
+}
+
+.training-records {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--s3);
+  list-style: none;
+}
+
+.training-record {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+  border-top: 1px solid var(--line);
+}
+
+.training-record-text {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.training-record-del {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--danger);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  cursor: pointer;
 }
 
 /* ---------- 响应式 ---------- */

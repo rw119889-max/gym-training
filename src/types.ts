@@ -78,3 +78,12 @@ export interface SavedArticle {
   createdAt: string
   updatedAt: string
 }
+
+export interface TrainingSession {
+  id: string
+  date: string
+  day: 'push' | 'pull'
+  seq: number
+  noteId?: string
+  createdAt: string
+}

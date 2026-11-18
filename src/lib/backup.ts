@@ -8,7 +8,8 @@ import { clearImages, getImage, putImage } from './storage'
 const PREFIX = 'gt.v1.'
 const VERSION = 1
 // 视频文件在 IndexedDB，元数据单独备份会变成一堆打不开的空记录
-const LOCAL_ONLY_KEYS = new Set(['gt.v1.videos'])
+// noteSeed 是一次性切页意图，用完即清，不进备份
+const LOCAL_ONLY_KEYS = new Set(['gt.v1.videos', 'gt.v1.noteSeed'])
 
 interface BackupFile {
   version: number

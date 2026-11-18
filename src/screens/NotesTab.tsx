@@ -15,8 +15,9 @@ import type { NoteSort } from '../lib/exerciseNotes'
 import { collectMediaIds, hasNoteMedia, textToHtml } from '../lib/noteMedia'
 import { compressImage } from '../lib/image'
 import { inspectVideo } from '../lib/videoFile'
-import { deleteImage, deleteVideo, getImage, getVideo, putImage, putVideo, readJSON, writeJSON } from '../lib/storage'
+import { deleteImage, deleteVideo, getImage, getVideo, putImage, putVideo, readJSON, writeJSON, removeKey } from '../lib/storage'
 import { useOverlayHistory } from '../hooks/useOverlayHistory'
+import { linkNote } from '../lib/trainingLog'
 
 const MAX_VIDEO_BYTES = 200 * 1024 * 1024
 
@@ -35,6 +36,14 @@ interface Draft {
   html?: string
   pinned: boolean
   createdAt: string
+  sessionId?: string
+}
+
+// 从跟练打卡跳过来的一次性写心得意图，用完即清
+interface NoteSeed {
+  sessionId: string
+  title: string
+  text: string
 }
 
 interface Props {
@@ -448,7 +457,15 @@ function NoteEditor({
     }
 
     savedRef.current = true
-    onSave({ id: initial.id, title, text, html, pinned, createdAt: createdAtRef.current })
+    onSave({
+      id: initial.id,
+      title,
+      text,
+      html,
+      pinned,
+      createdAt: createdAtRef.current,
+      sessionId: initial.sessionId,
+    })
   }
 
   return (
@@ -762,6 +779,21 @@ export default function NotesTab({ active }: Props) {
   useEffect(() => {
     if (!active) return
     setNotes(getExerciseNotes())
+    // 消费「写心得」意图：预填一篇关联本次打卡的笔记
+    const seed = readJSON<NoteSeed | null>('noteSeed', null)
+    if (seed && typeof seed.sessionId === 'string') {
+      removeKey('noteSeed')
+      listScrollRef.current = window.scrollY
+      dirtyRef.current = false
+      setDraft({
+        id: null,
+        title: typeof seed.title === 'string' ? seed.title : '',
+        text: typeof seed.text === 'string' ? seed.text : '',
+        pinned: false,
+        createdAt: new Date().toISOString(),
+        sessionId: seed.sessionId,
+      })
+    }
   }, [active])
 
   // 写笔记时隐藏页头和底部导航，进入专注的全屏编辑
@@ -835,12 +867,13 @@ export default function NotesTab({ active }: Props) {
         pinned: next.pinned,
       })
     } else {
-      addExerciseNote({
+      const created = addExerciseNote({
         title: next.title,
         text: next.text,
         html: next.html,
         pinned: next.pinned,
       })
+      if (next.sessionId && created) linkNote(next.sessionId, created.id)
     }
     setDraft(null)
     dirtyRef.current = false

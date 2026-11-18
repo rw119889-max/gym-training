@@ -167,7 +167,7 @@ export default function App() {
 
       <main className="tab-content">
         <div hidden={tab !== 'exercises'}>
-          <ExerciseTab active={tab === 'exercises'} />
+          <ExerciseTab active={tab === 'exercises'} onOpenNotes={() => setTab('notes')} />
         </div>
         <div hidden={tab !== 'notes'}>
           <NotesTab active={tab === 'notes'} />

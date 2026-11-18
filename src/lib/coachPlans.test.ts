@@ -1,7 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import { COACH_SERIES, PLAN_DAYS, findPlanDay } from './coachPlans'
-import { GUIDE_SOURCE_LABELS } from './coachGuide'
+import { GUIDE_SOURCE_LABELS, SERIES_GUIDE } from './coachGuide'
 import type { GuideSource } from './coachGuide'
+
+function collectDisplayText(node: unknown, out: string[] = []): string[] {
+  if (Array.isArray(node)) {
+    for (const entry of node) collectDisplayText(entry, out)
+    return out
+  }
+  if (node && typeof node === 'object') {
+    for (const [key, value] of Object.entries(node)) {
+      if (key !== 'source' && key !== 'video') collectDisplayText(value, out)
+    }
+    return out
+  }
+  if (typeof node === 'string') out.push(node)
+  return out
+}
 
 describe('coachPlans', () => {
   it('只收录推、拉两天，不含腿日', () => {
@@ -81,6 +96,11 @@ describe('coachPlans', () => {
         }
       }
     }
+  })
+
+  it('教练区可见文案不含来源署名或来源平台标签', () => {
+    const displayText = collectDisplayText([COACH_SERIES, PLAN_DAYS, SERIES_GUIDE]).join(' ')
+    expect(displayText).not.toMatch(/板书|小夕|什么值得买|[①②③④]|纯享版|CC BY|黑板|抖音|B站/)
   })
 
   it('Y 字侧平举标中束（板书核校）', () => {

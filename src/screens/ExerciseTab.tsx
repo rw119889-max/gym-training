@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import type { ExerciseCategory, ExerciseProfile } from '../types'
+import type { ExerciseCategory, ExerciseProfile, TrainingSession } from '../types'
 import ExerciseVideos from '../components/ExerciseVideos'
 import ExercisePhotos from '../components/ExercisePhotos'
 import SavedArticles from '../components/SavedArticles'
@@ -20,6 +20,9 @@ import { getSavedArticlesOfExercise } from '../lib/savedArticles'
 import { formatBytes, getVideos } from '../lib/videos'
 import { exportBackup, importBackup } from '../lib/backup'
 import { useOverlayHistory } from '../hooks/useOverlayHistory'
+import { todayKey } from '../lib/date'
+import { completeSession, countByDay, getSessions, removeSession } from '../lib/trainingLog'
+import { writeJSON } from '../lib/storage'
 
 type MediaKind = 'videos' | 'photos' | 'articles'
 type Bucket = ExerciseCategory | 'unassigned'
@@ -41,6 +44,7 @@ interface EditorState {
 
 interface Props {
   active: boolean
+  onOpenNotes: () => void
 }
 
 function bucketOf(item: ExerciseProfile): Bucket {
@@ -134,6 +138,64 @@ function PlanExerciseCard({
         </div>
       )}
     </li>
+  )
+}
+
+function TrainingCheckin({
+  day,
+  label,
+  sessions,
+  onCheckin,
+  onUndo,
+  onWriteNote,
+}: {
+  day: 'push' | 'pull'
+  label: string
+  sessions: TrainingSession[]
+  onCheckin: () => void
+  onUndo: (id: string) => void
+  onWriteNote: () => void
+}) {
+  const today = todayKey()
+  const daySessions = sessions.filter((item) => item.day === day)
+  const done = daySessions.find((item) => item.date === today)
+  const last = daySessions[daySessions.length - 1]
+  const nextSeq = daySessions.reduce((max, item) => Math.max(max, item.seq), 0) + 1
+
+  return (
+    <div className={`training-checkin is-${day}`}>
+      <div className="training-checkin-top">
+        <span className="training-checkin-title">本次训练</span>
+        <span className="training-checkin-seq">
+          {label} · 第 {done ? done.seq : nextSeq} 次
+        </span>
+      </div>
+      <p className="training-checkin-meta">
+        {last ? `上次：${last.date}` : '还没有记录，这是第一次'}
+      </p>
+      {done ? (
+        <div className="training-checkin-actions">
+          <span className="training-checkin-done">
+            ✓ 今天已完成{label}第 {done.seq} 次{done.noteId ? ' · 有心得' : ''}
+          </span>
+          <button type="button" className="ghost-btn small" onClick={onWriteNote}>
+            {done.noteId ? '再写一篇' : '写心得'}
+          </button>
+          <button type="button" className="ghost-btn small" onClick={() => onUndo(done.id)}>
+            撤销打卡
+          </button>
+        </div>
+      ) : (
+        <div className="training-checkin-actions">
+          <button type="button" className="save-btn" onClick={onCheckin}>
+            完成本次训练
+          </button>
+          <button type="button" className="ghost-btn small" onClick={onWriteNote}>
+            写心得
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -311,8 +373,6 @@ function SeriesGuide({ onBack }: { onBack: () => void }) {
         <h2 className="guide-section-title">8 · 常见问题</h2>
         <FaqList entries={g.faq} />
       </div>
-
-      <p className="hint plan-source">{COACH_SERIES.sourceNote}</p>
     </section>
   )
 }
@@ -376,12 +436,20 @@ function ExerciseEditor({
   )
 }
 
-export default function ExerciseTab({ active }: Props) {
+export default function ExerciseTab({ active, onOpenNotes }: Props) {
   const [exercises, setExercises] = useState<ExerciseProfile[]>(() => getExerciseProfiles())
   const [route, setRoute] = useState<Route>({ level: 'home' })
   const [editing, setEditing] = useState<EditorState | null>(null)
   const [backupBusy, setBackupBusy] = useState(false)
+  const [sessions, setSessions] = useState(() => getSessions())
+  const [recordsOpen, setRecordsOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // 外部 tab（笔记写心得）可能改动记录，回到动作页时重读一次
+  useEffect(() => {
+    if (!active) return
+    setSessions(getSessions())
+  }, [active])
 
   const goHome = () => {
     setEditing(null)
@@ -467,6 +535,29 @@ export default function ExerciseTab({ active }: Props) {
     setRoute({ level: 'category', category })
   }
 
+  const handleCheckin = (day: 'push' | 'pull') => {
+    completeSession(day)
+    setSessions(getSessions())
+  }
+
+  const handleUndoCheckin = (id: string) => {
+    if (!window.confirm('撤销这次打卡记录？')) return
+    removeSession(id)
+    setSessions(getSessions())
+  }
+
+  const handleWriteNote = (day: 'push' | 'pull', label: string) => {
+    // 未打卡先打卡（写心得即视为完成），拿到本次 session 供回填
+    const session = completeSession(day)
+    setSessions(getSessions())
+    writeJSON('noteSeed', {
+      sessionId: session.id,
+      title: `${label} · 第 ${session.seq} 次`,
+      text: `${session.date}\n\n`,
+    })
+    onOpenNotes()
+  }
+
   const handleExport = async () => {
     setBackupBusy(true)
     try {
@@ -484,7 +575,7 @@ export default function ExerciseTab({ active }: Props) {
     if (!file) return
     if (
       !window.confirm(
-        '导入会用备份覆盖这台手机上的文字数据与图片（菜谱、动作照片）。视频保留，不受影响。继续？',
+        '导入会用备份覆盖这台手机上的文字数据与图片（菜谱、动作照片、跟练记录）。视频保留，不受影响。继续？',
       )
     ) {
       return
@@ -675,7 +766,15 @@ export default function ExerciseTab({ active }: Props) {
           ))}
         </ol>
 
-        <p className="hint plan-source">{COACH_SERIES.sourceNote}</p>
+        <TrainingCheckin
+          day={route.day}
+          label={day.label}
+          sessions={sessions}
+          onCheckin={() => handleCheckin(route.day)}
+          onUndo={(id) => handleUndoCheckin(id)}
+          onWriteNote={() => handleWriteNote(route.day, day.label)}
+        />
+
       </section>
     )
   }
@@ -699,6 +798,50 @@ export default function ExerciseTab({ active }: Props) {
         <div className="coach-principle">
           <h2 className="coach-principle-title">训练逻辑</h2>
           <p>{COACH_SERIES.principle}</p>
+        </div>
+
+        <div className="training-stats">
+          <h2 className="training-stats-title">我的跟练</h2>
+          <p className="training-stats-line">
+            推日 {countByDay('push')} 次 · 拉日 {countByDay('pull')} 次 · 共 {sessions.length} 次
+          </p>
+          <p className="training-stats-meta">
+            {sessions.length > 0
+              ? `最近：${sessions[sessions.length - 1].date} ${sessions[sessions.length - 1].day === 'push' ? '推日' : '拉日'}`
+              : '还没有跟练记录，打开推日或拉日开始第一次。'}
+          </p>
+          {sessions.length > 0 && (
+            <>
+              <button
+                type="button"
+                className="ghost-btn small training-stats-toggle"
+                aria-expanded={recordsOpen}
+                onClick={() => setRecordsOpen((prev) => !prev)}
+              >
+                {recordsOpen ? '收起记录' : '查看记录'}
+              </button>
+              {recordsOpen && (
+                <ul className="training-records">
+                  {[...sessions].reverse().slice(0, 20).map((item) => (
+                    <li key={item.id} className="training-record">
+                      <span className="training-record-text">
+                        {item.day === 'push' ? '推日' : '拉日'} 第 {item.seq} 次 · {item.date}
+                        {item.noteId ? ' · 有心得' : ''}
+                      </span>
+                      <button
+                        type="button"
+                        className="training-record-del"
+                        aria-label="删除记录"
+                        onClick={() => handleUndoCheckin(item.id)}
+                      >
+                        删除
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
         </div>
 
         <button type="button" className="guide-entry" onClick={() => setRoute({ level: 'guide' })}>
@@ -744,7 +887,6 @@ export default function ExerciseTab({ active }: Props) {
           })}
         </div>
 
-        <p className="hint plan-source">{COACH_SERIES.sourceNote}</p>
       </section>
     )
   }

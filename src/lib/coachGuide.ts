@@ -102,7 +102,7 @@ export const SERIES_GUIDE = {
         source: 'douyin-2',
       },
       {
-        text: '组数口径：板书早期写法「15/12/10/8」里第一组 15 是热身组；递进到 4×8 之后热身组另算（原文「不含热身进阶到4组8次」）。App 里标的组数一律指正式组。',
+        text: '组数口径：「15/12/10/8」里第一组 15 是热身组；递进到 4×8 之后热身组另算。App 里标的组数一律指正式组。',
         source: 'board',
       },
       {
@@ -110,7 +110,7 @@ export const SERIES_GUIDE = {
         source: 'smzdm-terms',
       },
       {
-        text: '动作顺序：推日 卧推→上斜哑铃卧推→双杠臂屈伸→仰卧臂屈伸→Y字侧平举；拉日 单手钢线下拉→单手器械划船→对握下拉→开肘拉→钢线弯举（②④跟练章节顺序）。',
+        text: '动作顺序：推日 卧推→上斜哑铃卧推→双杠臂屈伸→仰卧臂屈伸→Y字侧平举；拉日 单手钢线下拉→单手器械划船→对握下拉→开肘拉→钢线弯举。',
         source: 'douyin-2',
       },
       {
@@ -124,7 +124,7 @@ export const SERIES_GUIDE = {
     ] as GuideItem[],
     warmup: {
       push: {
-        label: '推日热身 · 谭指导带练（②片尾）',
+        label: '推日热身',
         steps: [
           {
             text: '放松胸小肌：站立位，小球（越小越好）压住胸小肌位置（偏上），压实后活动同侧肩做扇形环绕，两侧都做——打开肩关节灵活性。',
@@ -157,7 +157,7 @@ export const SERIES_GUIDE = {
         ] as GuideItem[],
       },
       pull: {
-        label: '拉日热身 · 谭指导带练（④片尾）',
+        label: '拉日热身',
         steps: [
           {
             text: '伟大者伸展：左腿在前、右手在前，左手从身体右侧穿过，吸气向上旋转、眼看手指方向——拉伸同侧臀和大腿后侧，每侧约 10 次（背阔与臀、腹外斜的筋膜长在一起，要一起伸展激活）。',
@@ -186,7 +186,7 @@ export const SERIES_GUIDE = {
       { type: '大力量（神经适应）', reps: '1–5RM', rest: '3–8 分钟', source: 'smzdm-terms' },
       { type: '增肌', reps: '8–15 次', rest: '30 秒–3 分钟', source: 'smzdm-terms' },
       { type: '小肌群/耐力', reps: '20 次以上', rest: '30 秒–1 分钟', source: 'smzdm-terms' },
-      { type: '板书强度阶段（2×6 等步骤）', reps: '5–6 次', rest: '3–5 分钟', source: 'board' },
+      { type: '大重量强度阶段（2×6 等步骤）', reps: '5–6 次', rest: '3–5 分钟', source: 'board' },
     ] as RestRow[],
     restPrinciple: {
       text: '休息不够导致动作变形或次数掉 → 延长；「1 小时内练完」服务于质量，不是限制休息。同等容量总耗时缩短本身就是进步。',
@@ -274,7 +274,7 @@ export const SERIES_GUIDE = {
     monitoring: [
       { text: '建晨脉（静息心率）和握力基线，日常监测。', source: 'board' },
       {
-        text: '晨脉持续高出基线约 6–12 次（板书口径更保守：5–10 次）或握力明显下降 = 神经疲劳积累，加休息。',
+        text: '晨脉持续高出基线约 5–12 次或握力明显下降，可能提示神经疲劳积累，应增加休息。',
         source: 'smzdm-terms',
       },
     ] as GuideItem[],
@@ -372,7 +372,7 @@ export const SERIES_GUIDE = {
     },
     {
       q: '能天天练/一周6练吗？',
-      a: '不能。板书不连练4天；一周6练是自然训练者上限、上班族平均只能2.8练；频率要跟恢复走。',
+      a: '不建议连续训练 4 天；一周 6 练已属高频，频率应根据恢复情况安排。',
       source: 'smzdm-deload',
     },
     {
