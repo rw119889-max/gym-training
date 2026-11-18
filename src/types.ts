@@ -35,6 +35,8 @@ export interface Recipe {
   oilGrams: number
   saltGrams: number
   price: number
+  cookedDates?: string[]
+  favorite?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -61,6 +63,7 @@ export interface ExerciseNote {
   text: string
   html?: string
   pinned?: boolean
+  topic?: string
   createdAt: string
   updatedAt: string
 }

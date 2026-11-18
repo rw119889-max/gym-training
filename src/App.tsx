@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import Landing from './screens/Landing'
 import ExerciseTab from './screens/ExerciseTab'
@@ -51,6 +51,9 @@ export default function App() {
     if (saved === 'recipes' || saved === 'notes') return saved
     return 'exercises'
   })
+  // 跨 tab 写心得的返回目标（应用级状态，不依赖浏览器历史）：
+  // 计划页 → 写心得时记下来源 tab，笔记草稿关闭后跳回去。
+  const noteSourceRef = useRef<Tab | null>(null)
 
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     const saved = readJSON<unknown>('themeMode', 'auto')
@@ -124,6 +127,26 @@ export default function App() {
     void handleCheckUpdate()
   }
 
+  // 用户点底部 tab 是主动切换：清掉写心得的返回意图
+  const handleTabClick = (next: Tab) => {
+    noteSourceRef.current = null
+    setTab(next)
+  }
+
+  // 计划页「写心得」入口：记住来源，切到笔记 tab
+  const openNotesFromPlan = useCallback(() => {
+    noteSourceRef.current = 'exercises'
+    setTab('notes')
+  }, [])
+
+  // 笔记草稿（来自写心得的种子）关闭后回到原计划页；
+  // 来源已被用户手动切换清掉时则原地不动
+  const returnFromNoteSeed = useCallback(() => {
+    const target = noteSourceRef.current
+    noteSourceRef.current = null
+    if (target) setTab(target)
+  }, [])
+
   if (!entered) {
     return (
       <Landing
@@ -167,10 +190,10 @@ export default function App() {
 
       <main className="tab-content">
         <div hidden={tab !== 'exercises'}>
-          <ExerciseTab active={tab === 'exercises'} onOpenNotes={() => setTab('notes')} />
+          <ExerciseTab active={tab === 'exercises'} onOpenNotes={openNotesFromPlan} />
         </div>
         <div hidden={tab !== 'notes'}>
-          <NotesTab active={tab === 'notes'} />
+          <NotesTab active={tab === 'notes'} onBackToSource={returnFromNoteSeed} />
         </div>
         <div hidden={tab !== 'recipes'}>
           <RecipesTab active={tab === 'recipes'} />
@@ -183,7 +206,7 @@ export default function App() {
             key={item.id}
             type="button"
             aria-current={tab === item.id}
-            onClick={() => setTab(item.id)}
+            onClick={() => handleTabClick(item.id)}
           >
             <span className="tab-icon" aria-hidden="true">{TAB_ICONS[item.id]}</span>
             {item.label}

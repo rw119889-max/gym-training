@@ -11,16 +11,20 @@ export function readJSON<T>(key: string, fallback: T): T {
   }
 }
 
-export function writeJSON(key: string, value: unknown): void {
+// 返回是否写入成功。调用方必须检查返回值：
+// 失败（空间满/被禁用）时上层要保持编辑态，不能当作已保存继续走关闭/清理逻辑。
+export function writeJSON(key: string, value: unknown): boolean {
   try {
     localStorage.setItem(PREFIX + key, JSON.stringify(value))
     storageWarned = false
+    return true
   } catch {
     // 空间满或被禁用时不静默丢数据：提示一次，直到下一次成功写入再复位
     if (!storageWarned) {
       storageWarned = true
       window.alert('手机存储写入失败（可能空间已满）。这次改动可能没保存，请导出备份并清理空间后重试。')
     }
+    return false
   }
 }
 
@@ -95,6 +99,19 @@ async function deleteBlob(store: string, id: string): Promise<void> {
   }
 }
 
+async function listKeys(store: string): Promise<string[]> {
+  const db = await openDB()
+  try {
+    return await new Promise<string[]>((resolve, reject) => {
+      const request = db.transaction(store, 'readonly').objectStore(store).getAllKeys()
+      request.onsuccess = () => resolve(request.result.map(String))
+      request.onerror = () => reject(request.error)
+    })
+  } finally {
+    db.close()
+  }
+}
+
 async function clearStore(store: string): Promise<void> {
   const db = await openDB()
   try {
@@ -113,6 +130,7 @@ export const putImage = (id: string, blob: Blob) => putBlob(IMAGE_STORE, id, blo
 export const getImage = (id: string) => getBlob(IMAGE_STORE, id)
 export const deleteImage = (id: string) => deleteBlob(IMAGE_STORE, id)
 export const clearImages = () => clearStore(IMAGE_STORE)
+export const listImageKeys = () => listKeys(IMAGE_STORE)
 
 export const putVideo = (id: string, blob: Blob) => putBlob(VIDEO_STORE, id, blob)
 export const getVideo = (id: string) => getBlob(VIDEO_STORE, id)

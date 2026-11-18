@@ -6,8 +6,10 @@ import {
   getExerciseNotes,
   sortNotes,
   toggleNotePin,
+  unlinkNoteByNoteId,
   updateExerciseNote,
 } from './exerciseNotes'
+import { completeSession, getSessions, linkNote } from './trainingLog'
 
 describe('笔记 CRUD', () => {
   it('可以写笔记，标题可空', () => {
@@ -37,6 +39,50 @@ describe('笔记 CRUD', () => {
 
     deleteExerciseNote(a.id)
     expect(getExerciseNotes()).toEqual([])
+  })
+
+  it('删除笔记后反向清理训练记录里的 noteId，不再显示「有心得」', () => {
+    const session = completeSession('push')
+    const note = addExerciseNote({ title: '推日', text: '今天很顺' })
+    if (!session || !note) throw new Error('missing')
+    expect(linkNote(session.id, note.id)).toBe(true)
+    expect(getSessions().find((s) => s.id === session.id)?.noteId).toBe(note.id)
+
+    expect(deleteExerciseNote(note.id)).toBe(true)
+    expect(unlinkNoteByNoteId(note.id)).toBe(true)
+    const after = getSessions().find((s) => s.id === session.id)
+    expect(after?.noteId).toBeUndefined()
+  })
+
+  it('unlink 不存在的 noteId 时无副作用返回 true', () => {
+    expect(unlinkNoteByNoteId('n-ghost')).toBe(true)
+  })
+
+  it('轻量主题：合法值保存可读回，非法值归一为无主题，null 清除', () => {
+    const a = addExerciseNote({ title: '健身', text: '卧推进步', topic: 'fitness' })
+    expect(a?.topic).toBe('fitness')
+
+    updateExerciseNote(a!.id, { topic: 'study' })
+    expect(getExerciseNotes()[0].topic).toBe('study')
+
+    updateExerciseNote(a!.id, { topic: null })
+    expect(getExerciseNotes()[0].topic).toBeUndefined()
+
+    localStorage.setItem(
+      'gt.v1.exerciseNotes',
+      JSON.stringify([{ id: 'n-x', text: '旧主题', topic: 'hobby', createdAt: '2026-11-18T00:00:00.000Z', updatedAt: '2026-11-18T00:00:00.000Z' }]),
+    )
+    expect(getExerciseNotes()[0].topic).toBeUndefined()
+  })
+
+  it('filterNotes 支持按主题筛选，不认识的主题回落全部', () => {
+    addExerciseNote({ title: '健身', text: 'a', topic: 'fitness' })
+    addExerciseNote({ title: '学习', text: 'b', topic: 'study' })
+    const notes = getExerciseNotes()
+    expect(filterNotes(notes, 'fitness')).toHaveLength(1)
+    expect(filterNotes(notes, 'fitness')[0].topic).toBe('fitness')
+    expect(filterNotes(notes, 'diet')).toHaveLength(0)
+    expect(filterNotes(notes, 'whatever')).toHaveLength(2)
   })
 
   it('标题和正文都为空时不创建，也不能把已有笔记改空', () => {

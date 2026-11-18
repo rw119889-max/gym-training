@@ -15,9 +15,12 @@ export function nextThemeMode(mode: ThemeMode): ThemeMode {
   return MODES[(MODES.indexOf(mode) + 1) % MODES.length]
 }
 
+const DARK_MQ = '(prefers-color-scheme: dark)'
+let systemListener: ((event: MediaQueryListEvent) => void) | null = null
+
 function systemPrefersDark(): boolean {
   if (typeof window.matchMedia !== 'function') return true
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
+  return window.matchMedia(DARK_MQ).matches
 }
 
 export function resolveDark(mode: ThemeMode): boolean {
@@ -48,7 +51,18 @@ function syncChromeColor(mode: ThemeMode) {
 
 export function applyTheme(mode: ThemeMode): void {
   const root = document.documentElement
-  if (mode === 'auto') root.removeAttribute('data-theme')
-  else root.setAttribute('data-theme', mode)
+  // 浅色主题只有 [data-theme="light"] 一个 CSS 来源，「跟随系统」也解析成属性写入，
+  // 系统偏好变化时由下面的监听器同步（CSS 不再有 prefers-color-scheme 分支）。
+  if (typeof window.matchMedia === 'function') {
+    const mq = window.matchMedia(DARK_MQ)
+    if (systemListener) mq.removeEventListener('change', systemListener)
+    if (mode === 'auto') {
+      systemListener = () => applyTheme('auto')
+      mq.addEventListener('change', systemListener)
+    } else {
+      systemListener = null
+    }
+  }
+  root.setAttribute('data-theme', resolveDark(mode) ? 'dark' : 'light')
   syncChromeColor(mode)
 }

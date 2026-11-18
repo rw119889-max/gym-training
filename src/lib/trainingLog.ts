@@ -73,9 +73,9 @@ export function removeSession(id: string): void {
   )
 }
 
-// 把心得笔记 id 回填到某次打卡
-export function linkNote(sessionId: string, noteId: string): void {
-  writeJSON(
+// 把心得笔记 id 回填到某次打卡；返回是否写入成功
+export function linkNote(sessionId: string, noteId: string): boolean {
+  return writeJSON(
     KEY,
     getSessions().map((item) => (item.id === sessionId ? { ...item, noteId } : item)),
   )

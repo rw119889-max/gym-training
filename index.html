@@ -13,14 +13,18 @@
   <meta name="apple-mobile-web-app-title" content="自律更自由">
   <title>自律更自由</title>
   <script>
-    // 首帧前套用强制主题，避免浅色用户看到一帧深色闪白
+    // 首帧前解析主题（含「跟随系统」），避免浅色用户看到一帧深色闪白。
+    // 浅色主题在 CSS 里只有 [data-theme="light"] 一个来源，必须落属性。
     (function () {
       try {
         var raw = localStorage.getItem('gt.v1.themeMode')
         var mode = raw ? JSON.parse(raw) : 'auto'
-        if (mode === 'light' || mode === 'dark') {
-          document.documentElement.setAttribute('data-theme', mode)
+        if (mode !== 'light' && mode !== 'dark') {
+          mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light'
         }
+        document.documentElement.setAttribute('data-theme', mode)
       } catch (e) {}
     })()
   </script>

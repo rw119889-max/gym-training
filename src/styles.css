@@ -1,7 +1,8 @@
 /* ==========================================================
    自律更自由 · Design System
    主色唯一 · 语义四色 · 对比达标 · 深/浅双主题同源
-   深色为默认，浅色跟随系统，可用 [data-theme] 强制覆盖
+   深色为默认（:root），浅色唯一来源 [data-theme="light"]；
+   「跟随系统」由首帧脚本解析系统偏好后写入属性（见 index.html / theme.ts）
    ========================================================== */
 
 * {
@@ -60,11 +61,10 @@
   --surface-1: #101216;
   --surface-2: #15181d;
   --surface-3: #1c2027;
-  --glass: rgba(11, 13, 16, 0.82);
+  --glass: rgba(11, 13, 16, 0.94);
   --hover-wash: rgba(255, 255, 255, 0.04);
 
-  /* --- 装饰：卡片顶部高光 / 网格 / 背景光晕 / 图片占位 --- */
-  --card-hi: rgba(255, 255, 255, 0.045);
+  /* --- 装饰：网格 / 背景光晕 / 图片占位 --- */
   --grid-line: rgba(255, 255, 255, 0.022);
   --glow-1: rgba(201, 255, 46, 0.09);
   --glow-2: rgba(201, 255, 46, 0.03);
@@ -93,9 +93,6 @@
   --accent-12: rgba(201, 255, 46, 0.12);
   --accent-28: rgba(201, 255, 46, 0.28);
   --accent-ring: rgba(201, 255, 46, 0.45); /* 3.97 vs bg：焦点环/控件状态需 ≥3:1 */
-  --accent-glow: rgba(201, 255, 46, 0.6);
-  --accent-glow-strong: rgba(201, 255, 46, 0.72);
-  --accent-glow-soft: rgba(201, 255, 46, 0.8);
 
   /* --- 语义：错误 --- */
   --danger: #ff7e7e; /* 7.62 */
@@ -142,91 +139,8 @@
 }
 
 /* ==========================================================
-   浅色主题 · 方案 A：跟随系统
-   （下面的 [data-theme="light"] 块与此保持一致，改一处需同步）
-   ========================================================== */
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    color-scheme: light;
-
-    --bg: #f7f8f4;
-    --surface-1: #ffffff;
-    --surface-2: #f2f4ee;
-    --surface-3: #e8ebe1;
-    --glass: rgba(250, 251, 247, 0.86);
-    --hover-wash: rgba(20, 23, 15, 0.05);
-
-    --card-hi: rgba(255, 255, 255, 0);
-    --grid-line: rgba(20, 23, 15, 0.05);
-    --glow-1: rgba(150, 190, 0, 0.09);
-    --glow-2: rgba(150, 190, 0, 0.03);
-    --glow-3: rgba(150, 190, 0, 0);
-    --image-bg: rgba(20, 23, 15, 0.04);
-
-    --line: rgba(20, 23, 15, 0.18); /* 1.47 */
-    --line-strong: rgba(20, 23, 15, 0.26); /* 1.78 */
-    --line-ctl: rgba(20, 23, 15, 0.47); /* 3.05（暗色下 3.11） */
-    --line-ctl-hover: rgba(20, 23, 15, 0.6);
-
-    --text: #14170f; /* 18.12 */
-    --text-2: #3a4033; /* 10.71 */
-    --muted: #575e50; /* 6.73 */
-    --faint: #676e60; /* 5.28（surface-2 上 4.77，原 4.49 贴线不达标） */
-
-    --accent: #c9ff2e;
-    --accent-hi: #dcff6b;
-    --accent-text: #47670a; /* 6.54 */
-    --accent-text-hi: #33540a;
-    --accent-ink: #171b09;
-    --accent-06: rgba(71, 103, 10, 0.06);
-    --accent-12: rgba(71, 103, 10, 0.12);
-    --accent-28: rgba(71, 103, 10, 0.28);
-    --accent-ring: rgba(71, 103, 10, 0.72); /* 3.20 vs bg（0.45 时只有 2.01） */
-    --accent-glow: rgba(160, 205, 20, 0.4);
-    --accent-glow-strong: rgba(150, 195, 15, 0.5);
-    --accent-glow-soft: rgba(150, 195, 15, 0.6);
-
-    --danger: #b32020; /* 6.68 */
-    --danger-ink: #ffffff;
-    --danger-12: rgba(179, 32, 32, 0.12);
-    --danger-18: rgba(179, 32, 32, 0.18);
-    --danger-28: rgba(179, 32, 32, 0.28);
-    --danger-44: rgba(179, 32, 32, 0.44);
-
-    --success: #0d6b47; /* 6.54 */
-    --success-12: rgba(13, 107, 71, 0.12);
-    --success-28: rgba(13, 107, 71, 0.28);
-
-    --warning: #8a5000; /* 6.51 */
-    --warning-12: rgba(138, 80, 0, 0.12);
-    --warning-28: rgba(138, 80, 0, 0.28);
-
-    --info: #1a5c9e; /* 6.84 */
-    --info-12: rgba(26, 92, 158, 0.12);
-    --info-28: rgba(26, 92, 158, 0.28);
-    --info-ink: #ffffff;
-
-    --paper-bg: #fbf7ea;
-    --paper-ink: #23261f;
-    --paper-title: #171a12;
-    --paper-meta: #6a6e60; /* 5.14 */
-    --paper-btn: #5d6154;
-    --paper-line: rgba(0, 0, 0, 0.1);
-    --paper-divider: rgba(0, 0, 0, 0.08);
-
-    --hero-1: #12150e;
-    --hero-2: #666d5f;
-
-    --shadow-1: 0 1px 2px rgba(20, 23, 15, 0.05), 0 8px 20px -14px rgba(20, 23, 15, 0.16);
-    --shadow-2: 0 2px 6px rgba(20, 23, 15, 0.06), 0 20px 44px -20px rgba(20, 23, 15, 0.2);
-    --shadow-accent: 0 12px 36px -16px rgba(140, 180, 10, 0.5);
-    --shadow-bar: 0 -8px 24px -14px rgba(20, 23, 15, 0.18);
-  }
-}
-
-/* ==========================================================
-   浅色主题 · 方案 B：手动指定 <html data-theme="light">
+   浅色主题：唯一来源（<html data-theme="light">，由 theme.ts /
+   index.html 首帧脚本解析「跟随系统」后写入，深浅只此两处）
    ========================================================== */
 
 :root[data-theme="light"] {
@@ -236,10 +150,9 @@
   --surface-1: #ffffff;
   --surface-2: #f2f4ee;
   --surface-3: #e8ebe1;
-  --glass: rgba(250, 251, 247, 0.86);
+  --glass: rgba(250, 251, 247, 0.96);
   --hover-wash: rgba(20, 23, 15, 0.05);
 
-  --card-hi: rgba(255, 255, 255, 0);
   --grid-line: rgba(20, 23, 15, 0.05);
   --glow-1: rgba(150, 190, 0, 0.09);
   --glow-2: rgba(150, 190, 0, 0.03);
@@ -265,9 +178,6 @@
   --accent-12: rgba(71, 103, 10, 0.12);
   --accent-28: rgba(71, 103, 10, 0.28);
   --accent-ring: rgba(71, 103, 10, 0.72);
-  --accent-glow: rgba(160, 205, 20, 0.4);
-  --accent-glow-strong: rgba(150, 195, 15, 0.5);
-  --accent-glow-soft: rgba(150, 195, 15, 0.6);
 
   --danger: #b32020;
   --danger-ink: #ffffff;
@@ -379,14 +289,14 @@ textarea {
   outline-offset: 2px;
 }
 
-/* 背景光晕（只动 opacity，避免大面积重绘） */
+/* 背景光晕：静态、低强度，只作氛围不做焦点 */
 body::before {
   content: "";
   position: fixed;
-  width: 78vmax;
-  height: 78vmax;
+  width: 60vmax;
+  height: 60vmax;
   left: 50%;
-  top: 40%;
+  top: 38%;
   transform: translate(-50%, -50%);
   background: radial-gradient(
     circle,
@@ -395,8 +305,6 @@ body::before {
     var(--glow-3) 66%
   );
   pointer-events: none;
-  will-change: opacity;
-  animation: breathe 9s ease-in-out infinite;
 }
 
 /* 网格纹理 */
@@ -411,11 +319,6 @@ body::after {
   mask-image: radial-gradient(circle at 50% 42%, #000 0%, transparent 70%);
   -webkit-mask-image: radial-gradient(circle at 50% 42%, #000 0%, transparent 70%);
   pointer-events: none;
-}
-
-@keyframes breathe {
-  0%, 100% { opacity: 0.6; }
-  50%      { opacity: 1; }
 }
 
 @keyframes fadeUp {
@@ -447,10 +350,10 @@ body::after {
 
 .section-title {
   margin: var(--s8) 0 var(--s3);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  color: var(--faint);
+  letter-spacing: 0.02em;
+  color: var(--muted);
 }
 
 .hint {
@@ -605,7 +508,6 @@ body::after {
 .lp-cta:hover {
   filter: brightness(1.05);
   transform: translateY(-2px);
-  box-shadow: 0 18px 48px -14px var(--accent-glow-strong);
 }
 
 .lp-cta:hover svg {
@@ -827,7 +729,6 @@ body::after {
   height: 14px;
   border-radius: var(--r-full);
   background: var(--accent-text);
-  box-shadow: 0 0 12px var(--accent-ring);
 }
 
 .version-badge {
@@ -862,10 +763,9 @@ body::after {
 }
 
 .version-badge.has-update {
-  color: var(--accent-ink);
-  background: var(--accent);
-  border-color: var(--accent);
-  box-shadow: var(--shadow-accent);
+  color: var(--accent-text);
+  background: var(--accent-12);
+  border-color: var(--accent-28);
 }
 
 .app-toast {
@@ -967,9 +867,7 @@ body::after {
 .video-upload,
 .editor-image,
 .image-add-cell {
-  background-color: var(--surface-1);
-  background-image: linear-gradient(180deg, var(--card-hi) 0%, transparent 46%);
-  border: 1px solid var(--line);
+  background-color: var(--surface-1);  border: 1px solid var(--line);
 }
 
 /* ---------- 动作页模块入口 ---------- */
@@ -1138,7 +1036,7 @@ body::after {
 
 .cta {
   width: 100%;
-  min-height: 56px;
+  min-height: 48px;
   padding: 0 var(--s6);
   font-size: 16px;
   font-weight: 700;
@@ -1155,7 +1053,6 @@ body::after {
 
 .cta:hover:not(:disabled) {
   filter: brightness(1.06);
-  box-shadow: 0 16px 40px -14px var(--accent-glow-strong);
 }
 
 .cta:active:not(:disabled) {
@@ -1173,7 +1070,7 @@ body::after {
 
 .ghost-btn {
   flex: none;
-  min-height: 56px;
+  min-height: 48px;
   padding: 0 var(--s5);
   font-size: 14px;
   font-weight: 600;
@@ -1205,7 +1102,7 @@ body::after {
 
 .danger-btn {
   flex: none;
-  min-height: 56px;
+  min-height: 48px;
   padding: 0 var(--s5);
   font-size: 14px;
   font-weight: 600;
@@ -1229,7 +1126,7 @@ body::after {
 
 .save-btn {
   position: relative;
-  min-height: 44px;
+  min-height: 48px;
   padding: 0 var(--s5);
   font-size: 14px;
   font-weight: 700;
@@ -1381,16 +1278,15 @@ body::after {
 }
 
 .filter-chip[aria-pressed="true"] {
-  color: var(--accent-ink);
+  color: var(--accent-text);
   font-weight: 650;
-  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
-  border-color: transparent;
-  box-shadow: 0 6px 18px -10px var(--accent-glow-soft);
+  background: var(--accent-06);
+  border-color: var(--accent-28);
 }
 
 .add-exercise-btn {
   flex: 1;
-  min-height: 46px;
+  min-height: 48px;
   border-radius: var(--r-sm);
 }
 
@@ -1419,9 +1315,7 @@ body::after {
   padding: var(--s4);
   text-align: left;
   color: var(--text);
-  background-color: var(--surface-1);
-  background-image: linear-gradient(180deg, var(--card-hi) 0%, transparent 46%);
-  border: 1px solid var(--line);
+  background-color: var(--surface-1);  border: 1px solid var(--line);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-1);
   cursor: pointer;
@@ -1534,7 +1428,6 @@ body::after {
   position: relative;
   display: flex;
   background-color: var(--surface-1);
-  background-image: linear-gradient(180deg, var(--card-hi) 0%, transparent 46%);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
@@ -1554,7 +1447,7 @@ body::after {
   flex-direction: column;
   gap: var(--s3);
   width: 100%;
-  min-height: 108px;
+  min-height: 92px;
   padding: var(--s4);
   text-align: left;
   color: var(--text);
@@ -1570,7 +1463,6 @@ body::after {
 }
 
 .exercise-card-name {
-  padding-right: 44px;
   font-size: 15.5px;
   font-weight: 650;
   line-height: 1.35;
@@ -1583,27 +1475,6 @@ body::after {
   line-height: 1.45;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-}
-
-.exercise-card-edit {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  min-height: 30px;
-  padding: 0 9px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-2);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-full);
-  cursor: pointer;
-  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
-}
-
-.exercise-card-edit:hover {
-  color: var(--accent-text);
-  border-color: var(--accent-28);
 }
 
 /* ---------- 动作新增 / 编辑 ---------- */
@@ -1654,8 +1525,7 @@ body::after {
   text-align: left;
   color: var(--text);
   background-color: var(--surface-1);
-  background-image: linear-gradient(120deg, var(--accent-06) 0%, var(--info-12) 100%),
-    linear-gradient(180deg, var(--card-hi) 0%, transparent 46%);
+  background-image: linear-gradient(120deg, var(--accent-06) 0%, var(--info-12) 100%);
   border: 1px solid var(--accent-28);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-1);
@@ -1666,7 +1536,6 @@ body::after {
 
 .coach-card:hover {
   border-color: var(--accent-ring);
-  box-shadow: var(--shadow-accent);
 }
 
 .coach-card:active {
@@ -1751,9 +1620,7 @@ body::after {
   padding: var(--s4);
   text-align: left;
   color: var(--text);
-  background-color: var(--surface-1);
-  background-image: linear-gradient(180deg, var(--card-hi) 0%, transparent 46%);
-  border: 1px solid var(--line);
+  background-color: var(--surface-1);  border: 1px solid var(--line);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-1);
   cursor: pointer;
@@ -1851,7 +1718,6 @@ body::after {
 .plan-exercise {
   overflow: hidden;
   background-color: var(--surface-1);
-  background-image: linear-gradient(180deg, var(--card-hi) 0%, transparent 46%);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
@@ -2543,10 +2409,6 @@ body::after {
   scroll-snap-align: start;
 }
 
-.new-recipe {
-  margin-top: var(--s5);
-}
-
 .photo-add-btn {
   display: inline-flex;
   align-items: center;
@@ -2562,21 +2424,12 @@ body::after {
 .notes-toolbar {
   display: flex;
   gap: var(--s2);
-  margin-top: var(--s5);
   margin-bottom: var(--s4);
 }
 
 .note-search {
   flex: 1;
   min-width: 0;
-}
-
-.note-new-btn {
-  flex: none;
-  min-height: 48px;
-  padding: 0 var(--s4);
-  border-radius: var(--r-sm);
-  white-space: nowrap;
 }
 
 .notes-view-row {
@@ -2642,9 +2495,7 @@ body::after {
 .memo-card {
   position: relative;
   display: flex;
-  background-color: var(--surface-1);
-  background-image: linear-gradient(180deg, var(--card-hi) 0%, transparent 46%);
-  border: 1px solid var(--line);
+  background-color: var(--surface-1);  border: 1px solid var(--line);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
   transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease),
@@ -3930,7 +3781,6 @@ body.player-open .tabbar {
 
 .tabbar button[aria-current="true"]::before {
   background: var(--accent-text);
-  box-shadow: 0 0 12px var(--accent-ring);
 }
 
 .tabbar .tab-icon {
@@ -3959,9 +3809,7 @@ body.player-open .tabbar {
 .training-checkin {
   margin-top: var(--s6);
   padding: var(--s4);
-  background-color: var(--surface-1);
-  background-image: linear-gradient(180deg, var(--card-hi) 0%, transparent 46%);
-  border: 1px solid var(--line);
+  background-color: var(--surface-1);  border: 1px solid var(--line);
   border-left: 3px solid var(--accent);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
@@ -4109,4 +3957,400 @@ body.player-open .tabbar {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ===== 第二/三阶段新增：周计划卡 / 90 天周期 / 吸底操作栏 / 主题与感受 / 食谱快捷 / 存储占用 ===== */
+
+.week-plan-card {
+  margin: var(--s3) 0;
+  padding: var(--s3);
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.week-plan-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--s2);
+}
+
+.week-plan-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.week-plan-progress {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.week-plan-today {
+  display: block;
+  width: 100%;
+  margin: 0 0 var(--s2);
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  border-radius: var(--r-sm);
+}
+
+.week-plan-today.is-training {
+  color: var(--accent-ink);
+  font-weight: 700;
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-accent);
+  cursor: pointer;
+}
+
+.week-plan-today.is-rest {
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px dashed var(--line);
+}
+
+.week-plan-rows {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.week-plan-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--s2);
+  font-size: 13.5px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm);
+}
+
+button.week-plan-row {
+  cursor: pointer;
+}
+
+button.week-plan-row:active {
+  background: var(--surface-2);
+}
+
+.week-plan-row.is-rest {
+  color: var(--faint);
+}
+
+.week-plan-row.is-today {
+  background: var(--surface-2);
+}
+
+.week-plan-day {
+  flex: 0 0 72px;
+  color: var(--text-2);
+}
+
+.week-plan-row.is-rest .week-plan-day {
+  color: var(--faint);
+}
+
+.week-plan-slot {
+  flex: 1 1 auto;
+  font-weight: 600;
+}
+
+.week-plan-row.is-rest .week-plan-slot {
+  font-weight: 400;
+}
+
+.week-plan-state {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  font-size: 13px;
+  color: var(--accent-text);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+}
+
+.week-plan-state.is-done {
+  background: var(--accent-06);
+  border-color: var(--accent-28);
+}
+
+.week-plan-note {
+  margin: var(--s2) 0 0;
+  font-size: 11.5px;
+  color: var(--faint);
+}
+
+.cycle-card {
+  margin: 0 0 var(--s3);
+  padding: var(--s3);
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.cycle-title {
+  margin: 0 0 var(--s1);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.cycle-line {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.cycle-meta {
+  margin: var(--s1) 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* 计划页吸底操作栏 */
+.has-actionbar {
+  padding-bottom: 96px;
+}
+
+.plan-actionbar {
+  position: fixed;
+  right: 0;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  left: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 10px var(--s3);
+  background: var(--glass);
+  border-top: 1px solid var(--line);
+  backdrop-filter: saturate(150%) blur(20px);
+  -webkit-backdrop-filter: saturate(150%) blur(20px);
+}
+
+.plan-actionbar-main {
+  flex: 1 1 auto;
+}
+
+.plan-actionbar-done {
+  flex: 1 1 auto;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+/* 笔记主题 / 训练感受 */
+.note-topic-row,
+.note-mood-row,
+.ingredient-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: var(--s2) 0 0;
+}
+
+.note-mood-row .topic-chip {
+  min-height: 44px;
+}
+
+.note-mood-label,
+.ingredient-chips-label {
+  flex: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.topic-chip {
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  cursor: pointer;
+}
+
+.topic-chip.is-on {
+  color: var(--accent-text);
+  background: var(--accent-06);
+  border-color: var(--accent-28);
+}
+
+.memo-topic {
+  padding: 1px 8px;
+  font-size: 11px;
+  color: var(--accent-text);
+  background: var(--accent-06);
+  border: 1px solid var(--accent-28);
+  border-radius: var(--r-full);
+}
+
+/* 食谱：今天做了 / 收藏 / 复制 */
+.cook-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin: var(--s3) 0 0;
+}
+
+.cook-facts {
+  margin: var(--s2) 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.detail-top-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.ghost-btn.is-fav {
+  color: var(--accent-text);
+  border-color: var(--accent-28);
+}
+
+.recipe-sort-ctl {
+  margin-left: auto;
+}
+
+/* 存储占用 */
+.storage-line {
+  margin: 0 0 var(--s2);
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hint.is-warn {
+  color: var(--danger);
+}
+
+/* ===== 48px 统一热区：视觉可小，点击区必须够大 ===== */
+
+.version-badge {
+  min-height: 48px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.theme-toggle {
+  width: 48px;
+  height: 48px;
+}
+
+.memo-pin {
+  width: 48px;
+  height: 48px;
+  top: 4px;
+  right: 4px;
+  border: 0;
+  background: transparent;
+}
+
+.memo-pin svg {
+  width: 20px;
+  height: 20px;
+}
+
+.memo-pin.is-on {
+  color: var(--accent-text);
+  background: transparent;
+}
+
+.note-tool-icon {
+  width: 48px;
+  height: 48px;
+}
+
+.note-tool {
+  height: 48px;
+}
+
+.note-tool-media.is-busy {
+  opacity: 0.5;
+}
+
+.training-record-del {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0 10px;
+}
+
+.ghost-btn.small {
+  min-height: 48px;
+}
+
+.remove-btn {
+  width: 48px;
+  height: 48px;
+}
+
+.image-remove {
+  width: 36px;
+  height: 36px;
+}
+
+.image-remove::after {
+  inset: -6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .week-plan-today,
+  button.week-plan-row,
+  .topic-chip {
+    transition: none !important;
+  }
+}
+
+/* ===== 统一页面头：标题 + 主操作（新建入口统一放标题右侧） ===== */
+
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.page-head .page-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.page-head-action {
+  flex: none;
+  min-height: 48px;
+  padding: 0 var(--s4);
+  font-size: 13px;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+}
+
+/* 列表工具行（排序等，独立于横向筛选行） */
+.list-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s2);
+  margin: calc(var(--s2) * -1) 0 var(--s4);
+}
+
+.recipe-sort-ctl {
+  margin-left: 0;
 }

@@ -1,14 +1,39 @@
 import type { ExerciseNote } from '../types'
 import { readJSON, writeJSON } from './storage'
 import { hasNoteMedia } from './noteMedia'
+import { getSessions } from './trainingLog'
 
 const KEY = 'exerciseNotes'
+
+// 轻量主题：只做筛选，不做文件夹和多级分类
+export const NOTE_TOPICS = [
+  { id: 'fitness', label: '健身' },
+  { id: 'study', label: '学习' },
+  { id: 'diet', label: '饮食' },
+  { id: 'work', label: '工作' },
+  { id: 'life', label: '生活' },
+  { id: 'other', label: '其他' },
+] as const
+
+export type NoteTopic = (typeof NOTE_TOPICS)[number]['id']
+
+const TOPIC_IDS = new Set<string>(NOTE_TOPICS.map((item) => item.id))
+
+export function topicLabel(topic: string | undefined): string {
+  return NOTE_TOPICS.find((item) => item.id === topic)?.label ?? ''
+}
+
+// 白名单归一：旧数据/坏数据的主题一律回落为无主题
+export function normalizeTopic(value: unknown): NoteTopic | undefined {
+  return typeof value === 'string' && TOPIC_IDS.has(value) ? (value as NoteTopic) : undefined
+}
 
 export interface NoteInput {
   title?: string
   text: string
   html?: string
   pinned?: boolean
+  topic?: NoteTopic | null
 }
 
 export interface NotePatch {
@@ -16,6 +41,7 @@ export interface NotePatch {
   text?: string
   html?: string
   pinned?: boolean
+  topic?: NoteTopic | null
 }
 
 export function getExerciseNotes(): ExerciseNote[] {
@@ -25,6 +51,7 @@ export function getExerciseNotes(): ExerciseNote[] {
     text: note.text,
     html: typeof note.html === 'string' ? note.html : undefined,
     pinned: note.pinned === true,
+    topic: normalizeTopic(note.topic),
     createdAt: note.createdAt,
     updatedAt: note.updatedAt,
   }))
@@ -61,12 +88,16 @@ export function sortNotes(notes: ExerciseNote[], sort: NoteSort = 'updated-desc'
   })
 }
 
-// 'pinned' 只看置顶；其余值一律全部
+// 'pinned' 只看置顶；主题 id 只看该主题；其余值一律全部
 export function filterNotes(notes: ExerciseNote[], filter: string): ExerciseNote[] {
   if (filter === 'pinned') return notes.filter((note) => note.pinned === true)
+  if (TOPIC_IDS.has(filter)) return notes.filter((note) => note.topic === filter)
   return notes
 }
 
+// 返回 null 表示「输入为空」或「写入失败（存储空间满等）」。
+// 调用方须保证非空内容才调用；因此拿到 null 即视为保存失败，
+// 上层应保持编辑态，不得当作已保存继续关闭/清理。
 export function addExerciseNote(input: NoteInput): ExerciseNote | null {
   const title = (input.title ?? '').trim()
   const text = input.text.trim()
@@ -79,16 +110,18 @@ export function addExerciseNote(input: NoteInput): ExerciseNote | null {
     text,
     html: input.html,
     pinned: input.pinned === true,
+    topic: normalizeTopic(input.topic),
     createdAt: now,
     updatedAt: now,
   }
-  writeJSON(KEY, [note, ...getExerciseNotes()])
+  if (!writeJSON(KEY, [note, ...getExerciseNotes()])) return null
   return note
 }
 
-export function updateExerciseNote(id: string, patch: NotePatch): void {
+// 返回 false 表示写入失败（存储空间满等）；内容为空或无变化视为无需写入，返回 true。
+export function updateExerciseNote(id: string, patch: NotePatch): boolean {
   const now = new Date().toISOString()
-  writeJSON(
+  return writeJSON(
     KEY,
     getExerciseNotes().map((note) => {
       if (note.id !== id) return note
@@ -102,6 +135,8 @@ export function updateExerciseNote(id: string, patch: NotePatch): void {
         text,
         html,
         pinned: patch.pinned === undefined ? note.pinned === true : patch.pinned,
+        // undefined=不改；null=清除主题
+        topic: patch.topic === undefined ? normalizeTopic(note.topic) : normalizeTopic(patch.topic),
         updatedAt: now,
       }
     }),
@@ -116,6 +151,18 @@ export function toggleNotePin(id: string, pinned: boolean): void {
   )
 }
 
-export function deleteExerciseNote(id: string): void {
-  writeJSON(KEY, getExerciseNotes().filter((note) => note.id !== id))
+// 删除笔记并返回是否写入成功
+export function deleteExerciseNote(id: string): boolean {
+  return writeJSON(KEY, getExerciseNotes().filter((note) => note.id !== id))
+}
+
+// 反向清理：把训练记录里指向已删除笔记的 noteId 清掉。
+// 删除笔记时必须调用，否则打卡会一直显示「有心得」但点不开。
+export function unlinkNoteByNoteId(noteId: string): boolean {
+  const sessions = getSessions()
+  const affected = sessions.some((item) => item.noteId === noteId)
+  if (!affected) return true
+  return writeJSON('trainingLog', sessions.map((item) =>
+    item.noteId === noteId ? { ...item, noteId: undefined } : item,
+  ))
 }

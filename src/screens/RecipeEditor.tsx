@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { Ingredient, Recipe } from '../types'
-import { getRecipe, MEAL_LABELS, MEAL_SLOTS, newRecipe, saveRecipe } from '../lib/recipes'
+import { getRecipe, getRecentIngredients, MEAL_LABELS, MEAL_SLOTS, newRecipe, rememberIngredients, saveRecipe } from '../lib/recipes'
 import { compressImage } from '../lib/image'
 import { deleteImage, putImage } from '../lib/storage'
 import { formatGram, recipeNutrition } from '../lib/nutrition'
@@ -12,6 +12,7 @@ interface Props {
   recipeId: string | null
   onBack: () => void
   onSaved: (id: string) => void
+  onDirtyChange?: (dirty: boolean) => void
 }
 
 interface PendingImage {
@@ -26,7 +27,7 @@ const MACRO_FIELDS: { key: keyof Ingredient['per100g']; label: string }[] = [
   { key: 'carb', label: '碳水 g' },
 ]
 
-export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
+export default function RecipeEditor({ recipeId, onBack, onSaved, onDirtyChange }: Props) {
   const [draft, setDraft] = useState<Recipe>(() => {
     if (recipeId) {
       const existing = getRecipe(recipeId)
@@ -38,19 +39,30 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
   const [removedIds, setRemovedIds] = useState<string[]>([])
   const [imageBusy, setImageBusy] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [dirty, setDirty] = useState(false)
   const urlsRef = useRef<string[]>([])
+  const [recentIngredients, setRecentIngredients] = useState<string[]>(() => getRecentIngredients())
 
   useEffect(() => {
     const urls = urlsRef.current
     return () => urls.forEach((url) => URL.revokeObjectURL(url))
   }, [])
 
+  // 把脏状态上报给外层，供硬件返回键（popstate）做未保存确认
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+  }, [dirty, onDirtyChange])
+
   const total = recipeNutrition(draft)
   const canSave = draft.name.trim().length > 0
 
-  const patch = (values: Partial<Recipe>) => setDraft((prev) => ({ ...prev, ...values }))
+  const patch = (values: Partial<Recipe>) => {
+    setDirty(true)
+    setDraft((prev) => ({ ...prev, ...values }))
+  }
 
   const patchIngredient = (id: string, values: Partial<Ingredient>) => {
+    setDirty(true)
     setDraft((prev) => ({
       ...prev,
       ingredients: prev.ingredients.map((item) => (item.id === id ? { ...item, ...values } : item)),
@@ -58,6 +70,7 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
   }
 
   const patchPer100g = (id: string, key: keyof Ingredient['per100g'], value: number) => {
+    setDirty(true)
     setDraft((prev) => ({
       ...prev,
       ingredients: prev.ingredients.map((item) =>
@@ -73,11 +86,25 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
       grams: 100,
       per100g: { protein: 0, fat: 0, carb: 0 },
     }
+    setDirty(true)
     setDraft((prev) => ({ ...prev, ingredients: [...prev.ingredients, item] }))
   }
 
   const removeIngredient = (id: string) => {
+    setDirty(true)
     setDraft((prev) => ({ ...prev, ingredients: prev.ingredients.filter((item) => item.id !== id) }))
+  }
+
+  // 从「常用食材」一键添加：克数 100、营养 0，够快，细节随手改
+  const addRecentIngredient = (name: string) => {
+    const item: Ingredient = {
+      id: `i-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name,
+      grams: 100,
+      per100g: { protein: 0, fat: 0, carb: 0 },
+    }
+    setDirty(true)
+    setDraft((prev) => ({ ...prev, ingredients: [...prev.ingredients, item] }))
   }
 
   const pickImage = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -95,6 +122,7 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
         added.push({ id, blob, url })
       }
       setPendingImages((prev) => [...prev, ...added])
+      setDirty(true)
       setDraft((prev) => ({
         ...prev,
         imageIds: [...prev.imageIds, ...added.map((item) => item.id)],
@@ -107,6 +135,7 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
   }
 
   const removeImage = (id: string) => {
+    setDirty(true)
     const pending = pendingImages.find((item) => item.id === id)
     if (pending) {
       URL.revokeObjectURL(pending.url)
@@ -118,16 +147,31 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
     setDraft((prev) => ({ ...prev, imageIds: prev.imageIds.filter((item) => item !== id) }))
   }
 
+  // 返回键保护：有未保存内容时先确认，新建和编辑都生效
+  const leave = () => {
+    if (dirty && !window.confirm('还没保存，离开会丢掉这次的修改。继续？')) return
+    onBack()
+  }
+
   const save = async () => {
     if (!canSave || saving) return
     setSaving(true)
     try {
       for (const item of pendingImages) await putImage(item.id, item.blob)
       for (const id of removedIds) await deleteImage(id)
-      saveRecipe({ ...draft, name: draft.name.trim(), updatedAt: new Date().toISOString() })
+      // 文字数据写入失败时保持编辑态，图片已写入只多不少，下次保存会覆盖
+      if (!saveRecipe({ ...draft, name: draft.name.trim(), updatedAt: new Date().toISOString() })) {
+        window.alert('保存失败（手机存储可能已满）。菜谱仍在编辑中，尚未保存，请清理空间后重试。')
+        setSaving(false)
+        return
+      }
+      // 食材名沉淀进「常用食材」，下次录入直接点选
+      rememberIngredients(draft.ingredients.map((item) => item.name))
+      setRecentIngredients(getRecentIngredients())
+      setDirty(false)
       onSaved(draft.id)
     } catch {
-      window.alert('保存失败，手机空间可能不够了，清理后再试。')
+      window.alert('保存失败，手机空间可能不够了，清理后再试。菜谱仍在编辑中，尚未保存。')
       setSaving(false)
     }
   }
@@ -135,7 +179,7 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
   return (
     <section className="editor">
       <div className="editor-top">
-        <button className="back-btn" type="button" disabled={saving} onClick={onBack}>
+        <button className="back-btn" type="button" disabled={saving} onClick={leave}>
           ← 返回
         </button>
         <button className="save-btn" type="button" disabled={!canSave || saving || imageBusy} onClick={save}>
@@ -265,6 +309,21 @@ export default function RecipeEditor({ recipeId, onBack, onSaved }: Props) {
       </div>
 
       <h2 className="section-title">食材与用量</h2>
+      {recentIngredients.length > 0 && (
+        <div className="ingredient-chips" aria-label="常用食材">
+          <span className="ingredient-chips-label">常用：</span>
+          {recentIngredients.slice(0, 12).map((name) => (
+            <button
+              key={name}
+              type="button"
+              className="topic-chip"
+              onClick={() => addRecentIngredient(name)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="ingredient-list">
         {draft.ingredients.map((item) => (
           <div key={item.id} className="ingredient-card">

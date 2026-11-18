@@ -7,11 +7,14 @@ import {
   filterNotes,
   getExerciseNotes,
   NOTE_SORTS,
+  NOTE_TOPICS,
   sortNotes,
   toggleNotePin,
+  topicLabel,
+  unlinkNoteByNoteId,
   updateExerciseNote,
 } from '../lib/exerciseNotes'
-import type { NoteSort } from '../lib/exerciseNotes'
+import type { NoteSort, NoteTopic } from '../lib/exerciseNotes'
 import { collectMediaIds, hasNoteMedia, textToHtml } from '../lib/noteMedia'
 import { compressImage } from '../lib/image'
 import { inspectVideo } from '../lib/videoFile'
@@ -35,9 +38,13 @@ interface Draft {
   text: string
   html?: string
   pinned: boolean
+  topic: NoteTopic | null
   createdAt: string
   sessionId?: string
 }
+
+// 训练感受快捷模板：点一下在正文顶部写一行「感受：xx」，可换选覆盖
+const MOOD_OPTIONS = ['顺利', '一般', '状态差', '动作不熟', '需要复习动作']
 
 // 从跟练打卡跳过来的一次性写心得意图，用完即清
 interface NoteSeed {
@@ -48,6 +55,7 @@ interface NoteSeed {
 
 interface Props {
   active: boolean
+  onBackToSource?: () => void
 }
 
 function PinIcon({ filled }: { filled: boolean }) {
@@ -73,6 +81,7 @@ function draftOf(note: ExerciseNote): Draft {
     text: note.text,
     html: note.html,
     pinned: note.pinned === true,
+    topic: (note.topic as NoteTopic | undefined) ?? null,
     createdAt: note.createdAt,
   }
 }
@@ -143,13 +152,14 @@ function NoteEditor({
   onDirtyChange,
 }: {
   initial: Draft
-  onSave: (draft: Draft) => void
+  onSave: (draft: Draft) => boolean
   onDelete?: () => void
   onBack: () => void
   onDirtyChange: (dirty: boolean) => void
 }) {
   const [title, setTitle] = useState(initial.title)
   const [pinned, setPinned] = useState(initial.pinned)
+  const [topic, setTopic] = useState<NoteTopic | null>(initial.topic)
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
   const [hasContent, setHasContent] = useState(
@@ -417,6 +427,34 @@ function NoteEditor({
     setPop(null)
   }
 
+  // 训练感受快捷模板：在正文顶部写一行「感受：xx」，换选时覆盖旧行
+  const applyMood = (label: string) => {
+    const editor = editorRef.current
+    if (!editor) return
+    const existing = Array.from(editor.children).find(
+      (el) => el instanceof HTMLElement && (el.textContent ?? '').startsWith('感受：'),
+    )
+    if (existing instanceof HTMLElement) {
+      existing.textContent = `感受：${label}`
+    } else {
+      editor.focus()
+      const selection = window.getSelection()
+      const range = document.createRange()
+      range.selectNodeContents(editor)
+      range.collapse(true)
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+      const inserted = document.execCommand('insertHTML', false, `<div>感受：${label}</div><div><br></div>`)
+      if (!inserted) {
+        const wrapper = document.createElement('div')
+        wrapper.textContent = `感受：${label}`
+        editor.prepend(wrapper)
+      }
+    }
+    markDirty()
+    refreshHasContent()
+  }
+
   // 弹层开着时，点正文或别处就收起；点弹层自身和开关按钮不收起
   useEffect(() => {
     if (!pop) return
@@ -441,6 +479,26 @@ function NoteEditor({
     const text = editor.innerText.replace(/\u00a0/g, ' ').trim()
     if (!title.trim() && !text && !hasNoteMedia(html)) return
 
+    // 先保存；失败时不清理媒体、不置 savedRef，编辑器保持打开，
+    // 用户内容不会因为一次写入失败而丢失。
+    const saved = onSave({
+      id: initial.id,
+      title,
+      text,
+      html,
+      pinned,
+      topic,
+      createdAt: createdAtRef.current,
+      sessionId: initial.sessionId,
+    })
+    if (!saved) {
+      window.alert('保存失败（手机存储可能已满）。内容仍在编辑中，尚未保存。请清理空间后重试，或先导出备份。')
+      markDirty()
+      return
+    }
+
+    savedRef.current = true
+    // 保存成功后才清理被移除的媒体，失败路径不删任何附件
     const finalIds = collectMediaIds(html)
     const initialIds = initialIdsRef.current
     for (const id of addedImagesRef.current) {
@@ -455,19 +513,7 @@ function NoteEditor({
     for (const id of initialIds.videoIds) {
       if (!finalIds.videoIds.includes(id)) void deleteVideo(id)
     }
-
-    savedRef.current = true
-    onSave({
-      id: initial.id,
-      title,
-      text,
-      html,
-      pinned,
-      createdAt: createdAtRef.current,
-      sessionId: initial.sessionId,
-    })
   }
-
   return (
     <section className="note-compose" ref={composeRef}>
       <div className="note-compose-top">
@@ -575,6 +621,50 @@ function NoteEditor({
           markDirty()
         }}
       />
+
+      <div className="note-topic-row" role="group" aria-label="笔记主题">
+        <button
+          type="button"
+          className={topic === null ? 'topic-chip is-on' : 'topic-chip'}
+          aria-pressed={topic === null}
+          onClick={() => {
+            setTopic(null)
+            markDirty()
+          }}
+        >
+          无主题
+        </button>
+        {NOTE_TOPICS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={topic === item.id ? 'topic-chip is-on' : 'topic-chip'}
+            aria-pressed={topic === item.id}
+            onClick={() => {
+              setTopic(item.id)
+              markDirty()
+            }}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {initial.sessionId && (
+        <div className="note-mood-row" role="group" aria-label="训练感受快捷模板">
+          <span className="note-mood-label">训练感受</span>
+          {MOOD_OPTIONS.map((label) => (
+            <button
+              key={label}
+              type="button"
+              className="topic-chip"
+              onClick={() => applyMood(label)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="note-meta-row">
         <span>{formatNoteTime(createdAtRef.current)}</span>
@@ -739,7 +829,7 @@ function NoteEditor({
   )
 }
 
-export default function NotesTab({ active }: Props) {
+export default function NotesTab({ active, onBackToSource }: Props) {
   const [notes, setNotes] = useState<ExerciseNote[]>(() => getExerciseNotes())
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<NoteSort>(() => {
@@ -752,6 +842,9 @@ export default function NotesTab({ active }: Props) {
   const confirmedRef = useRef(false)
   const listScrollRef = useRef(0)
   const wasEditingRef = useRef(false)
+  // 本次草稿是否由「写心得」种子打开；关闭后让 App 跳回来源计划页
+  const seedFlowRef = useRef(false)
+  const hadDraftRef = useRef(false)
 
   const confirmDiscard = () => {
     if (!dirtyRef.current) return true
@@ -783,6 +876,7 @@ export default function NotesTab({ active }: Props) {
     const seed = readJSON<NoteSeed | null>('noteSeed', null)
     if (seed && typeof seed.sessionId === 'string') {
       removeKey('noteSeed')
+      seedFlowRef.current = true
       listScrollRef.current = window.scrollY
       dirtyRef.current = false
       setDraft({
@@ -790,11 +884,27 @@ export default function NotesTab({ active }: Props) {
         title: typeof seed.title === 'string' ? seed.title : '',
         text: typeof seed.text === 'string' ? seed.text : '',
         pinned: false,
+        topic: null,
         createdAt: new Date().toISOString(),
         sessionId: seed.sessionId,
       })
     }
   }, [active])
+
+  // 草稿从打开变为关闭（保存/放弃/返回键都汇到这里）且是种子流程时，
+  // 通知 App 跳回来源计划页。用户中途手动切 tab 会被 App 清掉来源，落空即可。
+  useEffect(() => {
+    if (draft) {
+      hadDraftRef.current = true
+      return
+    }
+    if (!hadDraftRef.current) return
+    hadDraftRef.current = false
+    if (seedFlowRef.current) {
+      seedFlowRef.current = false
+      onBackToSource?.()
+    }
+  }, [draft, onBackToSource])
 
   // 写笔记时隐藏页头和底部导航，进入专注的全屏编辑
   useEffect(() => {
@@ -822,7 +932,7 @@ export default function NotesTab({ active }: Props) {
   const refresh = () => setNotes(getExerciseNotes())
 
   const keyword = query.trim().toLowerCase()
-  const filterOptions = ['all', 'pinned']
+  const filterOptions = ['all', 'pinned', ...NOTE_TOPICS.map((item) => item.id)]
   const activeFilter = filterOptions.includes(filter) ? filter : 'all'
   const visible = sortNotes(
     filterNotes(
@@ -849,7 +959,14 @@ export default function NotesTab({ active }: Props) {
   const startNew = () => {
     listScrollRef.current = window.scrollY
     dirtyRef.current = false
-    setDraft({ id: null, title: '', text: '', pinned: false, createdAt: new Date().toISOString() })
+    setDraft({
+      id: null,
+      title: '',
+      text: '',
+      pinned: false,
+      topic: null,
+      createdAt: new Date().toISOString(),
+    })
   }
 
   const startEdit = (note: ExerciseNote) => {
@@ -858,38 +975,57 @@ export default function NotesTab({ active }: Props) {
     setDraft(draftOf(note))
   }
 
-  const saveDraft = (next: Draft) => {
+  // 返回 true 表示已保存，编辑器才会关闭；false = 保存失败，保持编辑态
+  const saveDraft = (next: Draft): boolean => {
     if (next.id) {
-      updateExerciseNote(next.id, {
+      const ok = updateExerciseNote(next.id, {
         title: next.title,
         text: next.text,
         html: next.html,
         pinned: next.pinned,
+        // null = 用户清除了主题；undefined 不会出现（编辑器状态始终为具体值或 null）
+        topic: next.topic,
       })
+      if (!ok) return false
     } else {
       const created = addExerciseNote({
         title: next.title,
         text: next.text,
         html: next.html,
         pinned: next.pinned,
+        topic: next.topic,
       })
-      if (next.sessionId && created) linkNote(next.sessionId, created.id)
+      if (!created) return false
+      if (next.sessionId) {
+        // 笔记本体已保存；只是关联回填失败时不丢内容，提示后照常关闭
+        if (!linkNote(next.sessionId, created.id)) {
+          window.alert('笔记已保存，但跟练打卡的心得关联失败，可在跟练记录里重新关联。')
+        }
+      }
     }
     setDraft(null)
     dirtyRef.current = false
     refresh()
+    return true
   }
 
   const removeDraft = () => {
     if (!draft?.id) return
     if (!window.confirm('删除这条笔记？')) return
+    if (!deleteExerciseNote(draft.id)) {
+      window.alert('删除失败（手机存储可能已满），笔记保留。')
+      return
+    }
+    // 笔记已删除：同步解除训练记录里的引用，避免「有心得」点不开
+    if (!unlinkNoteByNoteId(draft.id)) {
+      window.alert('笔记已删除，但跟练记录的心得引用清理失败，记录里可能仍显示「有心得」。')
+    }
     const stored = notes.find((note) => note.id === draft.id)
     if (stored) {
       const { imageIds, videoIds } = collectMediaIds(stored.html)
       for (const id of imageIds) void deleteImage(id)
       for (const id of videoIds) void deleteVideo(id)
     }
-    deleteExerciseNote(draft.id)
     setDraft(null)
     dirtyRef.current = false
     refresh()
@@ -918,7 +1054,12 @@ export default function NotesTab({ active }: Props) {
 
   return (
     <section>
-      <h1 className="page-title">笔记</h1>
+      <div className="page-head">
+        <h1 className="page-title">笔记</h1>
+        <button className="save-btn page-head-action" type="button" onClick={startNew}>
+          + 新笔记
+        </button>
+      </div>
       <p className="page-sub">像备忘录一样随手记</p>
 
       <div className="notes-toolbar">
@@ -930,9 +1071,6 @@ export default function NotesTab({ active }: Props) {
           aria-label="搜索笔记"
           onChange={(event) => setQuery(event.target.value)}
         />
-        <button className="save-btn note-new-btn" type="button" onClick={startNew}>
-          + 新笔记
-        </button>
       </div>
 
       {notes.length > 0 && (
@@ -954,6 +1092,11 @@ export default function NotesTab({ active }: Props) {
             >
               <option value="all">全部笔记</option>
               <option value="pinned">只看置顶</option>
+              {NOTE_TOPICS.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
             </select>
           </label>
           <label className="notes-view-ctl">
@@ -1007,6 +1150,9 @@ export default function NotesTab({ active }: Props) {
                   {preview && <span className="memo-preview">{preview}</span>}
                   <span className="memo-meta">
                     <span className="memo-date">{note.updatedAt.slice(0, 10)}</span>
+                    {topicLabel(note.topic) && (
+                      <span className="memo-topic">{topicLabel(note.topic)}</span>
+                    )}
                   </span>
                 </button>
                 <button

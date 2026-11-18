@@ -27,6 +27,10 @@ function normalizeRecipe(raw: Recipe): Recipe {
     imageIds: rest.imageIds ?? (imageId ? [imageId] : []),
     notes: rest.notes ?? '',
     price: rest.price ?? 0,
+    cookedDates: Array.isArray(rest.cookedDates)
+      ? rest.cookedDates.filter((item): item is string => typeof item === 'string')
+      : [],
+    favorite: rest.favorite === true,
   }
 }
 
@@ -43,7 +47,8 @@ export function getRecipe(id: string): Recipe | undefined {
   return getRecipes().find((recipe) => recipe.id === id)
 }
 
-export function saveRecipe(recipe: Recipe): void {
+// 返回是否写入成功；false = 存储失败，上层须保持编辑态
+export function saveRecipe(recipe: Recipe): boolean {
   const list = getRecipes()
   const index = list.findIndex((item) => item.id === recipe.id)
   if (index >= 0) {
@@ -51,7 +56,7 @@ export function saveRecipe(recipe: Recipe): void {
   } else {
     list.unshift(recipe)
   }
-  writeJSON(KEY, list)
+  return writeJSON(KEY, list)
 }
 
 export function deleteRecipe(id: string): void {
@@ -76,7 +81,102 @@ export function newRecipe(): Recipe {
     oilGrams: 10,
     saltGrams: 3,
     price: 0,
+    cookedDates: [],
+    favorite: false,
     createdAt: now,
     updatedAt: now,
   }
+}
+
+// 复制菜谱：新 id、新食材行 id，图片引用原样共享（图片本体还在图库里），
+// 做过记录与收藏不带走。复制完直接进编辑器改名/换餐次。
+export function duplicateRecipe(id: string): Recipe | null {
+  const src = getRecipe(id)
+  if (!src) return null
+  const now = new Date().toISOString()
+  const copy: Recipe = {
+    ...src,
+    id: `r-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: `${src.name}（副本）`,
+    imageIds: [...src.imageIds],
+    ingredients: src.ingredients.map((item) => ({
+      ...item,
+      id: `i-${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${Math.random().toString(36).slice(2, 4)}`,
+    })),
+    cookedDates: [],
+    favorite: false,
+    createdAt: now,
+    updatedAt: now,
+  }
+  return writeJSON(KEY, [copy, ...getRecipes()]) ? copy : null
+}
+
+// 记录「今天实际做了一次」；同一天重复点只记一次，最多保留最近 60 条
+export function markCookedToday(id: string, today: string): boolean {
+  return writeJSON(
+    KEY,
+    getRecipes().map((recipe) => {
+      if (recipe.id !== id) return recipe
+      const cooked = (recipe.cookedDates ?? []).filter((item) => item !== today)
+      cooked.push(today)
+      return { ...recipe, cookedDates: cooked.slice(-60), updatedAt: recipe.updatedAt }
+    }),
+  )
+}
+
+export function toggleFavorite(id: string): boolean {
+  return writeJSON(
+    KEY,
+    getRecipes().map((recipe) =>
+      recipe.id === id ? { ...recipe, favorite: recipe.favorite !== true } : recipe,
+    ),
+  )
+}
+
+// 排序：默认（新建在前）/ 最近做过（没做过的按更新时间垫底）/ 收藏优先
+export type RecipeSort = 'default' | 'cooked' | 'favorite'
+
+export function sortRecipes(recipes: Recipe[], mode: RecipeSort): Recipe[] {
+  const lastCooked = (recipe: Recipe): string =>
+    recipe.cookedDates?.[recipe.cookedDates.length - 1] ?? ''
+  const list = [...recipes]
+  if (mode === 'cooked') {
+    return list.sort((a, b) => {
+      const la = lastCooked(a)
+      const lb = lastCooked(b)
+      if (la && lb && la !== lb) return la < lb ? 1 : -1
+      if (la !== lb) return la ? -1 : 1
+      return a.updatedAt < b.updatedAt ? 1 : -1
+    })
+  }
+  if (mode === 'favorite') {
+    return list.sort((a, b) => {
+      const fa = a.favorite ? 1 : 0
+      const fb = b.favorite ? 1 : 0
+      if (fa !== fb) return fb - fa
+      return a.updatedAt < b.updatedAt ? 1 : -1
+    })
+  }
+  return list
+}
+
+// —— 常用食材（最近使用）——
+
+const ING_HISTORY_KEY = 'ingredientHistory'
+const ING_HISTORY_MAX = 24
+
+export function getRecentIngredients(): string[] {
+  const stored = readJSON<unknown>(ING_HISTORY_KEY, [])
+  if (!Array.isArray(stored)) return []
+  return stored.filter((item): item is string => typeof item === 'string' && item.trim() !== '')
+}
+
+// 保存菜谱时把用到的食材名沉淀进常用列表，最近用过的排最前
+export function rememberIngredients(names: string[]): boolean {
+  const used = names
+    .map((name) => name.trim())
+    .filter((name) => name !== '')
+  if (used.length === 0) return true
+  const merged = [...new Set([...used, ...getRecentIngredients()])].slice(0, ING_HISTORY_MAX)
+  return writeJSON(ING_HISTORY_KEY, merged)
 }

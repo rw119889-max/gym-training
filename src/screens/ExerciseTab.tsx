@@ -18,11 +18,21 @@ import type { GuideItem } from '../lib/coachGuide'
 import { getExercisePhotos } from '../lib/exercisePhotos'
 import { getSavedArticlesOfExercise } from '../lib/savedArticles'
 import { formatBytes, getVideos } from '../lib/videos'
-import { exportBackup, importBackup } from '../lib/backup'
+import { exportBackup, importBackup, readBackupSummary } from '../lib/backup'
 import { useOverlayHistory } from '../hooks/useOverlayHistory'
 import { todayKey } from '../lib/date'
 import { completeSession, countByDay, getSessions, removeSession } from '../lib/trainingLog'
 import { writeJSON } from '../lib/storage'
+import {
+  cycleInfo,
+  ensureCycleStart,
+  restartCycle,
+  slotFor,
+  slotLabel,
+  weekDateKeys,
+  weekdayLabel,
+  WEEK_DISPLAY_ORDER,
+} from '../lib/weeklyPlan'
 
 type MediaKind = 'videos' | 'photos' | 'articles'
 type Bucket = ExerciseCategory | 'unassigned'
@@ -145,16 +155,12 @@ function TrainingCheckin({
   day,
   label,
   sessions,
-  onCheckin,
   onUndo,
-  onWriteNote,
 }: {
   day: 'push' | 'pull'
   label: string
   sessions: TrainingSession[]
-  onCheckin: () => void
   onUndo: (id: string) => void
-  onWriteNote: () => void
 }) {
   const today = todayKey()
   const daySessions = sessions.filter((item) => item.day === day)
@@ -173,27 +179,135 @@ function TrainingCheckin({
       <p className="training-checkin-meta">
         {last ? `上次：${last.date}` : '还没有记录，这是第一次'}
       </p>
-      {done ? (
-        <div className="training-checkin-actions">
-          <span className="training-checkin-done">
-            ✓ 今天已完成{label}第 {done.seq} 次{done.noteId ? ' · 有心得' : ''}
-          </span>
-          <button type="button" className="ghost-btn small" onClick={onWriteNote}>
-            {done.noteId ? '再写一篇' : '写心得'}
-          </button>
-          <button type="button" className="ghost-btn small" onClick={() => onUndo(done.id)}>
-            撤销打卡
-          </button>
-        </div>
+      <p className="training-checkin-meta">
+        {done
+          ? `✓ 今天已完成第 ${done.seq} 次${done.noteId ? ' · 有心得' : ''}`
+          : '还没打卡，点下方「完成本次训练」'}
+      </p>
+      {done && (
+        <button type="button" className="ghost-btn small" onClick={() => onUndo(done.id)}>
+          撤销打卡
+        </button>
+      )}
+    </div>
+  )
+}
+
+// 本周安排卡：固定周一推/周二拉/周三休/周四休/周五推/周六拉/周日休，
+// 只记「是否完成跟练」，点击训练日进入对应计划
+function WeekPlanCard({
+  sessions,
+  onOpenDay,
+}: {
+  sessions: TrainingSession[]
+  onOpenDay: (day: 'push' | 'pull') => void
+}) {
+  const today = todayKey()
+  const weekKeys = weekDateKeys(new Date())
+  const weekSet = new Set(weekKeys)
+  const doneThisWeek = sessions.filter((item) => weekSet.has(item.date)).length
+  const todaySlot = slotFor(new Date().getDay())
+  const todayDate = new Date()
+
+  return (
+    <div className="week-plan-card">
+      <div className="week-plan-top">
+        <span className="week-plan-title">本周安排</span>
+        <span className="week-plan-progress">本周已完成 {doneThisWeek} / 4</span>
+      </div>
+      {todaySlot === 'rest' ? (
+        <p className="week-plan-today is-rest">今天是休息日，恢复比硬练更重要</p>
       ) : (
-        <div className="training-checkin-actions">
-          <button type="button" className="save-btn" onClick={onCheckin}>
-            完成本次训练
-          </button>
-          <button type="button" className="ghost-btn small" onClick={onWriteNote}>
-            写心得
-          </button>
-        </div>
+        <button
+          type="button"
+          className="week-plan-today is-training"
+          onClick={() => onOpenDay(todaySlot)}
+        >
+          今天：{slotLabel(todaySlot)} · 开始训练 →
+        </button>
+      )}
+      <ul className="week-plan-rows">
+        {WEEK_DISPLAY_ORDER.map((weekday) => {
+          const slot = slotFor(weekday)
+          const dateKey = weekKeys[WEEK_DISPLAY_ORDER.indexOf(weekday)]
+          const done = sessions.some((item) => item.date === dateKey)
+          const isToday = dateKey === today
+          return (
+            <li key={weekday}>
+              {slot === 'rest' ? (
+                <span className={`week-plan-row is-rest${isToday ? ' is-today' : ''}`}>
+                  <span className="week-plan-day">{weekdayLabel(weekday)}</span>
+                  <span className="week-plan-slot">休息</span>
+                  <span className="week-plan-state" aria-hidden="true" />
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className={`week-plan-row is-training${isToday ? ' is-today' : ''}`}
+                  onClick={() => onOpenDay(slot)}
+                  aria-label={`${weekdayLabel(weekday)}${slotLabel(slot)}，${done ? '已完成' : '未完成'}`}
+                >
+                  <span className="week-plan-day">
+                    {weekdayLabel(weekday)}
+                    {isToday ? ' · 今天' : ''}
+                  </span>
+                  <span className="week-plan-slot">{slotLabel(slot)}</span>
+                  <span className={`week-plan-state${done ? ' is-done' : ''}`} aria-hidden="true">
+                    {done ? '✓' : ''}
+                  </span>
+                </button>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+      <p className="week-plan-note">
+        90 天只跟练不研究：重量、组数记在训记，这里只记完成与否。
+        今天 {todayDate.getFullYear()}/{todayDate.getMonth() + 1}/{todayDate.getDate()}
+      </p>
+    </div>
+  )
+}
+
+// 90 天学习周期卡：开始日期、第几天/周、推拉次数、复盘里程碑
+function CycleCard({
+  sessions,
+  onRestart,
+}: {
+  sessions: TrainingSession[]
+  onRestart: () => void
+}) {
+  const info = cycleInfo(sessions, new Date())
+  if (!info.started) {
+    return (
+      <div className="cycle-card">
+        <h2 className="cycle-title">90 天学习周期</h2>
+        <p className="cycle-line">完成第一次跟练后自动开始计时。</p>
+      </div>
+    )
+  }
+  return (
+    <div className="cycle-card">
+      <h2 className="cycle-title">90 天学习周期</h2>
+      <p className="cycle-line">
+        第 {info.dayNo} 天 · 第 {info.weekNo} 周 · 已完成推日 {info.pushCount} 次、拉日{' '}
+        {info.pullCount} 次
+      </p>
+      <p className="cycle-meta">
+        {info.finished
+          ? '第 90 天已过：该复盘总结了，决定下一个三个月练什么。'
+          : info.nextMilestone && `下一次复盘：第 ${info.nextMilestone} 天（还差 ${info.daysToMilestone} 天）`}
+      </p>
+      {info.finished && (
+        <button
+          type="button"
+          className="ghost-btn small"
+          onClick={() => {
+            if (window.confirm('复盘完成后开启下一个 90 天周期？')) onRestart()
+          }}
+        >
+          开启下一周期
+        </button>
       )}
     </div>
   )
@@ -436,6 +550,42 @@ function ExerciseEditor({
   )
 }
 
+// 存储占用：文字数据（localStorage）+ 媒体与缓存（IndexedDB 等整源估算）
+function StorageUsage() {
+  const [textBytes, setTextBytes] = useState<number | null>(null)
+  const [quotaText, setQuotaText] = useState<string | null>(null)
+
+  useEffect(() => {
+    let total = 0
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i)
+      if (!key || !key.startsWith('gt.v1.')) continue
+      total += key.length + (localStorage.getItem(key)?.length ?? 0)
+    }
+    // localStorage 按 UTF-16 存，中文字符占 2 字节
+    setTextBytes(total * 2)
+    if (navigator.storage?.estimate) {
+      navigator.storage
+        .estimate()
+        .then((est) => {
+          if (typeof est.usage === 'number' && typeof est.quota === 'number') {
+            setQuotaText(`${formatBytes(est.usage)} / 可用约 ${formatBytes(est.quota)}`)
+          }
+        })
+        .catch(() => undefined)
+    }
+  }, [])
+
+  if (textBytes === null) return null
+  return (
+    <p className="storage-line">
+      存储占用：文字数据 {formatBytes(textBytes)}
+      {quotaText && ` · 图片/视频等媒体与缓存 ${quotaText}`}
+      {!quotaText && '（本机浏览器未提供媒体用量估算）'}
+    </p>
+  )
+}
+
 export default function ExerciseTab({ active, onOpenNotes }: Props) {
   const [exercises, setExercises] = useState<ExerciseProfile[]>(() => getExerciseProfiles())
   const [route, setRoute] = useState<Route>({ level: 'home' })
@@ -444,11 +594,15 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
   const [sessions, setSessions] = useState(() => getSessions())
   const [recordsOpen, setRecordsOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  // 跨 tab 写心得期间为 true：切走时保留层级与路由，回来接着写前的计划页继续用
+  const keepRouteRef = useRef(false)
 
-  // 外部 tab（笔记写心得）可能改动记录，回到动作页时重读一次
+  // 外部 tab（笔记写心得）可能改动记录，回到动作页时重读一次；
+  // 回到本 tab 即结束挂起，恢复正常「切 tab 收层」的行为
   useEffect(() => {
     if (!active) return
     setSessions(getSessions())
+    keepRouteRef.current = false
   }, [active])
 
   const goHome = () => {
@@ -466,37 +620,68 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
     setRoute({ level: 'exercise', exerciseId })
   }
 
-  // 三层分别压一条历史记录，浏览器返回键逐层退回
-  useOverlayHistory(active, route.level !== 'home', () => {
-    setEditing(null)
-    setRoute({ level: 'home' })
-  })
+  // 三层分别压一条历史记录，浏览器返回键逐层退回；
+  // keepRouteRef 挂起期间切走 tab 不收层、不回退历史（跨 tab 写心得）
+  useOverlayHistory(
+    active,
+    route.level !== 'home',
+    () => {
+      setEditing(null)
+      setRoute({ level: 'home' })
+    },
+    undefined,
+    () => keepRouteRef.current,
+  )
 
-  useOverlayHistory(active, route.level === 'exercise' || route.level === 'media', () => {
-    setEditing(null)
-    setRoute((prev) => {
-      if (prev.level !== 'exercise' && prev.level !== 'media') return prev
-      const item = exercises.find((entry) => entry.id === prev.exerciseId)
-      return { level: 'category', category: item ? bucketOf(item) : 'unassigned' }
-    })
-  })
+  useOverlayHistory(
+    active,
+    route.level === 'exercise' || route.level === 'media',
+    () => {
+      setEditing(null)
+      setRoute((prev) => {
+        if (prev.level !== 'exercise' && prev.level !== 'media') return prev
+        const item = exercises.find((entry) => entry.id === prev.exerciseId)
+        return { level: 'category', category: item ? bucketOf(item) : 'unassigned' }
+      })
+    },
+    undefined,
+    () => keepRouteRef.current,
+  )
 
-  useOverlayHistory(active, route.level === 'media', () => {
-    setEditing(null)
-    setRoute((prev) =>
-      prev.level === 'media' ? { level: 'exercise', exerciseId: prev.exerciseId } : prev,
-    )
-  })
+  useOverlayHistory(
+    active,
+    route.level === 'media',
+    () => {
+      setEditing(null)
+      setRoute((prev) =>
+        prev.level === 'media' ? { level: 'exercise', exerciseId: prev.exerciseId } : prev,
+      )
+    },
+    undefined,
+    () => keepRouteRef.current,
+  )
 
-  useOverlayHistory(active, route.level === 'plan', () => {
-    setEditing(null)
-    setRoute((prev) => (prev.level === 'plan' ? { level: 'coaches' } : prev))
-  })
+  useOverlayHistory(
+    active,
+    route.level === 'plan',
+    () => {
+      setEditing(null)
+      setRoute((prev) => (prev.level === 'plan' ? { level: 'coaches' } : prev))
+    },
+    undefined,
+    () => keepRouteRef.current,
+  )
 
-  useOverlayHistory(active, route.level === 'guide', () => {
-    setEditing(null)
-    setRoute((prev) => (prev.level === 'guide' ? { level: 'coaches' } : prev))
-  })
+  useOverlayHistory(
+    active,
+    route.level === 'guide',
+    () => {
+      setEditing(null)
+      setRoute((prev) => (prev.level === 'guide' ? { level: 'coaches' } : prev))
+    },
+    undefined,
+    () => keepRouteRef.current,
+  )
 
   const startAdd = () => {
     setEditing({
@@ -537,6 +722,7 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
 
   const handleCheckin = (day: 'push' | 'pull') => {
     completeSession(day)
+    ensureCycleStart(new Date())
     setSessions(getSessions())
   }
 
@@ -546,15 +732,25 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
     setSessions(getSessions())
   }
 
+  const handleRestartCycle = () => {
+    if (!restartCycle(new Date())) return
+    setSessions(getSessions())
+  }
+
   const handleWriteNote = (day: 'push' | 'pull', label: string) => {
     // 未打卡先打卡（写心得即视为完成），拿到本次 session 供回填
     const session = completeSession(day)
+    ensureCycleStart(new Date())
     setSessions(getSessions())
     writeJSON('noteSeed', {
       sessionId: session.id,
-      title: `${label} · 第 ${session.seq} 次`,
+      title: `${label} · 第 ${session.seq} 次 · 训练心得`,
       text: `${session.date}\n\n`,
     })
+    // 挂起本 tab 的历史层级与计划页路由：
+    // 不做 history.back() 级联（避免与笔记页 pushState 竞态、不丢计划页状态），
+    // 笔记草稿关闭后由 App 跳回本 tab，计划页原样续用
+    keepRouteRef.current = true
     onOpenNotes()
   }
 
@@ -573,19 +769,31 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
-    if (
-      !window.confirm(
-        '导入会用备份覆盖这台手机上的文字数据与图片（菜谱、动作照片、跟练记录）。视频保留，不受影响。继续？',
-      )
-    ) {
-      return
-    }
     setBackupBusy(true)
     try {
+      // 先完整解析并给出摘要，确认后才动手；导入过程失败会自动保留原数据
+      const summary = await readBackupSummary(file)
+      const when = summary.exportedAt ? `（导出于 ${summary.exportedAt.slice(0, 10)}）` : ''
+      const ok = window.confirm(
+        `备份内容${when}：\n` +
+          `· 笔记 ${summary.notes} 条\n` +
+          `· 菜谱 ${summary.recipes} 条\n` +
+          `· 动作照片 ${summary.photos} 张\n` +
+          `· 跟练记录 ${summary.sessions} 次\n` +
+          `· 图片 ${summary.images} 张\n\n` +
+          '导入会覆盖这台手机上的文字数据与图片，视频保留不受影响。\n' +
+          '导入失败会自动保留现有数据。继续？',
+      )
+      if (!ok) {
+        setBackupBusy(false)
+        return
+      }
       await importBackup(file)
       window.location.reload()
-    } catch {
-      window.alert('导入失败：文件不是有效的备份')
+    } catch (error) {
+      window.alert(
+        `导入失败，原有数据未受影响：\n${error instanceof Error ? error.message : '文件不是有效的备份'}`,
+      )
       setBackupBusy(false)
     }
   }
@@ -740,9 +948,11 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
 
   if (route.level === 'plan') {
     const day = findPlanDay(route.day)
+    const today = todayKey()
+    const done = sessions.find((item) => item.day === route.day && item.date === today)
 
     return (
-      <section>
+      <section className="has-actionbar">
         <button className="back-btn" type="button" onClick={() => setRoute({ level: 'coaches' })}>
           ← {COACH_SERIES.title}
         </button>
@@ -770,11 +980,43 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
           day={route.day}
           label={day.label}
           sessions={sessions}
-          onCheckin={() => handleCheckin(route.day)}
           onUndo={(id) => handleUndoCheckin(id)}
-          onWriteNote={() => handleWriteNote(route.day, day.label)}
         />
 
+        {/* 吸底操作栏：「完成本次训练」「写心得」始终可见，不用滚到页底找 */}
+        <div className="plan-actionbar" role="toolbar" aria-label="本次训练操作">
+          {done ? (
+            <>
+              <span className="plan-actionbar-done">
+                ✓ 第 {done.seq} 次已完成{done.noteId ? ' · 有心得' : ''}
+              </span>
+              <button
+                type="button"
+                className="ghost-btn small"
+                onClick={() => handleWriteNote(route.day, day.label)}
+              >
+                {done.noteId ? '再写心得' : '写心得'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="save-btn plan-actionbar-main"
+                onClick={() => handleCheckin(route.day)}
+              >
+                完成本次训练
+              </button>
+              <button
+                type="button"
+                className="ghost-btn small"
+                onClick={() => handleWriteNote(route.day, day.label)}
+              >
+                写心得
+              </button>
+            </>
+          )}
+        </div>
       </section>
     )
   }
@@ -794,6 +1036,9 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
         <p className="page-sub">
           {COACH_SERIES.seriesName} · {COACH_SERIES.keptNote}
         </p>
+
+        <WeekPlanCard sessions={sessions} onOpenDay={(day) => setRoute({ level: 'plan', day })} />
+        <CycleCard sessions={sessions} onRestart={handleRestartCycle} />
 
         <div className="coach-principle">
           <h2 className="coach-principle-title">训练逻辑</h2>
@@ -906,7 +1151,7 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
           <h1 className="page-title">{label}</h1>
           <span className="group-count">{items.length} 个动作</span>
         </div>
-        <p className="page-sub">点动作进去看视频、照片和文章；「编辑」可以改名字和类别</p>
+        <p className="page-sub">点动作进去看视频、照片和文章；详情页右上角「编辑」可以改名字和类别</p>
 
         {editing ? (
           <ExerciseEditor
@@ -947,14 +1192,6 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
                       {parts.length > 0 ? parts.join(' · ') : '还没有内容'}
                     </span>
                   </button>
-                  <button
-                    type="button"
-                    className="exercise-card-edit"
-                    aria-label={`编辑 ${item.name}`}
-                    onClick={() => startEdit(item)}
-                  >
-                    编辑
-                  </button>
                 </li>
               )
             })}
@@ -968,9 +1205,40 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
 
   return (
     <section>
-      <h1 className="page-title">动作</h1>
-      <p className="page-sub">按推、拉分开存；点进去是自己的动作</p>
+      <h1 className="page-title">本周跟练</h1>
+      <p className="page-sub">
+        凯圣王 × 谭成义 推拉分化 · 先跟练 90 天，再决定下一步
+      </p>
 
+      <WeekPlanCard sessions={sessions} onOpenDay={(day) => setRoute({ level: 'plan', day })} />
+
+      <h2 className="section-title">跟练系列</h2>
+      <button
+        type="button"
+        className="coach-card"
+        onClick={() => {
+          setEditing(null)
+          setRoute({ level: 'coaches' })
+        }}
+      >
+        <span className="coach-card-glyph" aria-hidden="true">
+          凯谭
+        </span>
+        <span className="coach-card-body">
+          <span className="coach-card-name">
+            {COACH_SERIES.title}
+            <span className="category-en">PPL SERIES</span>
+          </span>
+          <span className="coach-card-meta">
+            推拉分化 · 推日 / 拉日各 5 个动作 · 组次与要点齐全 · 腿日已去掉
+          </span>
+        </span>
+        <span className="module-row-arrow" aria-hidden="true">
+          ›
+        </span>
+      </button>
+
+      <h2 className="section-title">我的动作档案</h2>
       <div className="category-list">
         {PICKABLE_CATEGORIES.map((item) => {
           const list = exercises.filter((exercise) => exercise.category === item.id)
@@ -1025,34 +1293,12 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
         )}
       </div>
 
-      <h2 className="section-title">跟练系列</h2>
-      <button
-        type="button"
-        className="coach-card"
-        onClick={() => {
-          setEditing(null)
-          setRoute({ level: 'coaches' })
-        }}
-      >
-        <span className="coach-card-glyph" aria-hidden="true">
-          凯谭
-        </span>
-        <span className="coach-card-body">
-          <span className="coach-card-name">
-            {COACH_SERIES.title}
-            <span className="category-en">PPL SERIES</span>
-          </span>
-          <span className="coach-card-meta">
-            推拉分化 · 推日 / 拉日各 5 个动作 · 组次与要点齐全 · 腿日已去掉
-          </span>
-        </span>
-        <span className="module-row-arrow" aria-hidden="true">
-          ›
-        </span>
-      </button>
-
-      <h2 className="section-title">数据</h2>
+      <h2 className="section-title">备份与数据</h2>
+      <StorageUsage />
       <p className="hint">数据只在这台手机上。换手机、清理浏览器前，先导出备份。</p>
+      <p className="hint is-warn">
+        ⚠️ 备份包含文字数据与图片；视频文件体积大，不进备份，换手机后需要重新上传。
+      </p>
       <div className="backup-actions">
         <button
           className="ghost-btn small"

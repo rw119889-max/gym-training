@@ -15,7 +15,7 @@ const MODULES: { id: TabId; title: string; desc: string }[] = [
   {
     id: 'notes',
     title: '笔记',
-    desc: '高频错误和知识点两类标签，按动作分组，能筛动作也能筛类型。',
+    desc: '健身心得、学习记录和日常想法，统一写在一个简洁的时间流里。',
   },
   {
     id: 'recipes',
@@ -25,7 +25,7 @@ const MODULES: { id: TabId; title: string; desc: string }[] = [
 ]
 
 // 标语按行写，逐字点亮时保持原有的断行位置
-const TAGLINE_LINES = ['视频、照片、文章、笔记', '都跟着同一个动作走。']
+const TAGLINE_LINES = ['视频、照片、文章', '都跟着同一个动作走。']
 const TAGLINE_CHARS = TAGLINE_LINES.map((line) => Array.from(line))
 const TAGLINE_TOTAL = TAGLINE_CHARS.reduce((sum, chars) => sum + chars.length, 0)
 const LINE_OFFSETS = TAGLINE_CHARS.map((_, i) =>
@@ -122,8 +122,8 @@ export default function Landing({ onStart }: Props) {
           自律更自由
         </h1>
         <p className="lp-lede">
-          <span className="lp-line">视频、照片、文章、笔记，跟着动作归位。</span>
-          <span className="lp-line">食谱按餐次存，营养按食材求和。</span>
+          <span className="lp-line">视频、照片、文章，跟着动作归位。</span>
+          <span className="lp-line">笔记随手记，食谱按餐次存，营养按食材求和。</span>
         </p>
         <button type="button" className="lp-cta" onClick={() => onStart()}>
           进入应用
