@@ -13,8 +13,8 @@ import {
 } from '../lib/exerciseProfiles'
 import { COACH_SERIES, PLAN_DAYS, findPlanDay } from '../lib/coachPlans'
 import type { PlanDay, PlanExercise } from '../lib/coachPlans'
-import { GUIDE_SOURCE_LABELS, SERIES_GUIDE } from '../lib/coachGuide'
-import type { GuideItem, GuideSource } from '../lib/coachGuide'
+import { SERIES_GUIDE } from '../lib/coachGuide'
+import type { GuideItem } from '../lib/coachGuide'
 import { getExercisePhotos } from '../lib/exercisePhotos'
 import { getSavedArticlesOfExercise } from '../lib/savedArticles'
 import { formatBytes, getVideos } from '../lib/videos'
@@ -96,26 +96,7 @@ function PlanExerciseCard({
               <li key={tip}>{tip}</li>
             ))}
           </ul>
-          {exercise.video && (
-            <div className="guide-videos">
-              <a
-                className="video-link"
-                href={exercise.video.bilibili}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                ▶ B站标准演示 · {exercise.video.chapter}（{formatTimestamp(exercise.video.seconds)} 起）
-              </a>
-              <a
-                className="video-link is-douyin"
-                href={exercise.video.douyin}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                抖音同章节
-              </a>
-            </div>
-          )}
+          <ExerciseVideos exerciseId={exercise.id} />
           {exercise.notes && exercise.notes.length > 0 && (
             <div className="plan-block">
               <h3 className="plan-block-title">教练补充</h3>
@@ -156,21 +137,10 @@ function PlanExerciseCard({
   )
 }
 
-function formatTimestamp(seconds: number): string {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${m}:${String(s).padStart(2, '0')}`
-}
-
-function SourceChip({ source }: { source: GuideSource }) {
-  return <span className="source-chip">{GUIDE_SOURCE_LABELS[source]}</span>
-}
-
 function GuideLine({ item }: { item: GuideItem }) {
   return (
     <p className="guide-line">
       <span className="guide-line-text">{item.text}</span>
-      <SourceChip source={item.source} />
     </p>
   )
 }
@@ -181,14 +151,13 @@ function GuideLines({ items }: { items: GuideItem[] }) {
       {items.map((item) => (
         <li key={item.text}>
           <span className="guide-line-text">{item.text}</span>
-          <SourceChip source={item.source} />
         </li>
       ))}
     </ul>
   )
 }
 
-function FaqList({ entries }: { entries: { q: string; a: string; source: GuideSource }[] }) {
+function FaqList({ entries }: { entries: { q: string; a: string }[] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null)
   return (
     <ul className="faq-list">
@@ -208,7 +177,6 @@ function FaqList({ entries }: { entries: { q: string; a: string; source: GuideSo
           {openIndex === index && (
             <p className="faq-a">
               <span className="guide-line-text">{entry.a}</span>
-              <SourceChip source={entry.source} />
             </p>
           )}
         </li>
@@ -225,7 +193,7 @@ function SeriesGuide({ onBack }: { onBack: () => void }) {
         ← {COACH_SERIES.title}
       </button>
       <h1 className="page-title">系列总纲</h1>
-      <p className="page-sub">次数 / 重量 / 休息怎么安排 · 每条都标来源</p>
+      <p className="page-sub">次数 / 重量 / 休息怎么安排</p>
 
       <div className="guide-section">
         <h2 className="guide-section-title">1 · 排课与红线</h2>
@@ -239,24 +207,6 @@ function SeriesGuide({ onBack }: { onBack: () => void }) {
 
       <div className="guide-section">
         <h2 className="guide-section-title">2 · 一次训练流程</h2>
-        <div className="guide-videos">
-          <a
-            className="video-link"
-            href="https://www.bilibili.com/video/BV1CSoKBaEgK?t=4660"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            ▶ 推日热身 · 谭指导（B站 77:40 起）
-          </a>
-          <a
-            className="video-link"
-            href="https://www.bilibili.com/video/BV1v5opBhEDc?t=4804"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            ▶ 拉日热身 · 谭指导带练（B站 80:04 起）
-          </a>
-        </div>
         <GuideLines items={g.session.steps} />
         <table className="guide-table">
           <thead>
@@ -264,7 +214,6 @@ function SeriesGuide({ onBack }: { onBack: () => void }) {
               <th>类型</th>
               <th>次数</th>
               <th>组间歇</th>
-              <th>来源</th>
             </tr>
           </thead>
           <tbody>
@@ -273,14 +222,20 @@ function SeriesGuide({ onBack }: { onBack: () => void }) {
                 <td>{row.type}</td>
                 <td>{row.reps}</td>
                 <td>{row.rest}</td>
-                <td>
-                  <SourceChip source={row.source} />
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
         <GuideLine item={g.session.restPrinciple} />
+
+        <div className="plan-block">
+          <h3 className="plan-block-title">{g.session.warmup.push.label}</h3>
+          <GuideLines items={g.session.warmup.push.steps} />
+        </div>
+        <div className="plan-block">
+          <h3 className="plan-block-title">{g.session.warmup.pull.label}</h3>
+          <GuideLines items={g.session.warmup.pull.steps} />
+        </div>
       </div>
 
       <div className="guide-section">
@@ -292,7 +247,6 @@ function SeriesGuide({ onBack }: { onBack: () => void }) {
             <li key={phase.label}>
               <span className="guide-chain-label">{phase.label}</span>
               <span className="guide-chain-steps">{phase.steps.join(' → ')}</span>
-              <SourceChip source={phase.source} />
             </li>
           ))}
         </ol>
@@ -302,7 +256,6 @@ function SeriesGuide({ onBack }: { onBack: () => void }) {
             <tr>
               <th>情况</th>
               <th>怎么办</th>
-              <th>来源</th>
             </tr>
           </thead>
           <tbody>
@@ -310,9 +263,6 @@ function SeriesGuide({ onBack }: { onBack: () => void }) {
               <tr key={row.condition}>
                 <td>{row.condition}</td>
                 <td>{row.action}</td>
-                <td>
-                  <SourceChip source={row.source} />
-                </td>
               </tr>
             ))}
           </tbody>
@@ -327,10 +277,7 @@ function SeriesGuide({ onBack }: { onBack: () => void }) {
         <h2 className="guide-section-title">4 · 力竭口径</h2>
         <GuideLine item={g.failure.compound} />
         <GuideLine item={g.failure.isolation} />
-        <p className="guide-motto">
-          {g.failure.motto.text}
-          <SourceChip source={g.failure.motto.source} />
-        </p>
+        <p className="guide-motto">{g.failure.motto.text}</p>
       </div>
 
       <div className="guide-section">
@@ -338,10 +285,7 @@ function SeriesGuide({ onBack }: { onBack: () => void }) {
         <GuideLines items={g.deload.monitoring} />
         <GuideLines items={g.deload.signals} />
         <GuideLine item={g.deload.signalRule} />
-        <p className="guide-redline">
-          {g.deload.redLine.text}
-          <SourceChip source={g.deload.redLine.source} />
-        </p>
+        <p className="guide-redline">{g.deload.redLine.text}</p>
         <GuideLines items={g.deload.steps} />
         <GuideLine item={g.deload.premise} />
       </div>
@@ -358,7 +302,6 @@ function SeriesGuide({ onBack }: { onBack: () => void }) {
             <li key={entry.term}>
               <span className="guide-term">{entry.term}</span>
               <span className="guide-line-text">{entry.def}</span>
-              <SourceChip source={entry.source} />
             </li>
           ))}
         </ul>

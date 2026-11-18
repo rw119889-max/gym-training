@@ -62,4 +62,16 @@ describe('coachGuide', () => {
     expect(SERIES_GUIDE.glossary).toHaveLength(12)
     expect(SERIES_GUIDE.faq).toHaveLength(9)
   })
+
+  it('两套教练热身：推日 7 步、拉日 5 步，来源齐全', () => {
+    const warmup = SERIES_GUIDE.session.warmup
+    expect(warmup.push.steps).toHaveLength(7)
+    expect(warmup.pull.steps).toHaveLength(5)
+    for (const step of [...warmup.push.steps, ...warmup.pull.steps]) {
+      expect(step.text.trim()).toBeTruthy()
+      expect(GUIDE_SOURCE_LABELS[step.source]).toBeTruthy()
+    }
+    expect(warmup.push.steps.some((step) => step.text.includes('手腕'))).toBe(true)
+    expect(warmup.pull.steps.some((step) => step.text.includes('伟大者伸展'))).toBe(true)
+  })
 })

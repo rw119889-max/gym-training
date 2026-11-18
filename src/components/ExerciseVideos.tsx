@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { VideoClip } from '../types'
 import { exerciseProfileName, getExerciseProfiles } from '../lib/exerciseProfiles'
+import { PLAN_DAYS } from '../lib/coachPlans'
 import { inspectVideo } from '../lib/videoFile'
 import {
   addVideo,
@@ -21,6 +22,10 @@ import VideoThumb from './VideoThumb'
 interface Props {
   exerciseId: string
 }
+
+const COACH_EXERCISE_IDS = new Set(
+  PLAN_DAYS.flatMap((day) => day.exercises.map((exercise) => exercise.id)),
+)
 
 export default function ExerciseVideos({ exerciseId }: Props) {
   const [clips, setClips] = useState<VideoClip[]>(() => getVideos())
@@ -46,7 +51,11 @@ export default function ExerciseVideos({ exerciseId }: Props) {
   const mine = clips.filter((clip) => clip.exerciseId === exerciseId)
   const playingIndex = playingId ? mine.findIndex((clip) => clip.id === playingId) : -1
   const profiles = getExerciseProfiles()
-  const orphans = clips.filter((clip) => !profiles.some((item) => item.id === clip.exerciseId))
+  const orphans = clips.filter(
+    (clip) =>
+      !COACH_EXERCISE_IDS.has(clip.exerciseId) &&
+      !profiles.some((item) => item.id === clip.exerciseId),
+  )
 
   const handleFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = [...(event.target.files ?? [])]
