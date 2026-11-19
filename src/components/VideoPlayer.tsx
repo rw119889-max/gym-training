@@ -1,88 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { VideoClip } from '../types'
-import { formatBytes, formatDuration } from '../lib/videos'
-import { getVideo } from '../lib/storage'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useOverlayHistory } from '../hooks/useOverlayHistory'
+import VideoSlide from './VideoSlide'
 
 interface Props {
   clips: VideoClip[]
   initialIndex: number
   onClose: () => void
-}
-
-interface SlideProps {
-  clip: VideoClip
-  active: boolean
-  load: boolean
-  muted: boolean
-  slow: boolean
-  onToggleMute: () => void
-}
-
-function VideoSlide({ clip, active, load, muted, slow, onToggleMute }: SlideProps) {
-  const [url, setUrl] = useState<string | null>(null)
-  const [missing, setMissing] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
-
-  // 只加载当前和相邻一条，避免十几条原片同时占内存
-  useEffect(() => {
-    if (!load) {
-      setUrl(null)
-      setMissing(false)
-      return
-    }
-    let objectUrl: string | null = null
-    let cancelled = false
-
-    getVideo(clip.id)
-      .then((blob) => {
-        if (cancelled) return
-        if (!blob) {
-          setMissing(true)
-          return
-        }
-        objectUrl = URL.createObjectURL(blob)
-        setUrl(objectUrl)
-      })
-      .catch(() => {
-        if (!cancelled) setMissing(true)
-      })
-
-    return () => {
-      cancelled = true
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-    }
-  }, [clip.id, load])
-
-  useEffect(() => {
-    const video = videoRef.current
-    if (!video || !url) return
-    video.muted = muted
-    if (!active) {
-      video.pause()
-      return
-    }
-    video.playbackRate = slow ? 0.5 : 1
-    void video.play().catch(() => undefined)
-  }, [active, url, muted, slow])
-
-  return (
-    <>
-      <div className="video-slide-stage">
-        {url ? (
-          <video ref={videoRef} src={url} playsInline loop onClick={onToggleMute} />
-        ) : missing ? (
-          <p className="video-missing">视频不在了，可能被系统清理过。</p>
-        ) : (
-          <p className="video-missing">加载中…</p>
-        )}
-      </div>
-      <p className="video-slide-meta">
-        {clip.label || '未命名视频'} · {formatDuration(clip.duration)} · {formatBytes(clip.size)}
-      </p>
-    </>
-  )
 }
 
 export default function VideoPlayer({ clips, initialIndex, onClose }: Props) {

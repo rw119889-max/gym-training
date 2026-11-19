@@ -1,21 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import type { ChangeEvent } from 'react'
+import { useEffect, useState } from 'react'
 import type { VideoClip } from '../types'
 import { exerciseProfileName, getExerciseProfiles } from '../lib/exerciseProfiles'
 import { PLAN_DAYS } from '../lib/coachPlans'
-import { inspectVideo } from '../lib/videoFile'
-import {
-  addVideo,
-  deleteVideoClip,
-  formatBytes,
-  formatDuration,
-  getVideos,
-  MAX_CLIP_BYTES,
-  MAX_TOTAL_BYTES,
-  totalVideoBytes,
-  updateVideo,
-} from '../lib/videos'
-import { deletePoster, deleteVideo, getVideo, putPoster, putVideo } from '../lib/storage'
+import { deleteVideoClip, formatBytes, formatDuration, getVideos, updateVideo } from '../lib/videos'
 import VideoPlayer from './VideoPlayer'
 import VideoThumb from './VideoThumb'
 
@@ -27,23 +14,18 @@ const COACH_EXERCISE_IDS = new Set(
   PLAN_DAYS.flatMap((day) => day.exercises.map((exercise) => exercise.id)),
 )
 
+// 动作详情里的视频展示：上传已收敛到推/拉日「开练视频」页（WarmupVideos），
+// 这里只负责看已绑定的视频和整理旧视频。没有视频时整块不渲染。
 export default function ExerciseVideos({ exerciseId }: Props) {
   const [clips, setClips] = useState<VideoClip[]>(() => getVideos())
-  const [adding, setAdding] = useState(false)
-  const [title, setTitle] = useState('')
-  const [busy, setBusy] = useState(false)
   const [playingId, setPlayingId] = useState<string | null>(null)
-  const [notice, setNotice] = useState<{ tone: 'warning' | 'danger'; text: string } | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
-  const fileRef = useRef<HTMLInputElement>(null)
 
   const refresh = () => setClips(getVideos())
 
   useEffect(() => {
     setClips(getVideos())
-    setAdding(false)
-    setTitle('')
     setEditingId(null)
     setPlayingId(null)
   }, [exerciseId])
@@ -53,78 +35,14 @@ export default function ExerciseVideos({ exerciseId }: Props) {
   const profiles = getExerciseProfiles()
   const orphans = clips.filter(
     (clip) =>
-      // 菜谱视频（recipe: 前缀）有自己的归属，不算孤儿
+      // 菜谱（recipe:）与开练视频（warmup:）有自己的归属，不算孤儿
       !clip.exerciseId.startsWith('recipe:') &&
+      !clip.exerciseId.startsWith('warmup:') &&
       !COACH_EXERCISE_IDS.has(clip.exerciseId) &&
       !profiles.some((item) => item.id === clip.exerciseId),
   )
 
-  const handleFiles = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = [...(event.target.files ?? [])]
-    event.target.value = ''
-    if (files.length === 0) return
-
-    const oversize = files.filter((file) => file.size > MAX_CLIP_BYTES)
-    if (
-      oversize.length > 0 &&
-      !window.confirm(`有 ${oversize.length} 条超过 200 MB，确定都存到手机上？`)
-    ) {
-      return
-    }
-    const incoming = files.reduce((sum, file) => sum + file.size, 0)
-    if (
-      totalVideoBytes() + incoming > MAX_TOTAL_BYTES &&
-      !window.confirm('视频一共要超过 2 GB 了。建议先删掉几条不常用的，继续？')
-    ) {
-      return
-    }
-
-    setBusy(true)
-    setNotice(null)
-    let failed = 0
-    let quota = false
-    if (navigator.storage?.persist) void navigator.storage.persist().catch(() => undefined)
-    for (const file of files) {
-      try {
-        const info = await inspectVideo(file)
-        if (!info.playable) {
-          failed += 1
-          continue
-        }
-        const id = `v-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-        await putVideo(id, file)
-        if (info.poster) await putPoster(id, info.poster)
-        const saved = await getVideo(id)
-        if (!saved) {
-          await Promise.all([deleteVideo(id), deletePoster(id)])
-          failed += 1
-          continue
-        }
-        addVideo({
-          id,
-          exerciseId,
-          label: title.trim(),
-          size: file.size,
-          duration: Math.round(info.duration),
-          createdAt: new Date().toISOString(),
-        })
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'QuotaExceededError') quota = true
-        failed += 1
-      }
-    }
-    setBusy(false)
-    refresh()
-    setAdding(false)
-    setTitle('')
-    if (failed > 0) {
-      setNotice(
-        quota
-          ? { tone: 'warning', text: '手机空间不够了。先删几条视频，或者清理空间后再传。' }
-          : { tone: 'danger', text: `有 ${failed} 条视频没存上，先转成 MP4（H.264）再试。` },
-      )
-    }
-  }
+  if (mine.length === 0 && orphans.length === 0) return null
 
   const handleDelete = async (clip: VideoClip) => {
     if (!window.confirm('只删除 App 内保存的副本，不会删除相册原片。删除后需重新上传。继续？')) return
@@ -132,11 +50,6 @@ export default function ExerciseVideos({ exerciseId }: Props) {
     if (playingId === clip.id) setPlayingId(null)
     if (editingId === clip.id) setEditingId(null)
     refresh()
-  }
-
-  const startEdit = (clip: VideoClip) => {
-    setEditingId(clip.id)
-    setEditTitle(clip.label)
   }
 
   const saveEdit = () => {
@@ -155,63 +68,7 @@ export default function ExerciseVideos({ exerciseId }: Props) {
 
   return (
     <>
-      {notice && (
-        <p className={`notice notice-${notice.tone}`} role="status">
-          {notice.text}
-        </p>
-      )}
-      {adding ? (
-        <div className="video-upload">
-          <label className="field">
-            <span className="field-label">标题（可留空，之后能改）</span>
-            <input
-              className="field-input"
-              value={title}
-              maxLength={30}
-              placeholder="如：侧面起杠 / 最后一组"
-              onChange={(event) => setTitle(event.target.value)}
-            />
-          </label>
-          <div className="backup-actions">
-            <button
-              className="ghost-btn small"
-              type="button"
-              disabled={busy}
-              onClick={() => fileRef.current?.click()}
-            >
-              {busy ? '保存中…' : '选择视频（可多选）'}
-            </button>
-            <button
-              className="ghost-btn small"
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setAdding(false)
-                setTitle('')
-              }}
-            >
-              取消
-            </button>
-          </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="video/*"
-            multiple
-            hidden
-            onChange={handleFiles}
-          />
-          <p className="hint">原片直接存本机，不压缩。一次可选多条，标题之后逐条改。</p>
-        </div>
-      ) : (
-        <button className="ghost-btn small video-add" type="button" onClick={() => setAdding(true)}>
-          + 上传视频
-        </button>
-      )}
-
-      {mine.length === 0 ? (
-        <p className="hint">还没有视频。把示范片段传上来，休息时点开循环看。</p>
-      ) : (
+      {mine.length > 0 && (
         <div className="video-grid">
           {mine.map((clip) =>
             editingId === clip.id ? (
@@ -247,7 +104,10 @@ export default function ExerciseVideos({ exerciseId }: Props) {
                   className="video-edit"
                   type="button"
                   aria-label={`改标题 ${clip.label || '未命名视频'}`}
-                  onClick={() => startEdit(clip)}
+                  onClick={() => {
+                    setEditingId(clip.id)
+                    setEditTitle(clip.label)
+                  }}
                 >
                   改
                 </button>
@@ -289,9 +149,11 @@ export default function ExerciseVideos({ exerciseId }: Props) {
         </details>
       )}
 
-      <p className="hint video-usage">
-        视频 {formatBytes(used)}。视频不进备份，删了网站数据就没了，原片请留在相册。
-      </p>
+      {mine.length > 0 && (
+        <p className="hint video-usage">
+          视频 {formatBytes(used)}。视频不进备份，删了网站数据就没了，原片请留在相册。
+        </p>
+      )}
 
       {playingIndex >= 0 && (
         <VideoPlayer

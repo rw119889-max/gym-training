@@ -78,17 +78,27 @@ report.swapRestore = await page.evaluate(() => ({
   name: document.querySelector('.plan-exercise.is-open .plan-exercise-name')?.textContent,
   hasSwappedChip: !!document.querySelector('.plan-chip.is-swapped'),
 }))
-// 热身：添加 + 删除
+// 热身：添加 + 左滑删除（v5.31 起删除按钮移除，走两段式左滑 + 确认窗）
 const beforeCount = report.pushDay.warmupItems
 await page.click('.warmup-body .ghost-btn:has-text("+ 添加热身动作")')
 await page.fill('.warmup-add .field-input >> nth=0', '测试热身项')
 await page.click('.warmup-add .save-btn')
 await page.waitForTimeout(300)
 const afterAdd = await page.locator('.warmup-item').count()
-await page.click(`.warmup-item:has-text("测试热身项") .warmup-del`)
+const delBtnGone = (await page.locator('.warmup-del').count()) === 0
+const item = page.locator('.warmup-item:has-text("测试热身项")')
+await item.evaluate((el) => el.scrollIntoView({ block: 'center' }))
+await page.waitForTimeout(300)
+const box = await item.boundingBox()
+await page.mouse.move(box.x + box.width - 20, box.y + box.height / 2)
+await page.mouse.down()
+await page.mouse.move(box.x + box.width - 20 - 160, box.y + box.height / 2, { steps: 10 })
+await page.mouse.up()
+await page.waitForTimeout(300)
+await page.click('.confirm-actions .save-btn')
 await page.waitForTimeout(300)
 const afterDel = await page.locator('.warmup-item').count()
-report.warmupEdit = { beforeCount, afterAdd, afterDel }
+report.warmupEdit = { beforeCount, afterAdd, afterDel, delBtnGone }
 
 await page.click('.back-btn')
 await page.waitForTimeout(300)

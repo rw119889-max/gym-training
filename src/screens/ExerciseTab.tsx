@@ -6,6 +6,7 @@ import ExercisePhotos from '../components/ExercisePhotos'
 import SavedArticles from '../components/SavedArticles'
 import ConfirmDialog from '../components/ConfirmDialog'
 import SwipeToDelete from '../components/SwipeToDelete'
+import WarmupVideos from '../components/WarmupVideos'
 import {
   PICKABLE_CATEGORIES,
   addExerciseProfile,
@@ -51,6 +52,7 @@ type Route =
   | { level: 'media'; kind: MediaKind; exerciseId: string }
   | { level: 'coaches' }
   | { level: 'plan'; day: PlanDay }
+  | { level: 'plan-videos'; day: PlanDay }
   | { level: 'guide' }
 
 interface EditorState {
@@ -195,14 +197,6 @@ function WarmupCard({ day }: { day: 'push' | 'pull' }) {
                   <span className="warmup-item-name">{item.name}</span>
                   {item.note && <span className="warmup-item-note">{item.note}</span>}
                 </span>
-                <button
-                  type="button"
-                  className="warmup-del"
-                  aria-label={`删除热身项 ${item.name}`}
-                  onClick={() => setPendingDelete(item)}
-                >
-                  删除
-                </button>
               </SwipeToDelete>
             ))}
           </ul>
@@ -945,10 +939,21 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
 
   useOverlayHistory(
     active,
-    route.level === 'plan',
+    route.level === 'plan' || route.level === 'plan-videos',
     () => {
       setEditing(null)
       setRoute((prev) => (prev.level === 'plan' ? { level: 'coaches' } : prev))
+    },
+    undefined,
+    () => keepRouteRef.current,
+  )
+
+  useOverlayHistory(
+    active,
+    route.level === 'plan-videos',
+    () => {
+      setEditing(null)
+      setRoute((prev) => (prev.level === 'plan-videos' ? { level: 'plan', day: prev.day } : prev))
     },
     undefined,
     () => keepRouteRef.current,
@@ -1230,6 +1235,12 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
     )
   }
 
+  if (route.level === 'plan-videos') {
+    return (
+      <WarmupVideos day={route.day} onBack={() => setRoute({ level: 'plan', day: route.day })} />
+    )
+  }
+
   if (route.level === 'plan') {
     const day = findPlanDay(route.day)
     const today = todayKey()
@@ -1248,6 +1259,29 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
         <p className="page-sub">
           {day.focus} · 按顺序练，点动作展开要点
         </p>
+
+        <button
+          type="button"
+          className="warmup-video-entry"
+          onClick={() => setRoute({ level: 'plan-videos', day: route.day })}
+        >
+          <span className="wve-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none">
+              <path d="M7 5.5v9l7.5-4.5L7 5.5Z" fill="currentColor" />
+            </svg>
+          </span>
+          <span className="wve-text">
+            <span className="wve-title">开练视频</span>
+            <span className="wve-sub">
+              {getVideos().filter((clip) => clip.exerciseId === `warmup:${route.day}`).length > 0
+                ? `${getVideos().filter((clip) => clip.exerciseId === `warmup:${route.day}`).length} 条 · 开练前刷一遍预习`
+                : '还没有视频，点进去上传动作示范'}
+            </span>
+          </span>
+          <span className="wve-arrow" aria-hidden="true">
+            ›
+          </span>
+        </button>
 
         <WarmupCard day={route.day} />
 
