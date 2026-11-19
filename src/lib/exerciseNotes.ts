@@ -1,5 +1,5 @@
 import type { ExerciseNote } from '../types'
-import { readJSON, writeJSON } from './storage'
+import { readJSON, writeJSON, toIso } from './storage'
 import { hasNoteMedia } from './noteMedia'
 import { getSessions } from './trainingLog'
 
@@ -52,8 +52,8 @@ export function getExerciseNotes(): ExerciseNote[] {
     html: typeof note.html === 'string' ? note.html : undefined,
     pinned: note.pinned === true,
     topic: normalizeTopic(note.topic),
-    createdAt: note.createdAt,
-    updatedAt: note.updatedAt,
+    createdAt: toIso(note.createdAt),
+    updatedAt: toIso(note.updatedAt),
   }))
 }
 

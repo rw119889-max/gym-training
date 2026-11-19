@@ -188,17 +188,6 @@ function NoteEditor({
     onDirtyChange(dirty)
   }, [dirty, onDirtyChange])
 
-  // 打开已有笔记时默认滚到底部（长笔记接着上次的位置继续）；新笔记保持顶部
-  useEffect(() => {
-    if (!initial.id) return
-    const hasBody = initial.text.trim().length > 0 || hasNoteMedia(initialHtmlRef.current)
-    if (!hasBody) return
-    const timer = window.setTimeout(() => {
-      window.scrollTo(0, document.documentElement.scrollHeight)
-    }, 120)
-    return () => window.clearTimeout(timer)
-  }, [initial.id])
-
   // 键盘弹出时把工具栏顶到键盘正上方：布局视口不缩水的浏览器（iOS Safari 等）
   // 里 sticky bottom:0 会被键盘盖住，用 visualViewport 算出遮挡高度实时垫高
   useEffect(() => {

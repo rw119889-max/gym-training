@@ -1,10 +1,14 @@
 import type { ArticleBlock, SavedArticle } from '../types'
-import { readJSON, writeJSON } from './storage'
+import { readJSON, writeJSON, toIso } from './storage'
 
 const KEY = 'savedArticles'
 
 export function getSavedArticles(): SavedArticle[] {
-  return readJSON<SavedArticle[]>(KEY, [])
+  return readJSON<SavedArticle[]>(KEY, []).map((item) => ({
+    ...item,
+    createdAt: toIso(item.createdAt),
+    updatedAt: toIso(item.updatedAt),
+  }))
 }
 
 export function getSavedArticlesOfExercise(exerciseId: string): SavedArticle[] {

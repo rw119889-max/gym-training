@@ -37,6 +37,15 @@ export function removeKey(key: string): void {
   }
 }
 
+// 把历史/导入脏数据里的时间字段规范成 ISO 字符串。
+// 数字时间戳转 ISO；字符串需能被 Date.parse 解析；其余回落当前时间。
+// 下游有 updatedAt.slice(0,10) 之类的字符串消费，直接透传脏值会整树白屏。
+export function toIso(value: unknown): string {
+  if (typeof value === 'string' && !Number.isNaN(Date.parse(value))) return value
+  if (typeof value === 'number' && Number.isFinite(value)) return new Date(value).toISOString()
+  return new Date().toISOString()
+}
+
 const DB_NAME = 'gym-training'
 const DB_VERSION = 2
 const IMAGE_STORE = 'images'
