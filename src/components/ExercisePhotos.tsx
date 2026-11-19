@@ -10,6 +10,7 @@ import {
 import { compressImage } from '../lib/image'
 import { putImage } from '../lib/storage'
 import { useOverlayHistory } from '../hooks/useOverlayHistory'
+import { useNotice } from '../hooks/useNotice'
 import RecipeImage from './RecipeImage'
 
 interface Props {
@@ -25,6 +26,7 @@ export default function ExercisePhotos({ exerciseId }: Props) {
   const [editTitle, setEditTitle] = useState('')
   const [viewIndex, setViewIndex] = useState<number | null>(null)
   const trackRef = useRef<HTMLDivElement>(null)
+  const { show: showNotice, node: noticeNode } = useNotice()
 
   const viewing = viewIndex !== null ? photos[viewIndex] ?? null : null
 
@@ -94,7 +96,7 @@ export default function ExercisePhotos({ exerciseId }: Props) {
       setTitle('')
       refresh()
     } catch {
-      window.alert('照片保存失败，手机空间可能不够了，清理后再试。')
+      showNotice('照片保存失败，手机空间可能不够了，清理后再试。')
     } finally {
       setBusy(false)
     }
@@ -123,6 +125,7 @@ export default function ExercisePhotos({ exerciseId }: Props) {
     <>
       {adding ? (
         <div className="video-upload">
+          {noticeNode}
           <label className="field">
             <span className="field-label">标题（可留空，之后能改）</span>
             <input

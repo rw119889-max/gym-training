@@ -9,6 +9,7 @@ import {
   addExerciseProfile,
   categoryLabel,
   getExerciseProfiles,
+  isDuplicateExerciseName,
   updateExerciseProfile,
 } from '../lib/exerciseProfiles'
 import { COACH_SERIES, PLAN_DAYS, findPlanDay } from '../lib/coachPlans'
@@ -504,13 +505,16 @@ function ExerciseEditor({
 }) {
   const [name, setName] = useState(initial.name)
   const [category, setCategory] = useState<ExerciseCategory | null>(initial.category)
+  const trimmed = name.trim()
+  // 实时重名提示（编辑时排除自身）；lib 层同名守卫做最后防线
+  const duplicate = trimmed !== '' && isDuplicateExerciseName(trimmed, initial.id ?? undefined)
 
   return (
     <form
       className="exercise-add exercise-editor"
       onSubmit={(event) => {
         event.preventDefault()
-        if (name.trim() && category) onSave(name, category)
+        if (trimmed && category && !duplicate) onSave(trimmed, category)
       }}
     >
       <input
@@ -521,6 +525,13 @@ function ExerciseEditor({
         placeholder="动作名，如：杠铃深蹲"
         onChange={(event) => setName(event.target.value)}
       />
+      {!trimmed ? (
+        <p className="field-hint">填一个动作名，再从下面选一个分类。</p>
+      ) : duplicate ? (
+        <p className="field-error" role="alert">
+          已有同名动作，换一个名字。
+        </p>
+      ) : null}
       <div className="category-picks">
         {PICKABLE_CATEGORIES.map((item) => (
           <button
@@ -534,11 +545,14 @@ function ExerciseEditor({
           </button>
         ))}
       </div>
+      {!category && trimmed && (
+        <p className="field-hint">选一个分类（推 / 拉）。</p>
+      )}
       <div className="backup-actions">
         <button
           className="save-btn add-exercise-btn"
           type="submit"
-          disabled={!name.trim() || !category}
+          disabled={!trimmed || !category || duplicate}
         >
           {submitLabel}
         </button>
@@ -576,7 +590,14 @@ function StorageUsage() {
     }
   }, [])
 
-  if (textBytes === null) return null
+  // 估算完成前渲染同形状骨架行，避免内容突现跳动
+  if (textBytes === null) {
+    return (
+      <p className="storage-line" aria-hidden="true">
+        <span className="skeleton-line" />
+      </p>
+    )
+  }
   return (
     <p className="storage-line">
       存储占用：文字数据 {formatBytes(textBytes)}
@@ -591,6 +612,7 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
   const [route, setRoute] = useState<Route>({ level: 'home' })
   const [editing, setEditing] = useState<EditorState | null>(null)
   const [backupBusy, setBackupBusy] = useState(false)
+  const [backupNotice, setBackupNotice] = useState<string | null>(null)
   const [sessions, setSessions] = useState(() => getSessions())
   const [recordsOpen, setRecordsOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -756,10 +778,11 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
 
   const handleExport = async () => {
     setBackupBusy(true)
+    setBackupNotice(null)
     try {
       await exportBackup()
     } catch {
-      window.alert('导出失败，再试一次')
+      setBackupNotice('导出失败，再试一次。')
     } finally {
       setBackupBusy(false)
     }
@@ -770,6 +793,7 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
     event.target.value = ''
     if (!file) return
     setBackupBusy(true)
+    setBackupNotice(null)
     try {
       // 先完整解析并给出摘要，确认后才动手；导入过程失败会自动保留原数据
       const summary = await readBackupSummary(file)
@@ -791,8 +815,8 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
       await importBackup(file)
       window.location.reload()
     } catch (error) {
-      window.alert(
-        `导入失败，原有数据未受影响：\n${error instanceof Error ? error.message : '文件不是有效的备份'}`,
+      setBackupNotice(
+        `导入失败，原有数据未受影响：${error instanceof Error ? error.message : '文件不是有效的备份'}`,
       )
       setBackupBusy(false)
     }
@@ -1038,69 +1062,8 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
         </p>
 
         <WeekPlanCard sessions={sessions} onOpenDay={(day) => setRoute({ level: 'plan', day })} />
-        <CycleCard sessions={sessions} onRestart={handleRestartCycle} />
 
-        <div className="coach-principle">
-          <h2 className="coach-principle-title">训练逻辑</h2>
-          <p>{COACH_SERIES.principle}</p>
-        </div>
-
-        <div className="training-stats">
-          <h2 className="training-stats-title">我的跟练</h2>
-          <p className="training-stats-line">
-            推日 {countByDay('push')} 次 · 拉日 {countByDay('pull')} 次 · 共 {sessions.length} 次
-          </p>
-          <p className="training-stats-meta">
-            {sessions.length > 0
-              ? `最近：${sessions[sessions.length - 1].date} ${sessions[sessions.length - 1].day === 'push' ? '推日' : '拉日'}`
-              : '还没有跟练记录，打开推日或拉日开始第一次。'}
-          </p>
-          {sessions.length > 0 && (
-            <>
-              <button
-                type="button"
-                className="ghost-btn small training-stats-toggle"
-                aria-expanded={recordsOpen}
-                onClick={() => setRecordsOpen((prev) => !prev)}
-              >
-                {recordsOpen ? '收起记录' : '查看记录'}
-              </button>
-              {recordsOpen && (
-                <ul className="training-records">
-                  {[...sessions].reverse().slice(0, 20).map((item) => (
-                    <li key={item.id} className="training-record">
-                      <span className="training-record-text">
-                        {item.day === 'push' ? '推日' : '拉日'} 第 {item.seq} 次 · {item.date}
-                        {item.noteId ? ' · 有心得' : ''}
-                      </span>
-                      <button
-                        type="button"
-                        className="training-record-del"
-                        aria-label="删除记录"
-                        onClick={() => handleUndoCheckin(item.id)}
-                      >
-                        删除
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
-        </div>
-
-        <button type="button" className="guide-entry" onClick={() => setRoute({ level: 'guide' })}>
-          <span className="guide-entry-body">
-            <span className="guide-entry-title">系列总纲 · 次数/重量/休息怎么安排</span>
-            <span className="guide-entry-meta">
-              递进链 · 力竭口径 · 减载5信号 · 一个月后微调 · 名词表 · FAQ
-            </span>
-          </span>
-          <span className="module-row-arrow" aria-hidden="true">
-            ›
-          </span>
-        </button>
-
+        <h2 className="section-title">每日计划</h2>
         <div className="plan-day-list">
           {PLAN_DAYS.map((day) => {
             const names = day.exercises.slice(0, 3).map((exercise) => exercise.name).join('、')
@@ -1131,6 +1094,73 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
             )
           })}
         </div>
+
+        <details className="coach-group">
+          <summary>我的进度 · 周期与跟练统计</summary>
+          <CycleCard sessions={sessions} onRestart={handleRestartCycle} />
+          <div className="training-stats">
+            <h2 className="training-stats-title">我的跟练</h2>
+            <p className="training-stats-line">
+              推日 {countByDay('push')} 次 · 拉日 {countByDay('pull')} 次 · 共 {sessions.length} 次
+            </p>
+            <p className="training-stats-meta">
+              {sessions.length > 0
+                ? `最近：${sessions[sessions.length - 1].date} ${sessions[sessions.length - 1].day === 'push' ? '推日' : '拉日'}`
+                : '还没有跟练记录，打开推日或拉日开始第一次。'}
+            </p>
+            {sessions.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  className="ghost-btn small training-stats-toggle"
+                  aria-expanded={recordsOpen}
+                  onClick={() => setRecordsOpen((prev) => !prev)}
+                >
+                  {recordsOpen ? '收起记录' : '查看记录'}
+                </button>
+                {recordsOpen && (
+                  <ul className="training-records">
+                    {[...sessions].reverse().slice(0, 20).map((item) => (
+                      <li key={item.id} className="training-record">
+                        <span className="training-record-text">
+                          {item.day === 'push' ? '推日' : '拉日'} 第 {item.seq} 次 · {item.date}
+                          {item.noteId ? ' · 有心得' : ''}
+                        </span>
+                        <button
+                          type="button"
+                          className="training-record-del"
+                          aria-label="删除记录"
+                          onClick={() => handleUndoCheckin(item.id)}
+                        >
+                          删除
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </div>
+        </details>
+
+        <details className="coach-group">
+          <summary>训练逻辑与系列总纲</summary>
+          <div className="coach-principle">
+            <h2 className="coach-principle-title">训练逻辑</h2>
+            <p>{COACH_SERIES.principle}</p>
+          </div>
+          <button type="button" className="guide-entry" onClick={() => setRoute({ level: 'guide' })}>
+            <span className="guide-entry-body">
+              <span className="guide-entry-title">系列总纲 · 次数/重量/休息怎么安排</span>
+              <span className="guide-entry-meta">
+                递进链 · 力竭口径 · 减载5信号 · 一个月后微调 · 名词表 · FAQ
+              </span>
+            </span>
+            <span className="module-row-arrow" aria-hidden="true">
+              ›
+            </span>
+          </button>
+        </details>
 
       </section>
     )
@@ -1168,7 +1198,7 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
         )}
 
         {items.length === 0 ? (
-          !editing && <p className="hint group-empty">这个类别还没有动作。</p>
+          !editing && <p className="hint group-empty">这个类别还没有动作。点上方「+ 新动作」添加一条。</p>
         ) : (
           <ul className="exercise-grid">
             {items.map((item) => {
@@ -1295,6 +1325,11 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
 
       <h2 className="section-title">备份与数据</h2>
       <StorageUsage />
+      {backupNotice && (
+        <p className="notice notice-danger" role="alert">
+          {backupNotice}
+        </p>
+      )}
       <p className="hint">数据只在这台手机上。换手机、清理浏览器前，先导出备份。</p>
       <p className="hint is-warn">
         ⚠️ 备份包含文字数据与图片；视频文件体积大，不进备份，换手机后需要重新上传。

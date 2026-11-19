@@ -30,9 +30,10 @@ export default function RecipeImage({ imageId, alt, className = '' }: Props) {
     }
   }, [imageId])
 
+  // 骨架占位：与真实图同形状（尺寸由外部 className 决定），不写「暂无图片」文案
   if (!url) {
-    return <div className={`recipe-image placeholder ${className}`}>暂无图片</div>
+    return <div className={`recipe-image is-skeleton ${className}`} aria-hidden="true" />
   }
 
-  return <img className={`recipe-image ${className}`} src={url} alt={alt} />
+  return <img className={`recipe-image is-in ${className}`} src={url} alt={alt} />
 }

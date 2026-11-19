@@ -17,6 +17,7 @@ import type { RecipeSort } from '../lib/recipes'
 import { deleteImage, readJSON, writeJSON } from '../lib/storage'
 import { formatGram, recipeNutrition } from '../lib/nutrition'
 import { todayKey } from '../lib/date'
+import { useNotice } from '../hooks/useNotice'
 
 type View = { name: 'list' } | { name: 'detail'; id: string } | { name: 'edit'; id: string | null }
 type Filter = 'all' | MealSlot
@@ -133,7 +134,7 @@ function RecipeDetail({
 
       <h2 className="section-title">食材与用量</h2>
       {recipe.ingredients.length === 0 ? (
-        <p className="hint">还没有食材。</p>
+        <p className="hint">还没有食材。点右上角「编辑」添加，填好克数就能自动算出营养。</p>
       ) : (
         <ul className="ingredient-table">
           {recipe.ingredients.map((item) => (
@@ -146,7 +147,7 @@ function RecipeDetail({
       )}
 
       <h2 className="section-title">做法</h2>
-      <p className="method-text">{recipe.method || '还没有写做法。'}</p>
+      <p className="method-text">{recipe.method || '还没写做法。点右上角「编辑」补上步骤，下次照着做就行。'}</p>
 
       <h2 className="section-title">实测笔记</h2>
       <p className="method-text">
@@ -177,6 +178,7 @@ export default function RecipesTab({ active }: Props) {
   // 编辑页脏状态：硬件返回键离开编辑页前先确认，避免未保存内容直接丢失
   const editDirtyRef = useRef(false)
   const editConfirmedRef = useRef(false)
+  const { show: showNotice, node: noticeNode } = useNotice()
 
   const handleEditDirty = useCallback((dirty: boolean) => {
     editDirtyRef.current = dirty
@@ -261,20 +263,22 @@ export default function RecipesTab({ active }: Props) {
 
   if (view.name === 'detail' && current) {
     return (
-      <RecipeDetail
+      <section>
+        {noticeNode}
+        <RecipeDetail
         recipe={current}
         onBack={back}
         onEdit={() => goEdit(current.id)}
         onToggleFavorite={() => {
           if (!toggleFavorite(current.id)) {
-            window.alert('写入失败（手机存储可能已满），稍后再试。')
+            showNotice('写入失败（手机存储可能已满），稍后再试。')
             return
           }
           refresh()
         }}
         onCooked={() => {
           if (!markCookedToday(current.id, todayKey())) {
-            window.alert('写入失败（手机存储可能已满），稍后再试。')
+            showNotice('写入失败（手机存储可能已满），稍后再试。')
             return
           }
           refresh()
@@ -282,7 +286,7 @@ export default function RecipesTab({ active }: Props) {
         onDuplicate={() => {
           const copy = duplicateRecipe(current.id)
           if (!copy) {
-            window.alert('复制失败（手机存储可能已满），稍后再试。')
+            showNotice('复制失败（手机存储可能已满），稍后再试。')
             return
           }
           refresh()
@@ -296,6 +300,7 @@ export default function RecipesTab({ active }: Props) {
           back()
         }}
       />
+      </section>
     )
   }
 
@@ -309,6 +314,7 @@ export default function RecipesTab({ active }: Props) {
 
   return (
     <section>
+      {noticeNode}
       <div className="page-head">
         <h1 className="page-title">食谱</h1>
         <button className="save-btn page-head-action" type="button" onClick={goNew}>
@@ -353,7 +359,7 @@ export default function RecipesTab({ active }: Props) {
           <p className="empty-desc">菜名、做法、食材克数，蛋白/脂肪/碳水自动算。按餐次分类，建好后随时能改。</p>
         </div>
       ) : visible.length === 0 ? (
-        <p className="hint">这个餐次下还没有菜谱。</p>
+        <p className="hint">这个餐次下还没有菜谱。切到「全部」看其他菜谱，或新建一条归到本餐次。</p>
       ) : (
         <div className="recipe-list">
           {visible.map((recipe) => {

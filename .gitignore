@@ -7,3 +7,6 @@ dist
 # 临时预览与云端应用卡，不进版本库
 *.genie
 preview-theme.html
+
+# 验收截图（临时产物，不进版本库）
+shot-*.png

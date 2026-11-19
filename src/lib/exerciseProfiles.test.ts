@@ -4,6 +4,7 @@ import {
   categoryLabel,
   exerciseProfileName,
   getExerciseProfiles,
+  isDuplicateExerciseName,
   updateExerciseProfile,
 } from './exerciseProfiles'
 
@@ -57,5 +58,20 @@ describe('动作档案', () => {
     const bench = getExerciseProfiles()[0]
     expect(updateExerciseProfile(bench.id, { name: ' ' })).toBeNull()
     expect(getExerciseProfiles()[0].name).toBe('杠铃卧推')
+  })
+
+  it('重名拦截：新增与改名都拒绝同名，编辑时排除自身', () => {
+    expect(isDuplicateExerciseName('杠铃卧推')).toBe(true)
+    const added = addExerciseProfile('杠铃卧推', 'push')
+    expect(added).toBeNull()
+    expect(getExerciseProfiles()).toHaveLength(1)
+    const pull = addExerciseProfile('引体向上', 'pull')
+    expect(pull).not.toBeNull()
+    const bench = getExerciseProfiles().find((item) => item.id === 'barbell-bench')
+    // 改成别人的名字被拒
+    expect(updateExerciseProfile(bench?.id ?? '', { name: '引体向上' })).toBeNull()
+    // 改回自己的名字（排除自身）应该放行
+    expect(updateExerciseProfile(pull?.id ?? '', { name: '引体向上' })?.name).toBe('引体向上')
+    expect(isDuplicateExerciseName('引体向上', pull?.id)).toBe(false)
   })
 })

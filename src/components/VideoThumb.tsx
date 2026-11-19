@@ -29,12 +29,9 @@ export default function VideoThumb({ videoId, className = '' }: Props) {
   }, [videoId])
 
   if (!url) {
-    return (
-      <span className={`video-thumb ${className}`} aria-hidden="true">
-        ▶
-      </span>
-    )
+    // 骨架占位：与真实缩略图同形状，poster 就绪后淡入替换
+    return <span className={`video-thumb is-skeleton ${className}`} aria-hidden="true" />
   }
 
-  return <img className={`video-thumb ${className}`} src={url} alt="" />
+  return <img className={`video-thumb is-in ${className}`} src={url} alt="" />
 }

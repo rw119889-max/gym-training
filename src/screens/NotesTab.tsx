@@ -20,6 +20,7 @@ import { compressImage } from '../lib/image'
 import { inspectVideo } from '../lib/videoFile'
 import { deleteImage, deleteVideo, getImage, getVideo, putImage, putVideo, readJSON, writeJSON, removeKey } from '../lib/storage'
 import { useOverlayHistory } from '../hooks/useOverlayHistory'
+import { useNotice } from '../hooks/useNotice'
 import { linkNote } from '../lib/trainingLog'
 
 const MAX_VIDEO_BYTES = 200 * 1024 * 1024
@@ -167,6 +168,7 @@ function NoteEditor({
   )
   const [charCount, setCharCount] = useState(initial.text.replace(/\s/g, '').length)
   const [pop, setPop] = useState<null | 'font' | 'para' | 'align'>(null)
+  const { show: showNotice, node: noticeNode } = useNotice()
   const createdAtRef = useRef(initial.createdAt)
 
   const editorRef = useRef<HTMLDivElement>(null)
@@ -334,12 +336,12 @@ function NoteEditor({
 
   const storeVideo = async (file: File): Promise<void> => {
     if (file.size > MAX_VIDEO_BYTES) {
-      window.alert('单条视频超过 200 MB，建议先压缩或裁剪再插入。')
+      showNotice('单条视频超过 200 MB，建议先压缩或裁剪再插入。', 'warning')
       return
     }
     const info = await inspectVideo(file)
     if (!info.playable) {
-      window.alert('这段视频可能无法播放，建议换成 MP4（H.264）再试。')
+      showNotice('这段视频可能无法播放，建议换成 MP4（H.264）再试。', 'warning')
       return
     }
     if (navigator.storage?.persist) void navigator.storage.persist().catch(() => undefined)
@@ -371,7 +373,7 @@ function NoteEditor({
       }
       if (plain) insertHtml(textToHtml(plain))
     } catch {
-      window.alert('粘贴处理失败，图片可能太大，可以试试分批粘贴。')
+      showNotice('粘贴处理失败，图片可能太大，可以试试分批粘贴。')
     } finally {
       setBusy(false)
     }
@@ -385,7 +387,7 @@ function NoteEditor({
     try {
       for (const file of files) await storeImage(file)
     } catch {
-      window.alert('图片保存失败，手机空间可能不够了，清理后再试。')
+      showNotice('图片保存失败，手机空间可能不够了，清理后再试。')
     } finally {
       setBusy(false)
     }
@@ -399,7 +401,7 @@ function NoteEditor({
     try {
       for (const file of files) await storeVideo(file)
     } catch {
-      window.alert('视频保存失败，手机空间可能不够了，清理后再试。')
+      showNotice('视频保存失败，手机空间可能不够了，清理后再试。')
     } finally {
       setBusy(false)
     }
@@ -492,7 +494,7 @@ function NoteEditor({
       sessionId: initial.sessionId,
     })
     if (!saved) {
-      window.alert('保存失败（手机存储可能已满）。内容仍在编辑中，尚未保存。请清理空间后重试，或先导出备份。')
+      showNotice('保存失败（手机存储可能已满）。内容仍在编辑中，尚未保存。请清理空间后重试，或先导出备份。')
       markDirty()
       return
     }
@@ -621,6 +623,8 @@ function NoteEditor({
           markDirty()
         }}
       />
+
+      {noticeNode}
 
       <div className="note-topic-row" role="group" aria-label="笔记主题">
         <button
@@ -845,6 +849,7 @@ export default function NotesTab({ active, onBackToSource }: Props) {
   // 本次草稿是否由「写心得」种子打开；关闭后让 App 跳回来源计划页
   const seedFlowRef = useRef(false)
   const hadDraftRef = useRef(false)
+  const { show: showListNotice, node: listNoticeNode } = useNotice()
 
   const confirmDiscard = () => {
     if (!dirtyRef.current) return true
@@ -999,7 +1004,7 @@ export default function NotesTab({ active, onBackToSource }: Props) {
       if (next.sessionId) {
         // 笔记本体已保存；只是关联回填失败时不丢内容，提示后照常关闭
         if (!linkNote(next.sessionId, created.id)) {
-          window.alert('笔记已保存，但跟练打卡的心得关联失败，可在跟练记录里重新关联。')
+          showListNotice('笔记已保存，但跟练打卡的心得关联失败，可在跟练记录里重新关联。')
         }
       }
     }
@@ -1013,12 +1018,12 @@ export default function NotesTab({ active, onBackToSource }: Props) {
     if (!draft?.id) return
     if (!window.confirm('删除这条笔记？')) return
     if (!deleteExerciseNote(draft.id)) {
-      window.alert('删除失败（手机存储可能已满），笔记保留。')
+      showListNotice('删除失败（手机存储可能已满），笔记保留。')
       return
     }
     // 笔记已删除：同步解除训练记录里的引用，避免「有心得」点不开
     if (!unlinkNoteByNoteId(draft.id)) {
-      window.alert('笔记已删除，但跟练记录的心得引用清理失败，记录里可能仍显示「有心得」。')
+      showListNotice('笔记已删除，但跟练记录的心得引用清理失败，记录里可能仍显示「有心得」。')
     }
     const stored = notes.find((note) => note.id === draft.id)
     if (stored) {
@@ -1054,6 +1059,7 @@ export default function NotesTab({ active, onBackToSource }: Props) {
 
   return (
     <section>
+      {listNoticeNode}
       <div className="page-head">
         <h1 className="page-title">笔记</h1>
         <button className="save-btn page-head-action" type="button" onClick={startNew}>

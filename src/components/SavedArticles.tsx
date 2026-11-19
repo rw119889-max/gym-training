@@ -52,8 +52,11 @@ function ArticleImage({ block }: { block: Extract<ArticleBlock, { type: 'image' 
     }
   }, [block.imageId, block.src])
 
-  if (!url) return null
-  return <img className="article-image" src={url} alt="" />
+  // 骨架占位：4:3 预留高度防版面跳动，图片就绪后淡入替换
+  if (!url) {
+    return <div className="article-image article-image-skeleton" aria-hidden="true" />
+  }
+  return <img className="article-image article-image-in" src={url} alt="" />
 }
 
 export default function SavedArticles({ exerciseId, exerciseName, onBack }: Props) {

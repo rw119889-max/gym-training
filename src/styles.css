@@ -5,6 +5,16 @@
    「跟随系统」由首帧脚本解析系统偏好后写入属性（见 index.html / theme.ts）
    ========================================================== */
 
+/* ---------- 字体：Manrope（拉丁/数字，可变字体 400–700，中文回退苹方/鸿蒙） ---------- */
+
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("./assets/fonts/manrope-latin-var.woff2") format("woff2");
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -26,19 +36,20 @@
   --s2: 8px;
   --s3: 12px;
   --s4: 16px;
-  --s5: 20px;
   --s6: 24px;
   --s8: 32px;
   --s10: 40px;
   --s12: 48px;
 
   /* --- motion --- */
-  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1); /* 约束曲线，与 --ease-out-expo 同值 */
   --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-spring: cubic-bezier(0.34, 1.2, 0.64, 1);
-  --t-fast: 140ms;
-  --t-base: 200ms;
-  --t-slow: 320ms;
+  /* 分层时长：颜色/透明度 300ms，位移类 500ms（大区块进场 600–800ms 用具体值） */
+  --t-color: 300ms;
+  --t-move: 500ms;
+
+  /* --- 功能性预留（非节奏间距，不参与 spacing 约束表） --- */
+  --bar-clear: 120px; /* 底部固定栏净空：tabbar ~66px + 合成条/Toast 余量 */
 
   /* --- 图片/视频上的浮层：压在内容上，不随主题翻转 --- */
   --scrim: rgba(0, 0, 0, 0.6);
@@ -166,11 +177,12 @@
 
   --text: #14170f;
   --text-2: #3a4033;
-  --muted: #575e50;
-  --faint: #676e60;
+  --muted: #575e50; /* s3 5.57 */
+  --faint: #62695b; /* s3 4.71 ✓（原 #676e60 在 s3 仅 4.38 不达标） */
 
-  --accent: #c9ff2e;
-  --accent-hi: #dcff6b;
+  /* 浅色填充主色较深色降一档（荧光→沉稳黄绿），避免白底上过于刺眼；ink 对比仍 ≥9:1 */
+  --accent: #9ecb2e;
+  --accent-hi: #b8e04f;
   --accent-text: #47670a;
   --accent-text-hi: #33540a;
   --accent-ink: #171b09;
@@ -226,9 +238,9 @@ body {
   min-height: 100dvh;
   background: var(--bg);
   color: var(--text);
-  font-family: "SF Pro Text", "PingFang SC", "HarmonyOS Sans SC", "MiSans",
+  font-family: "Manrope", "SF Pro Text", "PingFang SC", "HarmonyOS Sans SC", "MiSans",
     "Microsoft YaHei", "Noto Sans SC", system-ui, -apple-system, sans-serif;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.6;
   font-synthesis-weight: none;
   -webkit-font-smoothing: antialiased;
@@ -329,7 +341,7 @@ body::after {
 /* ---------- 通用文字 ---------- */
 
 .page-title {
-  font-size: clamp(26px, 7.4vw, 32px);
+  font-size: clamp(24px, 7.4vw, 32px);
   font-weight: 700;
   line-height: 1.22;
   letter-spacing: -0.012em;
@@ -339,7 +351,7 @@ body::after {
 .page-sub {
   margin-top: var(--s2);
   margin-bottom: var(--s6);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.55;
   color: var(--muted);
 }
@@ -350,14 +362,14 @@ body::after {
 
 .section-title {
   margin: var(--s8) 0 var(--s3);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--muted);
 }
 
 .hint {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--muted);
   text-wrap: pretty;
@@ -371,7 +383,7 @@ body::after {
   gap: var(--s2);
   margin-bottom: var(--s4);
   padding: var(--s3) var(--s4);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.65;
   color: var(--text-2);
   background: var(--surface-2);
@@ -414,7 +426,7 @@ body::after {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0 var(--s5) var(--s10);
+  padding: 0 var(--s4) var(--s10);
 }
 
 .landing section {
@@ -444,7 +456,7 @@ body::after {
 .lp-hero > *:nth-child(5) { animation-delay: 0.34s; }
 
 .lp-eyebrow {
-  margin-bottom: var(--s5);
+  margin-bottom: var(--s4);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.34em;
@@ -485,7 +497,8 @@ body::after {
   justify-content: center;
   gap: var(--s3);
   min-height: 56px;
-  padding: 0 var(--s6);
+  /* 主按钮规范：上下 8px、左右 12px；min-height 保住 44px+ 触控目标 */
+  padding: 8px 12px;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -495,18 +508,18 @@ body::after {
   border-radius: var(--r-full);
   cursor: pointer;
   box-shadow: var(--shadow-accent);
-  transition: transform var(--t-slow) var(--ease-out-expo),
-    box-shadow var(--t-slow) var(--ease-out-expo), filter var(--t-slow) var(--ease-out-expo);
+  transition: transform var(--t-move) var(--ease-out-expo), background-color var(--t-color) var(--ease-out-expo), box-shadow var(--t-color) var(--ease-out-expo);
 }
 
 .lp-cta svg {
   width: 20px;
   height: 20px;
-  transition: transform var(--t-slow) var(--ease-out-expo);
+  transition: transform var(--t-move) var(--ease-out-expo);
 }
 
 .lp-cta:hover {
-  filter: brightness(1.05);
+  /* 用背景色替代 brightness 滤镜：动效只允许 transform/opacity/颜色 */
+  background: var(--accent-hi);
   transform: translateY(-2px);
 }
 
@@ -516,7 +529,13 @@ body::after {
 
 .lp-cta:active {
   transform: translateY(1px);
-  filter: brightness(0.96);
+}
+
+.lp-cta:disabled {
+  opacity: 0.4;
+  transform: none;
+  filter: none;
+  cursor: not-allowed;
 }
 
 .lp-hero .lp-cta {
@@ -524,7 +543,7 @@ body::after {
 }
 
 .lp-proof {
-  margin-top: var(--s5);
+  margin-top: var(--s4);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -558,8 +577,7 @@ body::after {
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   cursor: pointer;
-  transition: background-color var(--t-base) var(--ease),
-    border-color var(--t-base) var(--ease), transform var(--t-slow) var(--ease-out-expo);
+  transition: background-color var(--t-color) var(--ease), border-color var(--t-color) var(--ease), transform var(--t-move) var(--ease-out-expo);
 }
 
 .lp-module:hover {
@@ -569,6 +587,12 @@ body::after {
 
 .lp-module:active {
   transform: scale(0.99);
+}
+
+.lp-module:disabled {
+  opacity: 0.4;
+  transform: none;
+  cursor: not-allowed;
 }
 
 .lp-module-icon {
@@ -608,7 +632,7 @@ body::after {
   flex: none;
   margin-left: auto;
   color: var(--faint);
-  transition: color var(--t-base) var(--ease), transform var(--t-slow) var(--ease-out-expo);
+  transition: color var(--t-color) var(--ease), transform var(--t-move) var(--ease-out-expo);
 }
 
 .lp-module-arrow svg {
@@ -643,7 +667,7 @@ body::after {
 
 .lp-word {
   opacity: 0.28;
-  transition: opacity var(--t-slow) var(--ease-out-expo);
+  transition: opacity var(--t-color) var(--ease-out-expo);
 }
 
 .lp-word.is-lit {
@@ -655,7 +679,7 @@ body::after {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--s5);
+  gap: var(--s4);
   padding: var(--s10) 0;
   text-align: center;
 }
@@ -680,11 +704,31 @@ body::after {
 .landing [data-reveal] {
   opacity: 0;
   transform: translateY(var(--s8));
-  transition: opacity 700ms var(--ease-out-expo), transform 700ms var(--ease-out-expo);
+  transition: opacity var(--t-color) var(--ease-out-expo), transform var(--t-move) var(--ease-out-expo);
 }
 
 .landing [data-reveal].is-in {
   opacity: 1;
+  transform: none;
+}
+
+/* ---------- 跳转主内容（键盘用户：Tab 第一站，聚焦即现身） ---------- */
+
+.skip-link {
+  position: fixed;
+  top: var(--s2);
+  left: var(--s2);
+  z-index: 100;
+  padding: var(--s2) var(--s3);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-radius: var(--r-xs);
+  transform: translateY(-300%);
+}
+
+.skip-link:focus-visible {
   transform: none;
 }
 
@@ -706,7 +750,7 @@ body::after {
   align-items: center;
   justify-content: space-between;
   gap: var(--s3);
-  padding: calc(env(safe-area-inset-top) + 14px) var(--s5) 13px;
+  padding: calc(env(safe-area-inset-top) + 16px) var(--s4) 12px;
   background: var(--glass);
   backdrop-filter: saturate(150%) blur(18px);
   -webkit-backdrop-filter: saturate(150%) blur(18px);
@@ -717,7 +761,7 @@ body::after {
   display: inline-flex;
   align-items: center;
   gap: var(--s2);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.2em;
   color: var(--text-2);
@@ -733,8 +777,8 @@ body::after {
 
 .version-badge {
   display: inline-block;
-  padding: 3px 10px;
-  font-size: 10.5px;
+  padding: 4px 12px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
   font-variant-numeric: tabular-nums;
@@ -750,7 +794,7 @@ body::after {
   user-select: none;
   -webkit-touch-callout: none;
   touch-action: manipulation;
-  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+  transition: background var(--t-color) var(--ease), border-color var(--t-color) var(--ease);
 }
 
 .version-badge:hover {
@@ -774,9 +818,9 @@ body::after {
   bottom: calc(84px + env(safe-area-inset-bottom));
   z-index: 30;
   transform: translateX(-50%);
-  padding: 10px 18px;
+  padding: 12px 16px;
   max-width: calc(100vw - 48px);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--on-scrim);
   background: var(--scrim);
@@ -784,7 +828,7 @@ body::after {
   border-radius: var(--r-full);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  animation: toastIn var(--t-base) var(--ease-out-expo) both;
+  animation: toastIn var(--t-move) var(--ease-out-expo) both;
   pointer-events: none;
 }
 
@@ -817,7 +861,7 @@ body::after {
   border: 0;
   border-radius: var(--r-full);
   cursor: pointer;
-  transition: color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+  transition: color var(--t-color) var(--ease), background-color var(--t-color) var(--ease);
 }
 
 .theme-toggle:hover {
@@ -839,7 +883,7 @@ body::after {
   width: 100%;
   max-width: 600px;
   margin: 0 auto;
-  padding: var(--s6) var(--s5) calc(120px + env(safe-area-inset-bottom));
+  padding: var(--s6) var(--s4) calc(var(--bar-clear) + env(safe-area-inset-bottom));
 }
 
 /* 首屏元素交错淡入 */
@@ -867,7 +911,8 @@ body::after {
 .video-upload,
 .editor-image,
 .image-add-cell {
-  background-color: var(--surface-1);  border: 1px solid var(--line);
+  background-color: var(--surface-1);
+  border: 1px solid var(--line);
 }
 
 /* ---------- 动作页模块入口 ---------- */
@@ -876,7 +921,7 @@ body::after {
   display: flex;
   flex-direction: column;
   gap: var(--s2);
-  margin-top: var(--s5);
+  margin-top: var(--s4);
 }
 
 .module-row {
@@ -891,8 +936,7 @@ body::after {
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
   cursor: pointer;
-  transition: transform var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
-    background-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  transition: transform var(--t-move) var(--ease), border-color var(--t-color) var(--ease), background-color var(--t-color) var(--ease), box-shadow var(--t-color) var(--ease);
 }
 
 .module-row:hover {
@@ -932,7 +976,7 @@ body::after {
 }
 
 .module-row-title {
-  font-size: 15.5px;
+  font-size: 14px;
   font-weight: 650;
   letter-spacing: -0.005em;
 }
@@ -952,7 +996,7 @@ body::after {
   font-size: 20px;
   line-height: 1;
   color: var(--faint);
-  transition: transform var(--t-base) var(--ease), color var(--t-base) var(--ease);
+  transition: transform var(--t-move) var(--ease), color var(--t-color) var(--ease);
 }
 
 .module-row:hover .module-row-arrow {
@@ -977,7 +1021,7 @@ body::after {
 }
 
 .empty-desc {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.75;
   color: var(--muted);
   text-wrap: pretty;
@@ -993,7 +1037,7 @@ body::after {
 .field-label {
   display: block;
   margin-bottom: var(--s2);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1005,12 +1049,12 @@ body::after {
   min-height: 48px;
   padding: 12px var(--s4);
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--text);
   background: var(--surface-1);
   border: 1px solid var(--line-ctl);
   border-radius: var(--r-sm);
-  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+  transition: border-color var(--t-color) var(--ease), background-color var(--t-color) var(--ease);
 }
 
 .field-input::placeholder {
@@ -1047,17 +1091,15 @@ body::after {
   border-radius: var(--r-md);
   cursor: pointer;
   box-shadow: var(--shadow-accent);
-  transition: transform var(--t-fast) var(--ease), filter var(--t-base) var(--ease),
-    box-shadow var(--t-base) var(--ease);
+  transition: transform var(--t-move) var(--ease), box-shadow var(--t-color) var(--ease);
 }
 
 .cta:hover:not(:disabled) {
-  filter: brightness(1.06);
+  transform: translateY(-1px);
 }
 
 .cta:active:not(:disabled) {
   transform: scale(0.99);
-  filter: brightness(0.97);
 }
 
 .cta:disabled {
@@ -1071,7 +1113,7 @@ body::after {
 .ghost-btn {
   flex: none;
   min-height: 48px;
-  padding: 0 var(--s5);
+  padding: 0 var(--s4);
   font-size: 14px;
   font-weight: 600;
   color: var(--text-2);
@@ -1079,8 +1121,7 @@ body::after {
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   cursor: pointer;
-  transition: border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease),
-    background-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+  transition: border-color var(--t-color) var(--ease), color var(--t-color) var(--ease), background-color var(--t-color) var(--ease), transform var(--t-move) var(--ease);
 }
 
 .ghost-btn:hover {
@@ -1094,16 +1135,17 @@ body::after {
 }
 
 .ghost-btn.small {
-  min-height: 42px;
+  /* 触控目标统一 48px（原本 42px 被后面的覆盖块抬到 48，此处直接收敛） */
+  min-height: 48px;
   padding: 0 var(--s4);
-  font-size: 13px;
+  font-size: 12px;
   border-radius: var(--r-sm);
 }
 
 .danger-btn {
   flex: none;
   min-height: 48px;
-  padding: 0 var(--s5);
+  padding: 0 var(--s4);
   font-size: 14px;
   font-weight: 600;
   color: var(--danger);
@@ -1111,8 +1153,7 @@ body::after {
   border: 1px solid var(--danger-28);
   border-radius: var(--r-md);
   cursor: pointer;
-  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
-    transform var(--t-fast) var(--ease);
+  transition: background-color var(--t-color) var(--ease), border-color var(--t-color) var(--ease), transform var(--t-move) var(--ease);
 }
 
 .danger-btn:hover {
@@ -1127,7 +1168,7 @@ body::after {
 .save-btn {
   position: relative;
   min-height: 48px;
-  padding: 0 var(--s5);
+  padding: 0 var(--s4);
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -1136,11 +1177,11 @@ body::after {
   border: none;
   border-radius: var(--r-full);
   cursor: pointer;
-  transition: filter var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+  transition: transform var(--t-move) var(--ease);
 }
 
 .save-btn:hover:not(:disabled) {
-  filter: brightness(1.07);
+  transform: translateY(-1px);
 }
 
 .save-btn:active:not(:disabled) {
@@ -1170,7 +1211,7 @@ body::after {
   background: none;
   border: none;
   cursor: pointer;
-  transition: color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+  transition: color var(--t-color) var(--ease), transform var(--t-move) var(--ease);
 }
 
 .back-btn:hover {
@@ -1203,7 +1244,7 @@ body::after {
   border: none;
   border-radius: var(--r-sm);
   cursor: pointer;
-  transition: color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+  transition: color var(--t-color) var(--ease), background-color var(--t-color) var(--ease);
 }
 
 .icon-btn:hover {
@@ -1221,7 +1262,7 @@ body::after {
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   cursor: pointer;
-  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+  transition: color var(--t-color) var(--ease), border-color var(--t-color) var(--ease);
 }
 
 .remove-btn:hover {
@@ -1235,9 +1276,9 @@ body::after {
   display: flex;
   flex-wrap: nowrap;
   gap: var(--s2);
-  margin-inline: calc(var(--s5) * -1);
-  margin-bottom: var(--s5);
-  padding: 2px var(--s5) 4px;
+  margin-inline: calc(var(--s4) * -1);
+  margin-bottom: var(--s4);
+  padding: 2px var(--s4) 4px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
@@ -1253,8 +1294,8 @@ body::after {
 .filter-chip {
   flex: none;
   min-height: 44px;
-  padding: 0 15px;
-  font-size: 13px;
+  padding: 0 16px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-2);
   background: var(--surface-1);
@@ -1263,8 +1304,7 @@ body::after {
   cursor: pointer;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  transition: color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease),
-    border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+  transition: color var(--t-color) var(--ease), background-color var(--t-color) var(--ease), border-color var(--t-color) var(--ease), transform var(--t-move) var(--ease);
 }
 
 .filter-chip:hover {
@@ -1303,7 +1343,7 @@ body::after {
   display: flex;
   flex-direction: column;
   gap: var(--s3);
-  margin-top: var(--s5);
+  margin-top: var(--s4);
 }
 
 .category-card {
@@ -1315,12 +1355,12 @@ body::after {
   padding: var(--s4);
   text-align: left;
   color: var(--text);
-  background-color: var(--surface-1);  border: 1px solid var(--line);
+  background-color: var(--surface-1);
+  border: 1px solid var(--line);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-1);
   cursor: pointer;
-  transition: transform var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
-    background-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  transition: transform var(--t-move) var(--ease), border-color var(--t-color) var(--ease), background-color var(--t-color) var(--ease), box-shadow var(--t-color) var(--ease);
 }
 
 .category-card:hover {
@@ -1357,14 +1397,14 @@ body::after {
 }
 
 .category-name {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.01em;
 }
 
 .category-en {
   margin-left: 8px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
   letter-spacing: 0.16em;
   color: var(--faint);
@@ -1372,7 +1412,7 @@ body::after {
 
 .category-meta {
   overflow: hidden;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.4;
   color: var(--muted);
   white-space: nowrap;
@@ -1414,7 +1454,7 @@ body::after {
 }
 
 .group-empty {
-  padding: var(--s5) 0;
+  padding: var(--s4) 0;
 }
 
 .exercise-grid {
@@ -1431,8 +1471,7 @@ body::after {
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
-  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease),
-    box-shadow var(--t-fast) var(--ease);
+  transition: border-color var(--t-color) var(--ease), background-color var(--t-color) var(--ease), box-shadow var(--t-color) var(--ease);
 }
 
 .exercise-card:hover {
@@ -1455,7 +1494,7 @@ body::after {
   border: 0;
   border-radius: var(--r-md);
   cursor: pointer;
-  transition: transform var(--t-fast) var(--ease);
+  transition: transform var(--t-move) var(--ease);
 }
 
 .exercise-card-open:active {
@@ -1463,7 +1502,7 @@ body::after {
 }
 
 .exercise-card-name {
-  font-size: 15.5px;
+  font-size: 14px;
   font-weight: 650;
   line-height: 1.35;
   letter-spacing: -0.005em;
@@ -1471,7 +1510,7 @@ body::after {
 
 .exercise-card-meta {
   margin-top: auto;
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.45;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -1495,7 +1534,7 @@ body::after {
 
 .category-picks .filter-chip {
   flex: 1;
-  padding: 0 10px;
+  padding: 0 12px;
   text-align: center;
 }
 
@@ -1503,8 +1542,8 @@ body::after {
 
 .group-tag {
   flex: none;
-  padding: 4px 10px;
-  font-size: 10.5px;
+  padding: 4px 12px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--accent-text);
@@ -1530,8 +1569,7 @@ body::after {
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-1);
   cursor: pointer;
-  transition: transform var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
-    box-shadow var(--t-fast) var(--ease);
+  transition: transform var(--t-move) var(--ease), border-color var(--t-color) var(--ease), box-shadow var(--t-color) var(--ease);
 }
 
 .coach-card:hover {
@@ -1548,7 +1586,7 @@ body::after {
   place-items: center;
   width: 56px;
   height: 56px;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 750;
   letter-spacing: 0.02em;
   color: var(--accent-text);
@@ -1566,7 +1604,7 @@ body::after {
 }
 
 .coach-card-name {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.01em;
 }
@@ -1576,7 +1614,7 @@ body::after {
 }
 
 .coach-card-meta {
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.45;
   color: var(--muted);
   text-wrap: pretty;
@@ -1591,24 +1629,74 @@ body::after {
 
 .coach-principle-title {
   margin-bottom: var(--s2);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--faint);
 }
 
 .coach-principle p {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--text-2);
   text-wrap: pretty;
+}
+
+/* ---------- 教练页分组折叠：本周做什么 → 我的进度 → 学习资料 ---------- */
+.coach-group {
+  margin-top: var(--s4);
+}
+
+.coach-group > summary {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 var(--s1);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  list-style: none;
+  cursor: pointer;
+  transition: color var(--t-color) var(--ease);
+}
+
+.coach-group > summary:hover {
+  color: var(--text-2);
+}
+
+.coach-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.coach-group > summary::after {
+  content: "+";
+  margin-left: auto;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--faint);
+}
+
+.coach-group[open] > summary::after {
+  content: "\2212";
+}
+
+.coach-group[open] > summary {
+  margin-bottom: var(--s3);
+  border-bottom: 1px solid var(--line);
+}
+
+/* 折叠内容里第一块紧贴 summary，去掉自身上外边距避免双重间距 */
+.coach-group > summary + * {
+  margin-top: 0;
 }
 
 .plan-day-list {
   display: flex;
   flex-direction: column;
   gap: var(--s3);
-  margin-top: var(--s5);
+  margin-top: var(--s4);
 }
 
 .plan-day-card {
@@ -1620,12 +1708,12 @@ body::after {
   padding: var(--s4);
   text-align: left;
   color: var(--text);
-  background-color: var(--surface-1);  border: 1px solid var(--line);
+  background-color: var(--surface-1);
+  border: 1px solid var(--line);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-1);
   cursor: pointer;
-  transition: transform var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
-    background-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  transition: transform var(--t-move) var(--ease), border-color var(--t-color) var(--ease), background-color var(--t-color) var(--ease), box-shadow var(--t-color) var(--ease);
 }
 
 .plan-day-card:hover {
@@ -1673,18 +1761,18 @@ body::after {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
 }
 
 .plan-day-name {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.01em;
 }
 
 .plan-day-focus {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-2);
 }
@@ -1721,7 +1809,7 @@ body::after {
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
-  transition: border-color var(--t-fast) var(--ease);
+  transition: border-color var(--t-color) var(--ease);
 }
 
 .plan-exercise-list.is-push .plan-exercise.is-open {
@@ -1752,8 +1840,8 @@ body::after {
   place-items: center;
   width: 28px;
   height: 28px;
-  margin-top: 1px;
-  font-size: 13px;
+  margin-top: 2px;
+  font-size: 12px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   border-radius: var(--r-full);
@@ -1775,12 +1863,12 @@ body::after {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
 }
 
 .plan-exercise-name {
-  font-size: 15.5px;
+  font-size: 14px;
   font-weight: 650;
   line-height: 1.35;
 }
@@ -1801,8 +1889,8 @@ body::after {
 .plan-chip {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
-  font-size: 11.5px;
+  padding: 4px 12px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
@@ -1834,7 +1922,7 @@ body::after {
   width: 20px;
   height: 28px;
   color: var(--faint);
-  transition: transform var(--t-base) var(--ease), color var(--t-fast) var(--ease);
+  transition: transform var(--t-move) var(--ease), color var(--t-color) var(--ease);
 }
 
 .plan-exercise-chevron svg {
@@ -1856,16 +1944,16 @@ body::after {
 
 .plan-tips {
   margin: 0;
-  padding: 0 var(--s4) var(--s4) 56px;
+  padding: 0 var(--s4) var(--s4) calc(var(--s4) + 28px + var(--s3)); /* 对齐 .plan-exercise-head 序号列：16 + 28 + 12 */
   list-style: none;
-  animation: fadeUp var(--t-base) var(--ease);
+  animation: fadeUp var(--t-move) var(--ease);
 }
 
 .plan-tips li {
   position: relative;
-  padding-left: 14px;
+  padding-left: 16px;
   margin-bottom: var(--s2);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.65;
   color: var(--text-2);
   text-wrap: pretty;
@@ -1902,8 +1990,8 @@ body::after {
 /* ---------- 教练系列总纲 / 动作深化 ---------- */
 
 .plan-exercise-body {
-  padding: 0 var(--s4) var(--s4) 56px;
-  animation: fadeUp var(--t-base) var(--ease);
+  padding: 0 var(--s4) var(--s4) calc(var(--s4) + 28px + var(--s3)); /* 对齐 .plan-exercise-head 序号列：16 + 28 + 12 */
+  animation: fadeUp var(--t-move) var(--ease);
 }
 
 .plan-exercise-body .plan-tips {
@@ -1937,7 +2025,7 @@ body::after {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px;
+  gap: 8px;
 }
 
 .guide-line {
@@ -1945,7 +2033,7 @@ body::after {
 }
 
 .guide-line-text {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.65;
   color: var(--text-2);
   text-wrap: pretty;
@@ -1958,7 +2046,7 @@ body::after {
 }
 
 .plan-adjust {
-  padding: 10px 12px;
+  padding: 12px 12px;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
@@ -1989,8 +2077,8 @@ body::after {
   justify-content: space-between;
   gap: var(--s2);
   width: 100%;
-  padding: 9px 12px;
-  font-size: 13px;
+  padding: 8px 12px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.5;
   color: var(--text);
@@ -2003,7 +2091,7 @@ body::after {
 .faq-chevron {
   flex: none;
   color: var(--faint);
-  transition: transform var(--t-base) var(--ease);
+  transition: transform var(--t-move) var(--ease);
 }
 
 .faq-item.is-open .faq-chevron {
@@ -2014,9 +2102,9 @@ body::after {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px;
+  gap: 8px;
   margin: 0;
-  padding: 0 12px 10px;
+  padding: 0 12px 12px;
 }
 
 .guide-entry {
@@ -2025,7 +2113,7 @@ body::after {
   gap: var(--s3);
   width: 100%;
   margin: var(--s3) 0;
-  padding: 12px 14px;
+  padding: 12px 16px;
   color: var(--text);
   text-align: left;
   background: var(--surface-2);
@@ -2044,7 +2132,7 @@ body::after {
 }
 
 .guide-entry-title {
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 650;
 }
 
@@ -2062,20 +2150,20 @@ body::after {
 
 .guide-section-title {
   margin: 0 0 var(--s3);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .guide-table {
   width: 100%;
   margin: var(--s3) 0;
-  font-size: 12.5px;
+  font-size: 12px;
   border-collapse: collapse;
 }
 
 .guide-table th,
 .guide-table td {
-  padding: 7px 8px;
+  padding: 8px 8px;
   line-height: 1.5;
   text-align: left;
   vertical-align: top;
@@ -2083,7 +2171,7 @@ body::after {
 }
 
 .guide-table th {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--muted);
 }
@@ -2104,8 +2192,8 @@ body::after {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px;
-  padding: 8px 10px;
+  gap: 8px;
+  padding: 8px 12px;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
@@ -2118,7 +2206,7 @@ body::after {
 }
 
 .guide-chain-steps {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
@@ -2127,7 +2215,7 @@ body::after {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px;
+  gap: 8px;
   margin: var(--s3) 0 0;
   font-size: 14px;
   font-weight: 700;
@@ -2138,10 +2226,10 @@ body::after {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px;
+  gap: 8px;
   margin: var(--s3) 0;
-  padding: 10px 12px;
-  font-size: 13px;
+  padding: 12px 12px;
+  font-size: 12px;
   font-weight: 650;
   line-height: 1.6;
   color: var(--danger);
@@ -2162,12 +2250,12 @@ body::after {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px;
+  gap: 8px;
 }
 
 .guide-term {
   flex: none;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text);
 }
@@ -2196,14 +2284,13 @@ body::after {
   align-items: center;
   gap: var(--s3);
   width: 100%;
-  padding: 10px;
+  padding: 12px;
   color: var(--text);
   text-align: left;
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
   cursor: pointer;
-  transition: transform var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
-    background-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  transition: transform var(--t-move) var(--ease), border-color var(--t-color) var(--ease), background-color var(--t-color) var(--ease), box-shadow var(--t-color) var(--ease);
 }
 
 .recipe-card:hover {
@@ -2232,7 +2319,7 @@ body::after {
 .recipe-image.placeholder {
   display: grid;
   place-items: center;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   color: var(--faint);
   background: var(--surface-2);
@@ -2243,7 +2330,7 @@ body::after {
 .recipe-card-body {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -2254,7 +2341,7 @@ body::after {
 }
 
 .recipe-card-meta {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -2262,13 +2349,13 @@ body::after {
 .recipe-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   margin-top: 2px;
 }
 
 .recipe-badges span {
   padding: 2px 8px;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--accent-text);
   background: var(--accent-06);
@@ -2286,7 +2373,7 @@ body::after {
 
 .recipe-facts {
   margin: var(--s3) 0 var(--s1);
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.65;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -2326,7 +2413,7 @@ body::after {
 
 .macro-value {
   display: block;
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
@@ -2334,8 +2421,8 @@ body::after {
 
 .macro-label {
   display: block;
-  margin-top: 3px;
-  font-size: 10px;
+  margin-top: 4px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
   color: var(--faint);
@@ -2344,7 +2431,7 @@ body::after {
 .ingredient-table {
   list-style: none;
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .ingredient-table li {
@@ -2367,7 +2454,7 @@ body::after {
 }
 
 .method-text {
-  font-size: 14.5px;
+  font-size: 14px;
   line-height: 1.85;
   color: var(--text-2);
   white-space: pre-wrap;
@@ -2393,7 +2480,7 @@ body::after {
 
 .detail-images {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   margin-top: var(--s1);
   overflow-x: auto;
   scroll-snap-type: x mandatory;
@@ -2443,14 +2530,14 @@ body::after {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-height: 34px;
-  padding: 0 10px 0 12px;
+  padding: 0 12px 0 12px;
   color: var(--muted);
   background: var(--surface-1);
   border: 1px solid var(--line);
   border-radius: var(--r-full);
-  transition: border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+  transition: border-color var(--t-color) var(--ease), color var(--t-color) var(--ease);
 }
 
 .notes-view-ctl:hover,
@@ -2470,7 +2557,7 @@ body::after {
   min-height: 32px;
   padding: 0;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   color: inherit;
   background: none;
   border: 0;
@@ -2495,11 +2582,11 @@ body::after {
 .memo-card {
   position: relative;
   display: flex;
-  background-color: var(--surface-1);  border: 1px solid var(--line);
+  background-color: var(--surface-1);
+  border: 1px solid var(--line);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
-  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease),
-    box-shadow var(--t-fast) var(--ease);
+  transition: border-color var(--t-color) var(--ease), background-color var(--t-color) var(--ease), box-shadow var(--t-color) var(--ease);
 }
 
 .memo-card:hover {
@@ -2512,8 +2599,9 @@ body::after {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
+  /* 右侧给绝对定位的置顶按钮让位：按钮 48px + right 4px */
   padding: var(--s4) 52px var(--s4) var(--s4);
   text-align: left;
   color: var(--text);
@@ -2526,7 +2614,7 @@ body::after {
 .memo-title {
   display: -webkit-box;
   overflow: hidden;
-  font-size: 15.5px;
+  font-size: 14px;
   font-weight: 650;
   line-height: 1.4;
   letter-spacing: -0.005em;
@@ -2538,7 +2626,7 @@ body::after {
 .memo-preview {
   display: -webkit-box;
   overflow: hidden;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--muted);
   white-space: pre-wrap;
@@ -2558,13 +2646,14 @@ body::after {
 .memo-date {
   flex: none;
   margin-left: auto;
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
 
 .memo-pin {
   position: absolute;
+  /* 后段「48px 统一热区」覆盖为 48×48、top/right 4px */
   top: 10px;
   right: 10px;
   display: grid;
@@ -2576,8 +2665,7 @@ body::after {
   border: 1px solid var(--line);
   border-radius: var(--r-full);
   cursor: pointer;
-  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
-    background-color var(--t-fast) var(--ease);
+  transition: color var(--t-color) var(--ease), border-color var(--t-color) var(--ease), background-color var(--t-color) var(--ease);
 }
 
 /* 小控件保持视觉紧凑，命中区补到 48px */
@@ -2626,12 +2714,12 @@ body.note-composing .tab-content {
   max-width: 720px;
   min-height: 100dvh;
   margin: 0 auto;
-  padding: 0 var(--s5);
+  padding: 0 var(--s4);
 }
 
 /* 光标自动滚入视野时，别停在悬浮工具栏后面 */
 html:has(body.note-composing) {
-  scroll-padding-bottom: 76px;
+  scroll-padding-bottom: 80px;
 }
 
 .note-compose-top {
@@ -2642,8 +2730,8 @@ html:has(body.note-composing) {
   align-items: center;
   gap: 4px;
   min-height: 52px;
-  margin: 0 calc(var(--s5) * -1);
-  padding: calc(env(safe-area-inset-top) + 6px) var(--s5) 6px;
+  margin: 0 calc(var(--s4) * -1);
+  padding: calc(env(safe-area-inset-top) + 8px) var(--s4) 8px;
   background: var(--glass);
   backdrop-filter: saturate(150%) blur(18px);
   -webkit-backdrop-filter: saturate(150%) blur(18px);
@@ -2664,7 +2752,7 @@ html:has(body.note-composing) {
   border: 0;
   border-radius: var(--r-full);
   cursor: pointer;
-  transition: color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+  transition: color var(--t-color) var(--ease), background-color var(--t-color) var(--ease);
 }
 
 .note-tool-icon:hover {
@@ -2697,8 +2785,8 @@ html:has(body.note-composing) {
 .note-compose-title {
   width: 100%;
   margin-top: var(--s4);
-  padding: 6px 0;
-  font-size: 25px;
+  padding: 8px 0;
+  font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--text);
@@ -2716,7 +2804,7 @@ html:has(body.note-composing) {
   align-items: center;
   gap: 8px;
   margin: 2px 0 var(--s3);
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--faint);
 }
 
@@ -2727,7 +2815,7 @@ html:has(body.note-composing) {
 .note-compose-body {
   flex: 1;
   min-height: 42vh;
-  padding: 6px 0 40px;
+  padding: 8px 0 40px;
   font-size: 16px;
   line-height: 1.78;
   color: var(--text);
@@ -2745,7 +2833,7 @@ html:has(body.note-composing) {
   display: block;
   max-width: 100%;
   height: auto;
-  margin: 10px 0;
+  margin: 12px 0;
   border-radius: var(--r-sm);
 }
 
@@ -2753,7 +2841,7 @@ html:has(body.note-composing) {
   display: block;
   width: 100%;
   max-height: 58vh;
-  margin: 10px 0;
+  margin: 12px 0;
   background: #000;
   border-radius: var(--r-sm);
 }
@@ -2764,11 +2852,11 @@ html:has(body.note-composing) {
 .note-compose-body font[size='4'] { font-size: 18px; }
 .note-compose-body font[size='5'] { font-size: 20px; }
 .note-compose-body font[size='6'] { font-size: 24px; }
-.note-compose-body font[size='7'] { font-size: 28px; }
+.note-compose-body font[size='7'] { font-size: 24px; }
 
 .note-compose-body div[data-todo] {
   position: relative;
-  padding-left: 26px;
+  padding-left: 24px;
 }
 
 .note-compose-body div[data-todo] input[type='checkbox'] {
@@ -2794,8 +2882,8 @@ html:has(body.note-composing) {
   display: flex;
   align-items: center;
   gap: 0;
-  margin: 0 calc(var(--s5) * -1);
-  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  margin: 0 calc(var(--s4) * -1);
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
   background: var(--glass);
   border-top: 1px solid var(--line);
   backdrop-filter: saturate(150%) blur(18px);
@@ -2816,7 +2904,7 @@ html:has(body.note-composing) {
   height: 40px;
   padding: 0 2px;
   font-family: inherit;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--text-2);
   background: none;
   border: 0;
@@ -2867,7 +2955,7 @@ html:has(body.note-composing) {
   z-index: 7;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   padding: 8px;
   background: var(--surface-2);
   border: 1px solid var(--line);
@@ -2877,16 +2965,16 @@ html:has(body.note-composing) {
 
 .note-pop-row {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .note-pop-btn {
   flex: 1 1 0;
   min-width: 0;
   height: 36px;
-  padding: 0 6px;
+  padding: 0 8px;
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 12px;
   color: var(--text);
   background: var(--surface-1);
   border: 1px solid var(--line);
@@ -2902,8 +2990,8 @@ html:has(body.note-composing) {
   position: absolute;
   top: -28px;
   right: 14px;
-  padding: 4px 9px;
-  font-size: 11px;
+  padding: 4px 8px;
+  font-size: 12px;
   color: var(--text-2);
   background: var(--surface-2);
   border: 1px solid var(--line);
@@ -2918,14 +3006,14 @@ html:has(body.note-composing) {
   position: relative;
   width: 32px;
   height: 32px;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
   color: var(--muted);
   background: none;
   border: 1px solid var(--line);
   border-radius: var(--r-full);
   cursor: pointer;
-  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+  transition: color var(--t-color) var(--ease), border-color var(--t-color) var(--ease);
 }
 
 .note-action:hover {
@@ -2953,17 +3041,17 @@ html:has(body.note-composing) {
 .fold summary {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-height: 54px;
   padding: 0 var(--s4);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--faint);
   list-style: none;
   cursor: pointer;
-  transition: color var(--t-fast) var(--ease);
+  transition: color var(--t-color) var(--ease);
 }
 
 .fold summary:hover {
@@ -2992,8 +3080,8 @@ html:has(body.note-composing) {
 
 .fold-count {
   min-width: 22px;
-  padding: 2px 7px;
-  font-size: 10.5px;
+  padding: 2px 8px;
+  font-size: 12px;
   letter-spacing: 0;
   text-align: center;
   color: var(--accent-ink);
@@ -3014,7 +3102,7 @@ html:has(body.note-composing) {
 
 .fold-date {
   flex: none;
-  font-size: 10.5px;
+  font-size: 12px;
   letter-spacing: 0;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
@@ -3023,7 +3111,7 @@ html:has(body.note-composing) {
 /* ---------- 收藏文章 ---------- */
 
 .article-reader {
-  padding: var(--s5) var(--s5) var(--s6);
+  padding: var(--s4) var(--s4) var(--s6);
   background: var(--surface-1);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
@@ -3039,8 +3127,8 @@ html:has(body.note-composing) {
 }
 
 .article-reader-title {
-  margin-bottom: 6px;
-  font-size: 1.5em;
+  margin-bottom: 8px;
+  font-size: 20px;
   font-weight: 700;
   line-height: 1.35;
   letter-spacing: -0.012em;
@@ -3057,7 +3145,7 @@ html:has(body.note-composing) {
 
 .article-reader-date {
   margin-bottom: var(--s4);
-  font-size: 0.72em;
+  font-size: 12px;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
@@ -3069,7 +3157,7 @@ html:has(body.note-composing) {
 .reader-toolbar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin-bottom: var(--s4);
   padding-bottom: var(--s3);
   border-bottom: 1px solid var(--line);
@@ -3083,14 +3171,14 @@ html:has(body.note-composing) {
 .reader-theme {
   position: relative;
   min-height: 32px;
-  padding: 0 11px;
-  font-size: 11.5px;
+  padding: 0 12px;
+  font-size: 12px;
   color: var(--muted);
   background: none;
   border: 1px solid var(--line);
   border-radius: var(--r-full);
   cursor: pointer;
-  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+  transition: color var(--t-color) var(--ease), border-color var(--t-color) var(--ease);
 }
 
 .reader-btn:hover,
@@ -3115,7 +3203,7 @@ html:has(body.note-composing) {
 .reader-size {
   min-width: 26px;
   text-align: center;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
@@ -3166,7 +3254,7 @@ html:has(body.note-composing) {
   max-height: 60vh;
   padding: var(--s3) var(--s4);
   overflow-y: auto;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.8;
   white-space: pre-wrap;
   background: var(--surface-2);
@@ -3189,7 +3277,7 @@ html:has(body.note-composing) {
   display: block;
   max-width: 100%;
   max-height: 320px;
-  margin: 10px 0;
+  margin: 12px 0;
   border-radius: var(--r-xs);
 }
 
@@ -3197,7 +3285,7 @@ html:has(body.note-composing) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .article-add-image {
@@ -3208,7 +3296,7 @@ html:has(body.note-composing) {
 }
 
 .article-editor-hint {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--faint);
 }
 
@@ -3251,7 +3339,7 @@ html:has(body.note-composing) {
   left: 6px;
   bottom: 6px;
   padding: 2px 8px;
-  font-size: 9.5px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--accent-ink);
@@ -3286,14 +3374,14 @@ html:has(body.note-composing) {
   display: grid;
   place-items: center;
   height: 96px;
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--faint);
   background-image: none;
   border-style: dashed;
   border-color: var(--line-strong);
   border-radius: var(--r-sm);
   cursor: pointer;
-  transition: color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+  transition: color var(--t-color) var(--ease), border-color var(--t-color) var(--ease);
 }
 
 .image-add-cell:hover {
@@ -3304,9 +3392,9 @@ html:has(body.note-composing) {
 .nutrition-preview {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 16px;
+  gap: 8px 16px;
   padding: var(--s3) var(--s4);
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--text-2);
   background: var(--accent-06);
   border: 1px solid var(--accent-28);
@@ -3343,11 +3431,11 @@ html:has(body.note-composing) {
 /* ---------- 视频与照片 ---------- */
 
 .video-add {
-  margin-bottom: var(--s5);
+  margin-bottom: var(--s4);
 }
 
 .video-upload {
-  margin-bottom: var(--s5);
+  margin-bottom: var(--s4);
   padding: var(--s4);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
@@ -3374,8 +3462,7 @@ html:has(body.note-composing) {
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
   cursor: pointer;
-  transition: transform var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
-    box-shadow var(--t-fast) var(--ease);
+  transition: transform var(--t-move) var(--ease), border-color var(--t-color) var(--ease), box-shadow var(--t-color) var(--ease);
 }
 
 .video-open:hover {
@@ -3402,20 +3489,98 @@ span.video-thumb {
   color: var(--faint);
 }
 
+/* 骨架占位：与真实缩略图同形状，轻脉冲示意加载中 */
+span.video-thumb.is-skeleton {
+  animation: skeleton-pulse 1.5s var(--ease) infinite;
+}
+
+/* poster 就绪后淡入替换骨架 */
+img.video-thumb.is-in {
+  animation: fade-in var(--t-color) var(--ease) both;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 存储占用的加载骨架行 */
+.skeleton-line {
+  display: block;
+  height: 12px;
+  width: 72%;
+  border-radius: var(--r-xs);
+  background: var(--surface-2);
+  animation: skeleton-pulse 1.5s var(--ease) infinite;
+}
+
+/* ---------- 图片骨架与淡入（RecipeImage / ArticleImage / 笔记媒体恢复） ---------- */
+
+/* 骨架形状由外部 className 决定（recipe-thumb 76px / detail-image 16:10 / editor-image 1:1） */
+.recipe-image.is-skeleton,
+.article-image-skeleton {
+  animation: skeleton-pulse 1.5s var(--ease) infinite;
+}
+
+.article-image-skeleton {
+  aspect-ratio: 4 / 3;
+  max-height: 320px;
+}
+
+img.recipe-image.is-in,
+img.article-image-in {
+  animation: fade-in var(--t-color) var(--ease) both;
+}
+
+/* 笔记媒体恢复中：src 异步补齐前先占住版面，避免内容突现跳动 */
+.note-compose-body img[data-image-id]:not([src]) {
+  min-height: 120px;
+  background: var(--surface-2);
+  animation: skeleton-pulse 1.5s var(--ease) infinite;
+}
+
+.note-compose-body video[data-video-id]:not([src]) {
+  min-height: 160px;
+  background: var(--surface-2);
+  animation: skeleton-pulse 1.5s var(--ease) infinite;
+}
+
+/* 字段级 muted 提示（编辑器「为什么不能保存」） */
+.field-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .video-item-bar {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding: var(--s2) 11px 11px;
+  gap: 2px;
+  padding: var(--s2) 12px 12px;
 }
 
 .video-item-label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .video-item-meta {
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
@@ -3452,7 +3617,7 @@ span.video-thumb {
 
 .video-edit {
   left: 6px;
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .video-usage {
@@ -3466,7 +3631,7 @@ span.video-thumb {
   z-index: 80;
   display: flex;
   flex-direction: column;
-  padding: calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 14px);
+  padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 16px);
   background: var(--video-bg);
 }
 
@@ -3491,7 +3656,7 @@ span.video-thumb {
 
 .photo-viewer-count {
   flex: none;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -3541,7 +3706,7 @@ span.video-thumb {
 
 .video-slide-meta {
   padding: 2px 0 4px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--muted);
   text-align: center;
   white-space: nowrap;
@@ -3558,7 +3723,7 @@ span.video-thumb {
 .video-controls {
   display: flex;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 body.player-open .tabbar {
@@ -3589,15 +3754,15 @@ body.player-open .tabbar {
 .media-caption {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: var(--s2) 11px;
+  gap: 8px;
+  padding: var(--s2) 12px;
 }
 
 .media-caption-title {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-2);
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -3639,7 +3804,7 @@ body.player-open .tabbar {
   place-items: center;
   width: 44px;
   height: 44px;
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1;
   color: var(--on-scrim);
   background: var(--scrim-wash);
@@ -3668,7 +3833,7 @@ body.player-open .tabbar {
   position: absolute;
   bottom: calc(env(safe-area-inset-bottom) + 8px);
   left: 50%;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--faint);
   white-space: nowrap;
   pointer-events: none;
@@ -3696,7 +3861,7 @@ body.player-open .tabbar {
   display: flex;
   align-items: center;
   gap: var(--s2);
-  padding: 10px 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -3708,7 +3873,7 @@ body.player-open .tabbar {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-2);
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -3732,7 +3897,7 @@ body.player-open .tabbar {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--s1);
-  padding: 6px var(--s3) calc(6px + env(safe-area-inset-bottom));
+  padding: 8px var(--s3) calc(8px + env(safe-area-inset-bottom));
   background: var(--glass);
   backdrop-filter: saturate(150%) blur(20px);
   -webkit-backdrop-filter: saturate(150%) blur(20px);
@@ -3749,7 +3914,7 @@ body.player-open .tabbar {
   gap: 4px;
   min-height: 54px;
   padding: 4px 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--muted);
@@ -3757,7 +3922,7 @@ body.player-open .tabbar {
   border: none;
   border-radius: var(--r-sm);
   cursor: pointer;
-  transition: color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+  transition: color var(--t-color) var(--ease), background-color var(--t-color) var(--ease);
 }
 
 .tabbar button::before {
@@ -3767,7 +3932,7 @@ body.player-open .tabbar {
   margin-bottom: 2px;
   border-radius: var(--r-full);
   background: transparent;
-  transition: background-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
+  transition: background-color var(--t-color) var(--ease), box-shadow var(--t-color) var(--ease);
 }
 
 .tabbar button:hover {
@@ -3809,7 +3974,8 @@ body.player-open .tabbar {
 .training-checkin {
   margin-top: var(--s6);
   padding: var(--s4);
-  background-color: var(--surface-1);  border: 1px solid var(--line);
+  background-color: var(--surface-1);
+  border: 1px solid var(--line);
   border-left: 3px solid var(--accent);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
@@ -3836,7 +4002,7 @@ body.player-open .tabbar {
 .training-checkin-seq {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-1);
+  color: var(--text);
 }
 
 .training-checkin.is-push .training-checkin-seq {
@@ -3863,13 +4029,13 @@ body.player-open .tabbar {
 
 .training-checkin-done {
   flex: 1 1 100%;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--success);
 }
 
 .training-stats {
-  margin-top: var(--s5);
+  margin-top: var(--s4);
   padding: var(--s4);
   background: var(--surface-2);
   border: 1px solid var(--line);
@@ -3878,16 +4044,16 @@ body.player-open .tabbar {
 
 .training-stats-title {
   margin-bottom: var(--s2);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--faint);
 }
 
 .training-stats-line {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--text-1);
+  color: var(--text);
 }
 
 .training-stats-meta {
@@ -3918,7 +4084,7 @@ body.player-open .tabbar {
 }
 
 .training-record-text {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-2);
 }
 
@@ -3946,7 +4112,7 @@ body.player-open .tabbar {
     padding-top: var(--s8);
   }
   .page-title {
-    font-size: 34px;
+    font-size: 32px;
   }
 }
 
@@ -3977,7 +4143,7 @@ body.player-open .tabbar {
 }
 
 .week-plan-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -4028,7 +4194,7 @@ body.player-open .tabbar {
   width: 100%;
   min-height: 44px;
   padding: 0 var(--s2);
-  font-size: 13.5px;
+  font-size: 12px;
   text-align: left;
   background: transparent;
   border: 0;
@@ -4075,7 +4241,7 @@ button.week-plan-row:active {
   place-items: center;
   width: 22px;
   height: 22px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--accent-text);
   border: 1px solid var(--line);
   border-radius: var(--r-full);
@@ -4088,7 +4254,7 @@ button.week-plan-row:active {
 
 .week-plan-note {
   margin: var(--s2) 0 0;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--faint);
 }
 
@@ -4102,13 +4268,13 @@ button.week-plan-row:active {
 
 .cycle-title {
   margin: 0 0 var(--s1);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .cycle-line {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 12px;
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
@@ -4133,7 +4299,7 @@ button.week-plan-row:active {
   display: flex;
   align-items: center;
   gap: var(--s2);
-  padding: 10px var(--s3);
+  padding: 12px var(--s3);
   background: var(--glass);
   border-top: 1px solid var(--line);
   backdrop-filter: saturate(150%) blur(20px);
@@ -4146,7 +4312,7 @@ button.week-plan-row:active {
 
 .plan-actionbar-done {
   flex: 1 1 auto;
-  font-size: 13.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--accent-text);
 }
@@ -4158,7 +4324,7 @@ button.week-plan-row:active {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin: var(--s2) 0 0;
 }
 
@@ -4175,8 +4341,8 @@ button.week-plan-row:active {
 
 .topic-chip {
   min-height: 44px;
-  padding: 0 14px;
-  font-size: 12.5px;
+  padding: 0 16px;
+  font-size: 12px;
   color: var(--text-2);
   background: var(--surface-2);
   border: 1px solid var(--line);
@@ -4191,8 +4357,8 @@ button.week-plan-row:active {
 }
 
 .memo-topic {
-  padding: 1px 8px;
-  font-size: 11px;
+  padding: 2px 8px;
+  font-size: 12px;
   color: var(--accent-text);
   background: var(--accent-06);
   border: 1px solid var(--accent-28);
@@ -4245,7 +4411,7 @@ button.week-plan-row:active {
 
 .version-badge {
   min-height: 48px;
-  padding: 0 14px;
+  padding: 0 16px;
   display: inline-flex;
   align-items: center;
 }
@@ -4290,11 +4456,7 @@ button.week-plan-row:active {
 .training-record-del {
   min-width: 48px;
   min-height: 48px;
-  padding: 0 10px;
-}
-
-.ghost-btn.small {
-  min-height: 48px;
+  padding: 0 12px;
 }
 
 .remove-btn {
@@ -4305,6 +4467,15 @@ button.week-plan-row:active {
 .image-remove {
   width: 36px;
   height: 36px;
+}
+
+/* 排序下拉（笔记 tab + 食谱 tab 复用）：label 包裹 select，容器扩容即命中区扩容 */
+.notes-view-ctl {
+  min-height: 48px;
+}
+
+.notes-view-ctl select {
+  min-height: 44px;
 }
 
 .image-remove::after {
@@ -4337,7 +4508,7 @@ button.week-plan-row:active {
   flex: none;
   min-height: 48px;
   padding: 0 var(--s4);
-  font-size: 13px;
+  font-size: 12px;
   border-radius: var(--r-sm);
   white-space: nowrap;
 }
@@ -4353,4 +4524,93 @@ button.week-plan-row:active {
 
 .recipe-sort-ctl {
   margin-left: 0;
+}
+
+/* ===== 六态补齐：hover/active/disabled 统一兜底（终查轮） ===== */
+
+/* 笔记编辑器标题/正文：border 0 + outline none 把键盘焦点环也剥掉了，
+   :focus-visible 恢复（鼠标点击不出现，不破坏极简版式） */
+.note-compose-title:focus-visible,
+.note-compose-body:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 4px;
+}
+
+.topic-chip:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.week-plan-row:hover {
+  background: var(--surface-2);
+}
+
+.memo-pin:hover:not(.is-on) {
+  color: var(--text-2);
+}
+
+.training-record-del:hover {
+  background: var(--danger-12);
+  border-color: var(--danger-28);
+}
+
+.remove-btn:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.image-remove:hover {
+  transform: scale(1.08);
+}
+
+/* 按压反馈：统一轻缩放 */
+.topic-chip:active,
+.image-remove:active,
+.remove-btn:active,
+.training-record-del:active,
+.memo-pin:active,
+.note-tool-icon:active,
+.back-btn:active {
+  transform: scale(0.96);
+}
+
+/* 补 transform 过渡（保留各元素原有过渡项，避免按压反馈跳变） */
+.topic-chip {
+  transition: color var(--t-color) var(--ease), background-color var(--t-color) var(--ease),
+    border-color var(--t-color) var(--ease), transform var(--t-move) var(--ease);
+}
+
+.remove-btn {
+  transition: color var(--t-color) var(--ease), border-color var(--t-color) var(--ease),
+    transform var(--t-move) var(--ease);
+}
+
+.training-record-del {
+  transition: color var(--t-color) var(--ease), border-color var(--t-color) var(--ease),
+    background-color var(--t-color) var(--ease), transform var(--t-move) var(--ease);
+}
+
+.memo-pin {
+  transition: color var(--t-color) var(--ease), background-color var(--t-color) var(--ease),
+    transform var(--t-move) var(--ease);
+}
+
+.image-remove {
+  transition: transform var(--t-move) var(--ease), opacity var(--t-color) var(--ease);
+}
+
+.note-tool-icon {
+  transition: color var(--t-color) var(--ease), background-color var(--t-color) var(--ease),
+    transform var(--t-move) var(--ease);
+}
+
+/* 实际会被 disabled 的元素补视觉区分态 */
+.ghost-btn:disabled,
+.back-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ghost-btn:disabled {
+  transform: none;
 }

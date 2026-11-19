@@ -3,6 +3,7 @@ import type { ChangeEvent, ClipboardEvent } from 'react'
 import type { ArticleBlock } from '../types'
 import { compressImage } from '../lib/image'
 import { deleteImage, getImage, putImage } from '../lib/storage'
+import { useNotice } from '../hooks/useNotice'
 
 interface Props {
   title: string
@@ -143,6 +144,7 @@ export default function ArticleEditor({ title: initialTitle, blocks, onSave, onC
   const objectUrls = useRef<string[]>([])
   const srcMap = useRef<Map<string, string>>(new Map())
   const savedRef = useRef(false)
+  const { show: showNotice, node: noticeNode } = useNotice()
 
   useEffect(() => {
     const editor = editorRef.current
@@ -280,7 +282,7 @@ export default function ArticleEditor({ title: initialTitle, blocks, onSave, onC
       }
       if (next.length > 0) insertHtml(blocksToHtml(next, srcMap.current))
     } catch {
-      window.alert('粘贴处理失败，图片可能太大，可以试试分批粘贴。')
+      showNotice('粘贴处理失败，图片可能太大，可以试试分批粘贴。')
     } finally {
       setBusy(false)
     }
@@ -296,7 +298,7 @@ export default function ArticleEditor({ title: initialTitle, blocks, onSave, onC
       for (const file of files) next.push({ type: 'image', imageId: await storeBlob(file) })
       insertHtml(blocksToHtml(next, srcMap.current))
     } catch {
-      window.alert('图片保存失败，手机空间可能不够了，清理后再试。')
+      showNotice('图片保存失败，手机空间可能不够了，清理后再试。')
     } finally {
       setBusy(false)
     }
@@ -320,6 +322,10 @@ export default function ArticleEditor({ title: initialTitle, blocks, onSave, onC
         placeholder="文章标题"
         onChange={(event) => setTitle(event.target.value)}
       />
+      {(!title.trim() || !hasContent) && (
+        <span className="field-hint">写个标题和一点内容就能保存。</span>
+      )}
+      {noticeNode}
       <div
         ref={editorRef}
         className="field-input article-editor-body"

@@ -54,6 +54,8 @@ export function addExerciseProfile(
 ): ExerciseProfile | null {
   const trimmed = name.trim()
   if (!trimmed) return null
+  // 重名拦截：UI 有实时提示，这里做最后防线
+  if (isDuplicateExerciseName(trimmed)) return null
   const item: ExerciseProfile = {
     id: `ex-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     name: trimmed,
@@ -62,6 +64,13 @@ export function addExerciseProfile(
   }
   writeJSON(KEY, [...getExerciseProfiles(), item])
   return item
+}
+
+// 重名判定：同一动作名只允许一条档案；编辑时排除自身
+export function isDuplicateExerciseName(name: string, excludeId?: string): boolean {
+  const trimmed = name.trim()
+  if (!trimmed) return false
+  return getExerciseProfiles().some((item) => item.id !== excludeId && item.name === trimmed)
 }
 
 export function updateExerciseProfile(
@@ -73,6 +82,7 @@ export function updateExerciseProfile(
   if (!current) return null
   const name = patch.name === undefined ? current.name : patch.name.trim()
   if (!name) return null
+  if (patch.name !== undefined && isDuplicateExerciseName(name, id)) return null
 
   const updated: ExerciseProfile = {
     ...current,

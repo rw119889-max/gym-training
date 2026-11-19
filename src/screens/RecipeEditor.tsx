@@ -7,6 +7,7 @@ import { deleteImage, putImage } from '../lib/storage'
 import { formatGram, recipeNutrition } from '../lib/nutrition'
 import RecipeImage from '../components/RecipeImage'
 import NumberField from '../components/NumberField'
+import { useNotice } from '../hooks/useNotice'
 
 interface Props {
   recipeId: string | null
@@ -40,6 +41,7 @@ export default function RecipeEditor({ recipeId, onBack, onSaved, onDirtyChange 
   const [imageBusy, setImageBusy] = useState(false)
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
+  const { show: showNotice, node: noticeNode } = useNotice()
   const urlsRef = useRef<string[]>([])
   const [recentIngredients, setRecentIngredients] = useState<string[]>(() => getRecentIngredients())
 
@@ -128,7 +130,7 @@ export default function RecipeEditor({ recipeId, onBack, onSaved, onDirtyChange 
         imageIds: [...prev.imageIds, ...added.map((item) => item.id)],
       }))
     } catch {
-      window.alert('图片处理失败，换一张试试')
+      showNotice('图片处理失败，换一张试试')
     } finally {
       setImageBusy(false)
     }
@@ -161,7 +163,7 @@ export default function RecipeEditor({ recipeId, onBack, onSaved, onDirtyChange 
       for (const id of removedIds) await deleteImage(id)
       // 文字数据写入失败时保持编辑态，图片已写入只多不少，下次保存会覆盖
       if (!saveRecipe({ ...draft, name: draft.name.trim(), updatedAt: new Date().toISOString() })) {
-        window.alert('保存失败（手机存储可能已满）。菜谱仍在编辑中，尚未保存，请清理空间后重试。')
+        showNotice('保存失败（手机存储可能已满）。菜谱仍在编辑中，尚未保存，请清理空间后重试。')
         setSaving(false)
         return
       }
@@ -171,7 +173,7 @@ export default function RecipeEditor({ recipeId, onBack, onSaved, onDirtyChange 
       setDirty(false)
       onSaved(draft.id)
     } catch {
-      window.alert('保存失败，手机空间可能不够了，清理后再试。菜谱仍在编辑中，尚未保存。')
+      showNotice('保存失败，手机空间可能不够了，清理后再试。菜谱仍在编辑中，尚未保存。')
       setSaving(false)
     }
   }
@@ -187,14 +189,18 @@ export default function RecipeEditor({ recipeId, onBack, onSaved, onDirtyChange 
         </button>
       </div>
 
+      {noticeNode}
+
       <label className="field">
         <span className="field-label">菜名</span>
         <input
           className="field-input"
           value={draft.name}
+          maxLength={40}
           onChange={(event) => patch({ name: event.target.value })}
           placeholder="例如：番茄牛腩"
         />
+        {!canSave && <span className="field-hint">填一个菜名就能保存。</span>}
       </label>
 
       <div className="field">

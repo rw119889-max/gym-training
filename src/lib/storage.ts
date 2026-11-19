@@ -19,10 +19,11 @@ export function writeJSON(key: string, value: unknown): boolean {
     storageWarned = false
     return true
   } catch {
-    // 空间满或被禁用时不静默丢数据：提示一次，直到下一次成功写入再复位
+    // 空间满或被禁用时不静默丢数据：控制台留痕 + 返回 false，
+    // 关键写入路径（保存笔记/菜谱/打卡等）的调用方会弹 inline notice。
     if (!storageWarned) {
       storageWarned = true
-      window.alert('手机存储写入失败（可能空间已满）。这次改动可能没保存，请导出备份并清理空间后重试。')
+      console.error(`[storage] 写入失败（可能空间已满）：${PREFIX}${key}`)
     }
     return false
   }

@@ -160,6 +160,9 @@ export default function App() {
 
   return (
     <div className="app">
+      <a className="skip-link" href="#main-content">
+        跳到主内容
+      </a>
       <header className="app-header">
         <span className="brand">自律更自由</span>
         <div className="header-tools">
@@ -188,7 +191,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="tab-content">
+      <main className="tab-content" id="main-content">
         <div hidden={tab !== 'exercises'}>
           <ExerciseTab active={tab === 'exercises'} onOpenNotes={openNotesFromPlan} />
         </div>
