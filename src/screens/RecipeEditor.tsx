@@ -6,6 +6,7 @@ import { compressImage } from '../lib/image'
 import { deleteImage, putImage } from '../lib/storage'
 import { formatGram, recipeNutrition } from '../lib/nutrition'
 import RecipeImage from '../components/RecipeImage'
+import RecipeVideos from '../components/RecipeVideos'
 import NumberField from '../components/NumberField'
 import { useNotice } from '../hooks/useNotice'
 
@@ -235,6 +236,8 @@ export default function RecipeEditor({ recipeId, onBack, onSaved, onDirtyChange 
           </label>
         </div>
       </div>
+
+      <RecipeVideos recipeId={draft.id} />
 
       <div className="field">
         <span className="field-label">餐次</span>

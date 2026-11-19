@@ -34,6 +34,10 @@ import {
   weekdayLabel,
   WEEK_DISPLAY_ORDER,
 } from '../lib/weeklyPlan'
+import { addWarmup, getWarmups, removeWarmup, resetWarmups } from '../lib/warmups'
+import type { WarmupItem } from '../lib/warmups'
+import { getPlanOverride, removePlanOverride, setPlanOverride } from '../lib/planOverrides'
+import type { PlanOverride } from '../lib/planOverrides'
 
 type MediaKind = 'videos' | 'photos' | 'articles'
 type Bucket = ExerciseCategory | 'unassigned'
@@ -62,18 +66,221 @@ function bucketOf(item: ExerciseProfile): Bucket {
   return item.category ?? 'unassigned'
 }
 
+// 替换动作编辑器：从「我的动作」里选（按当日推/拉过滤），或自定义输入一个名字
+function SwapEditor({
+  day,
+  current,
+  onDone,
+}: {
+  day: 'push' | 'pull'
+  current: PlanOverride | null
+  onDone: (next: PlanOverride | null) => void
+}) {
+  const [custom, setCustom] = useState(current?.name ?? '')
+  const profiles = getExerciseProfiles().filter((item) => item.category === day)
+
+  return (
+    <div className="swap-editor">
+      <p className="swap-editor-label">从我的动作里选（{day === 'push' ? '推' : '拉'}类）：</p>
+      {profiles.length > 0 ? (
+        <div className="swap-picks">
+          {profiles.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="filter-chip"
+              onClick={() => onDone({ name: item.name })}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="field-hint">动作库里还没有{day === 'push' ? '推' : '拉'}类动作，直接在下面输入。</p>
+      )}
+      <form
+        className="swap-custom"
+        onSubmit={(event) => {
+          event.preventDefault()
+          const trimmed = custom.trim()
+          if (trimmed) onDone({ name: trimmed })
+        }}
+      >
+        <input
+          className="field-input"
+          value={custom}
+          maxLength={20}
+          placeholder="或直接输入动作名，如：单手绳索臂屈伸"
+          onChange={(event) => setCustom(event.target.value)}
+        />
+        <div className="backup-actions">
+          <button className="save-btn" type="submit" disabled={!custom.trim()}>
+            就练这个
+          </button>
+          {current && (
+            <button
+              className="ghost-btn small"
+              type="button"
+              onClick={() => onDone(null)}
+            >
+              还原原动作
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// 热身卡：推/拉日各一套，可添加/删除条目、可恢复默认
+function WarmupCard({ day }: { day: 'push' | 'pull' }) {
+  const [items, setItems] = useState<WarmupItem[]>(() => getWarmups()[day])
+  const [adding, setAdding] = useState(false)
+  const [name, setName] = useState('')
+  const [note, setNote] = useState('')
+  const [open, setOpen] = useState(true)
+
+  const handleAdd = () => {
+    const item = addWarmup(day, name, note)
+    if (item) {
+      setItems(getWarmups()[day])
+      setName('')
+      setNote('')
+      setAdding(false)
+    }
+  }
+
+  const handleRemove = (id: string) => {
+    removeWarmup(day, id)
+    setItems(getWarmups()[day])
+  }
+
+  const handleReset = () => {
+    resetWarmups(day)
+    setItems(getWarmups()[day])
+    setAdding(false)
+  }
+
+  return (
+    <div className="warmup-card">
+      <button
+        type="button"
+        className="warmup-head"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <span className="warmup-title">热身（先热身再上重量）</span>
+        <span className="warmup-count">{items.length} 项</span>
+        <span className={`plan-exercise-chevron${open ? ' is-open' : ''}`} aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9.5l6 6 6-6" />
+          </svg>
+        </span>
+      </button>
+      {open && (
+        <div className="warmup-body">
+          {items.length === 0 && <p className="field-hint">还没有热身项，点下方「+ 添加热身动作」。</p>}
+          <ul className="warmup-list">
+            {items.map((item) => (
+              <li key={item.id} className="warmup-item">
+                <span className="warmup-item-text">
+                  <span className="warmup-item-name">{item.name}</span>
+                  {item.note && <span className="warmup-item-note">{item.note}</span>}
+                </span>
+                <button
+                  type="button"
+                  className="warmup-del"
+                  aria-label={`删除热身项 ${item.name}`}
+                  onClick={() => handleRemove(item.id)}
+                >
+                  删除
+                </button>
+              </li>
+            ))}
+          </ul>
+          {adding ? (
+            <div className="warmup-add">
+              <input
+                className="field-input"
+                value={name}
+                maxLength={20}
+                autoFocus
+                placeholder="热身动作名，如：弹力带肩环绕"
+                onChange={(event) => setName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    handleAdd()
+                  }
+                }}
+              />
+              <input
+                className="field-input"
+                value={note}
+                maxLength={40}
+                placeholder="要点（可留空），如：半程，十几二十次 × 2 组"
+                onChange={(event) => setNote(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    handleAdd()
+                  }
+                }}
+              />
+              <div className="backup-actions">
+                <button className="save-btn" type="button" disabled={!name.trim()} onClick={handleAdd}>
+                  添加
+                </button>
+                <button className="ghost-btn small" type="button" onClick={() => setAdding(false)}>
+                  取消
+                </button>
+                <button className="ghost-btn small" type="button" onClick={handleReset}>
+                  恢复默认
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="backup-actions">
+              <button className="ghost-btn small" type="button" onClick={() => setAdding(true)}>
+                + 添加热身动作
+              </button>
+              <button className="ghost-btn small" type="button" onClick={handleReset}>
+                恢复默认
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function PlanExerciseCard({
   exercise,
   index,
-  defaultOpen,
+  day,
 }: {
   exercise: PlanExercise
   index: number
-  defaultOpen: boolean
+  day: 'push' | 'pull'
 }) {
-  const [open, setOpen] = useState(defaultOpen)
+  const [open, setOpen] = useState(false)
+  // 动作替换：进入页面时读一次覆盖；替换/还原后由子组件刷新
+  const [override, setOverride] = useState<PlanOverride | null>(() => getPlanOverride(exercise.id))
+  const [replacing, setReplacing] = useState(false)
   const hasRegression = (exercise.regression?.length ?? 0) > 0
   const hasProgression = (exercise.progression?.length ?? 0) > 0
+  const displayName = override ? override.name : exercise.name
+
+  const applyOverride = (next: PlanOverride | null) => {
+    if (next) {
+      setPlanOverride(exercise.id, next)
+    } else {
+      removePlanOverride(exercise.id)
+    }
+    setOverride(next)
+    setReplacing(false)
+  }
 
   return (
     <li className={open ? 'plan-exercise is-open' : 'plan-exercise'}>
@@ -87,8 +294,11 @@ function PlanExerciseCard({
           {index + 1}
         </span>
         <span className="plan-exercise-main">
-          <span className="plan-exercise-name">{exercise.name}</span>
-          <span className="plan-exercise-muscles">{exercise.muscles}</span>
+          <span className="plan-exercise-name">{displayName}</span>
+          {override && <span className="plan-chip is-swapped">已替换</span>}
+          <span className="plan-exercise-muscles">
+            {override ? `原动作：${exercise.name}` : exercise.muscles}
+          </span>
           <span className="plan-exercise-tags">
             <span className="plan-chip is-sets">{exercise.sets}</span>
             <span
@@ -106,11 +316,45 @@ function PlanExerciseCard({
       </button>
       {open && (
         <div className="plan-exercise-body">
-          <ul className="plan-tips">
-            {exercise.tips.map((tip) => (
-              <li key={tip}>{tip}</li>
-            ))}
-          </ul>
+          {replacing ? (
+            <SwapEditor day={day} current={override} onDone={applyOverride} />
+          ) : (
+            <ul className="plan-tips">
+              {exercise.tips.map((tip) => (
+                <li key={tip}>{tip}</li>
+              ))}
+            </ul>
+          )}
+          <div className="swap-row">
+            {replacing ? (
+              <button
+                type="button"
+                className="ghost-btn small"
+                onClick={() => setReplacing(false)}
+              >
+                取消替换
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="ghost-btn small"
+                  onClick={() => setReplacing(true)}
+                >
+                  {override ? '换一个动作' : '替换动作'}
+                </button>
+                {override && (
+                  <button
+                    type="button"
+                    className="ghost-btn small"
+                    onClick={() => applyOverride(null)}
+                  >
+                    还原成 {exercise.name}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
           <ExerciseVideos exerciseId={exercise.id} />
           {exercise.notes && exercise.notes.length > 0 && (
             <div className="plan-block">
@@ -989,13 +1233,15 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
           {day.focus} · 按顺序练，点动作展开要点
         </p>
 
+        <WarmupCard day={route.day} />
+
         <ol className={`plan-exercise-list is-${day.id}`}>
           {day.exercises.map((exercise, index) => (
             <PlanExerciseCard
               key={exercise.id}
               exercise={exercise}
               index={index}
-              defaultOpen={index === 0}
+              day={route.day}
             />
           ))}
         </ol>
@@ -1235,12 +1481,10 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
 
   return (
     <section>
-      <h1 className="page-title">本周跟练</h1>
+      <h1 className="page-title">动作</h1>
       <p className="page-sub">
-        凯圣王 × 谭成义 推拉分化 · 先跟练 90 天，再决定下一步
+        我的动作档案 + 跟练系列 · 本周安排在跟练模块里
       </p>
-
-      <WeekPlanCard sessions={sessions} onOpenDay={(day) => setRoute({ level: 'plan', day })} />
 
       <h2 className="section-title">跟练系列</h2>
       <button

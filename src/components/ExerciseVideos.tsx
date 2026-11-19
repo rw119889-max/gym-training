@@ -53,6 +53,8 @@ export default function ExerciseVideos({ exerciseId }: Props) {
   const profiles = getExerciseProfiles()
   const orphans = clips.filter(
     (clip) =>
+      // 菜谱视频（recipe: 前缀）有自己的归属，不算孤儿
+      !clip.exerciseId.startsWith('recipe:') &&
       !COACH_EXERCISE_IDS.has(clip.exerciseId) &&
       !profiles.some((item) => item.id === clip.exerciseId),
   )

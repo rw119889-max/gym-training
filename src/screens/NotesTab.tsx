@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ChangeEvent, ClipboardEvent } from 'react'
+import type { ChangeEvent, ClipboardEvent, ReactNode } from 'react'
 import type { ExerciseNote } from '../types'
 import {
   addExerciseNote,
@@ -20,6 +20,7 @@ import { compressImage } from '../lib/image'
 import { inspectVideo } from '../lib/videoFile'
 import { deleteImage, deleteVideo, getImage, getVideo, putImage, putVideo, readJSON, writeJSON, removeKey } from '../lib/storage'
 import { useOverlayHistory } from '../hooks/useOverlayHistory'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { useNotice } from '../hooks/useNotice'
 import { linkNote } from '../lib/trainingLog'
 
@@ -186,6 +187,17 @@ function NoteEditor({
   useEffect(() => {
     onDirtyChange(dirty)
   }, [dirty, onDirtyChange])
+
+  // 打开已有笔记时默认滚到底部（长笔记接着上次的位置继续）；新笔记保持顶部
+  useEffect(() => {
+    if (!initial.id) return
+    const hasBody = initial.text.trim().length > 0 || hasNoteMedia(initialHtmlRef.current)
+    if (!hasBody) return
+    const timer = window.setTimeout(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight)
+    }, 120)
+    return () => window.clearTimeout(timer)
+  }, [initial.id])
 
   // 键盘弹出时把工具栏顶到键盘正上方：布局视口不缩水的浏览器（iOS Safari 等）
   // 里 sticky bottom:0 会被键盘盖住，用 visualViewport 算出遮挡高度实时垫高
@@ -833,6 +845,127 @@ function NoteEditor({
   )
 }
 
+// 左滑快捷删除：滑过 48px 露出「继续向左删除」提示，滑过 120px 松手弹确认；
+// 竖向滚动优先（axis 判定），拖动过则吞掉紧随的 click，避免误开笔记
+const SWIPE_HINT_AT = -48
+const SWIPE_FIRE_AT = -120
+
+const SORT_LABELS: Record<NoteSort, string> = {
+  'updated-desc': '最近更新',
+  'created-desc': '最近创建',
+  'created-asc': '最早创建',
+  title: '按标题',
+}
+
+function MemoSwipeCard({ onAskDelete, children }: { onAskDelete: () => void; children: ReactNode }) {
+  const contentRef = useRef<HTMLDivElement>(null)
+  const hintRef = useRef<HTMLSpanElement>(null)
+  const gesture = useRef({
+    startX: 0,
+    startY: 0,
+    axis: '' as '' | 'x' | 'y',
+    dragging: false,
+    moved: false,
+    dx: 0,
+  })
+
+  const applyDx = (dx: number) => {
+    gesture.current.dx = dx
+    if (contentRef.current) {
+      contentRef.current.style.transform = dx === 0 ? '' : `translateX(${dx}px)`
+    }
+    if (hintRef.current) {
+      const progress = dx <= SWIPE_HINT_AT ? Math.min(1, (-dx - 48) / 72) : 0
+      hintRef.current.style.opacity = String(progress)
+    }
+  }
+
+  const capture = (event: React.PointerEvent) => {
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // 某些浏览器对 li 不支持 capture，忽略即可
+    }
+  }
+
+  return (
+    <li
+      className="memo-card"
+      onPointerDown={(event) => {
+        if (event.pointerType === 'mouse' && event.button !== 0) return
+        const g = gesture.current
+        g.startX = event.clientX
+        g.startY = event.clientY
+        g.axis = ''
+        g.dragging = true
+        g.moved = false
+        g.dx = 0
+        if (contentRef.current) contentRef.current.style.transition = 'none'
+      }}
+      onPointerMove={(event) => {
+        const g = gesture.current
+        if (!g.dragging) return
+        const dx = event.clientX - g.startX
+        const dy = event.clientY - g.startY
+        if (!g.axis) {
+          if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
+          // 先判定主轴：竖向滚动让位给浏览器，不做手势
+          g.axis = Math.abs(dy) > Math.abs(dx) ? 'y' : 'x'
+          if (g.axis === 'y') {
+            g.dragging = false
+            if (contentRef.current) contentRef.current.style.transition = ''
+            return
+          }
+          g.moved = true
+          // 判定为横向拖动后才捕获指针：pointerdown 就捕获会把 tap 的 click
+          // 重定向到 li，笔记就点不开了
+          capture(event)
+        }
+        if (g.axis !== 'x') return
+        let target = dx
+        if (dx < SWIPE_FIRE_AT) {
+          // 过阈值后橡皮筋阻尼，暗示「再松手就删」
+          target = SWIPE_FIRE_AT + (dx - SWIPE_FIRE_AT) * 0.3
+        } else if (dx > 0) {
+          // 右滑只允许一点回弹，不做右滑动作
+          target = Math.min(16, dx * 0.25)
+        }
+        applyDx(target)
+      }}
+      onPointerUp={() => {
+        const g = gesture.current
+        if (!g.dragging) return
+        g.dragging = false
+        if (contentRef.current) contentRef.current.style.transition = ''
+        const fired = g.axis === 'x' && g.moved && g.dx <= SWIPE_FIRE_AT - 4
+        applyDx(0)
+        if (fired) onAskDelete()
+      }}
+      onPointerCancel={() => {
+        const g = gesture.current
+        g.dragging = false
+        if (contentRef.current) contentRef.current.style.transition = ''
+        applyDx(0)
+      }}
+      onClickCapture={(event) => {
+        const g = gesture.current
+        if (g.axis === 'x' && g.moved) {
+          g.moved = false
+          event.preventDefault()
+          event.stopPropagation()
+        }
+      }}
+    >
+      <span className="memo-swipe-hint" ref={hintRef} aria-hidden="true">
+        继续向左删除
+      </span>
+      <div className="memo-swipe-content" ref={contentRef}>
+        {children}
+      </div>
+    </li>
+  )
+}
+
 export default function NotesTab({ active, onBackToSource }: Props) {
   const [notes, setNotes] = useState<ExerciseNote[]>(() => getExerciseNotes())
   const [query, setQuery] = useState('')
@@ -961,6 +1094,42 @@ export default function NotesTab({ active, onBackToSource }: Props) {
     writeJSON('noteFilter', next)
   }
 
+  // 筛选/排序弹层 + 左滑删除确认
+  const [popOpen, setPopOpen] = useState<null | 'filter' | 'sort'>(null)
+  const [pendingDelete, setPendingDelete] = useState<ExerciseNote | null>(null)
+
+  useEffect(() => {
+    if (!popOpen) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPopOpen(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [popOpen])
+
+  const filterLabel =
+    activeFilter === 'all'
+      ? '全部笔记'
+      : activeFilter === 'pinned'
+        ? '只看置顶'
+        : (NOTE_TOPICS.find((item) => item.id === activeFilter)?.label ?? '全部笔记')
+
+  const sortLabel = SORT_LABELS[sort]
+
+  const confirmDelete = () => {
+    const note = pendingDelete
+    setPendingDelete(null)
+    if (!note) return
+    if (!deleteExerciseNote(note.id)) {
+      showListNotice('删除失败（手机存储可能已满），笔记保留。')
+      return
+    }
+    if (!unlinkNoteByNoteId(note.id)) {
+      showListNotice('笔记已删除，但跟练记录的心得引用清理失败，记录里可能仍显示「有心得」。', 'warning')
+    }
+    refresh()
+  }
+
   const startNew = () => {
     listScrollRef.current = window.scrollY
     dirtyRef.current = false
@@ -1081,54 +1250,115 @@ export default function NotesTab({ active, onBackToSource }: Props) {
 
       {notes.length > 0 && (
         <div className="notes-view-row">
-          <label className="notes-view-ctl">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M4 5.5h16M7 12h10M10 18.5h4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-            </svg>
-            <select
-              value={activeFilter}
-              aria-label="筛选笔记"
-              onChange={(event) => changeFilter(event.target.value)}
+          <div className={popOpen === 'filter' ? 'notes-ctl-wrap is-open' : 'notes-ctl-wrap'}>
+            <button
+              type="button"
+              className="notes-ctl-btn"
+              aria-haspopup="listbox"
+              aria-expanded={popOpen === 'filter'}
+              onClick={() => setPopOpen(popOpen === 'filter' ? null : 'filter')}
             >
-              <option value="all">全部笔记</option>
-              <option value="pinned">只看置顶</option>
-              {NOTE_TOPICS.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="notes-view-ctl">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M8 5.5v13m0 0l-3.5-3.5M8 18.5l3.5-3.5M16 18.5v-13m0 0l-3.5 3.5M16 5.5l3.5 3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <select
-              value={sort}
-              aria-label="排序方式"
-              onChange={(event) => changeSort(event.target.value as NoteSort)}
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M4 5.5h16M7 12h10M10 18.5h4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span>{filterLabel}</span>
+              <svg className="notes-ctl-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {popOpen === 'filter' && (
+              <div className="notes-pop" role="listbox" aria-label="筛选笔记">
+                {[{ id: 'all', label: '全部笔记' }, { id: 'pinned', label: '只看置顶' }, ...NOTE_TOPICS].map(
+                  (item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="option"
+                      aria-selected={filter === item.id}
+                      className={filter === item.id ? 'notes-pop-item is-active' : 'notes-pop-item'}
+                      onClick={() => {
+                        changeFilter(item.id)
+                        setPopOpen(null)
+                      }}
+                    >
+                      <span>{item.label}</span>
+                      {filter === item.id && (
+                        <svg viewBox="0 0 24 24" aria-hidden="true" className="notes-pop-check">
+                          <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </button>
+                  ),
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className={popOpen === 'sort' ? 'notes-ctl-wrap is-open' : 'notes-ctl-wrap'}>
+            <button
+              type="button"
+              className="notes-ctl-btn"
+              aria-haspopup="listbox"
+              aria-expanded={popOpen === 'sort'}
+              onClick={() => setPopOpen(popOpen === 'sort' ? null : 'sort')}
             >
-              <option value="updated-desc">最近更新</option>
-              <option value="created-desc">最近创建</option>
-              <option value="created-asc">最早创建</option>
-              <option value="title">按标题</option>
-            </select>
-          </label>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M8 5.5v13m0 0l-3.5-3.5M8 18.5l3.5-3.5M16 18.5v-13m0 0l-3.5 3.5M16 5.5l3.5 3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span>{sortLabel}</span>
+              <svg className="notes-ctl-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {popOpen === 'sort' && (
+              <div className="notes-pop" role="listbox" aria-label="排序方式">
+                {NOTE_SORTS.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    role="option"
+                    aria-selected={sort === item}
+                    className={sort === item ? 'notes-pop-item is-active' : 'notes-pop-item'}
+                    onClick={() => {
+                      changeSort(item)
+                      setPopOpen(null)
+                    }}
+                  >
+                    <span>{SORT_LABELS[item]}</span>
+                    {sort === item && (
+                      <svg viewBox="0 0 24 24" aria-hidden="true" className="notes-pop-check">
+                        <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <span className="notes-view-count">{visible.length} 条</span>
         </div>
+      )}
+      {popOpen && (
+        <button
+          type="button"
+          className="notes-pop-backdrop"
+          aria-label="关闭菜单"
+          onClick={() => setPopOpen(null)}
+        />
       )}
 
       {notes.length === 0 && (
@@ -1146,7 +1376,7 @@ export default function NotesTab({ active, onBackToSource }: Props) {
             const preview = title ? note.text.trim() : restOf(note.text)
 
             return (
-              <li key={note.id} className="memo-card">
+              <MemoSwipeCard key={note.id} onAskDelete={() => setPendingDelete(note)}>
                 <button
                   type="button"
                   className="memo-open"
@@ -1170,10 +1400,18 @@ export default function NotesTab({ active, onBackToSource }: Props) {
                 >
                   <PinIcon filled={note.pinned === true} />
                 </button>
-              </li>
+              </MemoSwipeCard>
             )
           })}
         </ul>
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          message={`删除「${(pendingDelete.title ?? '').trim() || firstLine(pendingDelete.text) || '无标题'}」？删除后无法恢复。`}
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDelete(null)}
+        />
       )}
     </section>
   )

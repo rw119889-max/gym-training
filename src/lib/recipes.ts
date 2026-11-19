@@ -1,5 +1,6 @@
 import type { MealSlot, Recipe } from '../types'
 import { readJSON, writeJSON } from './storage'
+import { deleteVideoClip, getVideos } from './videos'
 
 const KEY = 'recipes'
 
@@ -64,6 +65,10 @@ export function deleteRecipe(id: string): void {
     KEY,
     getRecipes().filter((recipe) => recipe.id !== id),
   )
+  // 顺带清掉菜谱绑定的视频（recipe:<id> 归属），避免孤儿文件
+  for (const clip of getVideos().filter((video) => video.exerciseId === `recipe:${id}`)) {
+    void deleteVideoClip(clip.id)
+  }
 }
 
 export function newRecipe(): Recipe {

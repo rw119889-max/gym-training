@@ -2526,13 +2526,15 @@ body::after {
   margin: calc(var(--s2) * -1) 0 var(--s4);
 }
 
+/* 旧的原生 select 筛选/排序控件已替换为 .notes-ctl-btn + .notes-pop 弹层
+   （.notes-view-ctl 仅剩食谱 tab 的排序下拉还在用，保留基础样式） */
 .notes-view-ctl {
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 34px;
-  padding: 0 12px 0 12px;
+  min-height: 44px;
+  padding: 0 12px;
   color: var(--muted);
   background: var(--surface-1);
   border: 1px solid var(--line);
@@ -2554,7 +2556,7 @@ body::after {
 }
 
 .notes-view-ctl select {
-  min-height: 32px;
+  min-height: 44px;
   padding: 0;
   font: inherit;
   font-size: 12px;
@@ -4469,15 +4471,6 @@ button.week-plan-row:active {
   height: 36px;
 }
 
-/* 排序下拉（笔记 tab + 食谱 tab 复用）：label 包裹 select，容器扩容即命中区扩容 */
-.notes-view-ctl {
-  min-height: 48px;
-}
-
-.notes-view-ctl select {
-  min-height: 44px;
-}
-
 .image-remove::after {
   inset: -6px;
 }
@@ -4613,4 +4606,359 @@ button.week-plan-row:active {
 
 .ghost-btn:disabled {
   transform: none;
+}
+
+/* ===== 计划日：热身卡 + 动作替换 ===== */
+
+.warmup-card {
+  margin: var(--s4) 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.warmup-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--s3) var(--s4);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.warmup-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.warmup-count {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.warmup-head .plan-exercise-chevron {
+  width: 20px;
+  height: 20px;
+  transition: transform var(--t-move) var(--ease);
+}
+
+.warmup-head .plan-exercise-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.warmup-body {
+  padding: 0 var(--s4) var(--s4);
+  display: grid;
+  gap: var(--s2);
+}
+
+.warmup-list {
+  list-style: none;
+  display: grid;
+  gap: var(--s2);
+}
+
+.warmup-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.warmup-item:last-child {
+  border-bottom: 0;
+}
+
+.warmup-item-text {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+
+.warmup-item-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.warmup-item-name::before {
+  content: "· ";
+  color: var(--accent-text);
+}
+
+.warmup-item-note {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.warmup-del {
+  flex: none;
+  min-height: 32px;
+  padding: 0 var(--s3);
+  font-size: 12px;
+  color: var(--danger);
+  background: transparent;
+  border: 1px solid var(--danger-28);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background-color var(--t-color) var(--ease), transform var(--t-move) var(--ease);
+}
+
+.warmup-del:active {
+  transform: scale(0.96);
+}
+
+.warmup-add {
+  display: grid;
+  gap: var(--s2);
+  padding-top: var(--s2);
+  border-top: 1px dashed var(--line);
+}
+
+.swap-editor {
+  display: grid;
+  gap: var(--s3);
+  padding: var(--s3);
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+}
+
+.swap-editor-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.swap-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.swap-custom {
+  display: grid;
+  gap: var(--s2);
+  padding-top: var(--s2);
+  border-top: 1px dashed var(--line);
+}
+
+.swap-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+
+.plan-chip.is-swapped {
+  color: var(--accent-text);
+  background: var(--accent-12);
+  border-color: var(--accent-28);
+}
+
+.plan-exercise-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+/* ===== 笔记：左滑删除 + 筛选/排序弹层 + 确认弹窗 ===== */
+
+.memo-card {
+  touch-action: pan-y;
+  overflow: hidden;
+}
+
+.memo-swipe-content {
+  flex: 1;
+  display: flex;
+  position: relative;
+  z-index: 1;
+  background: var(--surface-1);
+}
+
+.memo-swipe-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: var(--s4);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--danger-ink);
+  background: var(--danger);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.notes-ctl-wrap {
+  position: relative;
+}
+
+/* 弹层开着时把 wrap 提到 backdrop 之上：
+   页面 reveal 动画留下的 transform 会创建堆叠上下文，光靠弹层自身 z-index 压不住 fixed backdrop */
+.notes-ctl-wrap.is-open {
+  z-index: 50;
+}
+
+/* notes-view-row 自带 reveal transform（堆叠上下文，z=auto 且 static），
+   弹层开着时必须把整行定位 + 提层，否则 backdrop 永远盖住弹层 */
+.notes-view-row:has(.notes-pop) {
+  position: relative;
+  z-index: 50;
+}
+
+.notes-ctl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 44px;
+  padding: 0 var(--s3);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  cursor: pointer;
+  transition: border-color var(--t-color) var(--ease), background-color var(--t-color) var(--ease),
+    transform var(--t-move) var(--ease);
+}
+
+.notes-ctl-btn svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.notes-ctl-btn:active {
+  transform: scale(0.96);
+}
+
+.notes-ctl-chevron {
+  width: 14px !important;
+  height: 14px !important;
+  color: var(--faint);
+}
+
+.notes-pop-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: transparent;
+  border: 0;
+  cursor: default;
+}
+
+.notes-pop {
+  position: absolute;
+  top: calc(100% + var(--s2));
+  left: 0;
+  z-index: 45;
+  min-width: 168px;
+  display: grid;
+  gap: 2px;
+  padding: var(--s2);
+  background: var(--surface-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-2);
+  animation: pop-in var(--t-move) var(--ease);
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.notes-pop-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  min-height: 44px;
+  padding: 0 var(--s3);
+  font-size: 14px;
+  color: var(--text-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--t-color) var(--ease), color var(--t-color) var(--ease);
+}
+
+.notes-pop-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.notes-pop-item.is-active {
+  color: var(--accent-text);
+  background: var(--accent-12);
+}
+
+.notes-pop-check {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* 确认弹窗 */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: var(--s6);
+  background: rgba(0, 0, 0, 0.44);
+  animation: pop-in var(--t-color) var(--ease);
+}
+
+.confirm-panel {
+  width: min(100%, 340px);
+  display: grid;
+  gap: var(--s4);
+  padding: var(--s4);
+  background: var(--surface-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+}
+
+.confirm-message {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s2);
+}
+
+/* 危险确认按钮：与保存同形，danger 配色 */
+.save-btn.is-danger {
+  color: var(--danger-ink);
+  background: var(--danger);
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { MealSlot, Recipe } from '../types'
 import RecipeEditor from './RecipeEditor'
 import RecipeImage from '../components/RecipeImage'
+import RecipeVideos from '../components/RecipeVideos'
 import {
   deleteRecipe,
   duplicateRecipe,
@@ -93,6 +94,8 @@ function RecipeDetail({
           ))}
         </div>
       )}
+
+      <RecipeVideos recipeId={recipe.id} />
 
       <div className="recipe-head">
         <h1 className="page-title">{recipe.name}</h1>
@@ -321,7 +324,6 @@ export default function RecipesTab({ active }: Props) {
           + 新建菜谱
         </button>
       </div>
-      <p className="page-sub">今天吃什么</p>
 
       <div className="filter-row">
         {FILTERS.map((item) => (
