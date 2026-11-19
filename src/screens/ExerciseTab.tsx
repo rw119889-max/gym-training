@@ -462,13 +462,46 @@ function WeekPlanCard({
   const weekSet = new Set(weekKeys)
   const doneThisWeek = sessions.filter((item) => weekSet.has(item.date)).length
   const todaySlot = slotFor(new Date().getDay())
-  const todayDate = new Date()
 
   return (
     <div className="week-plan-card">
       <div className="week-plan-top">
         <span className="week-plan-title">本周安排</span>
-        <span className="week-plan-progress">本周已完成 {doneThisWeek} / 4</span>
+        <span className="week-plan-progress">已完成 {doneThisWeek} / 4</span>
+      </div>
+      <div className="week-plan-grid">
+        {WEEK_DISPLAY_ORDER.map((weekday) => {
+          const slot = slotFor(weekday)
+          const dateKey = weekKeys[WEEK_DISPLAY_ORDER.indexOf(weekday)]
+          const done = sessions.some((item) => item.date === dateKey)
+          const isToday = dateKey === today
+          const cell = (
+            <>
+              <span className="wp-cell-day">{weekdayLabel(weekday).slice(1)}</span>
+              <span className="wp-cell-slot">
+                {slot === 'rest' ? '休' : slotLabel(slot).slice(0, 1)}
+              </span>
+              <span className={`wp-cell-state${done ? ' is-done' : ''}`} aria-hidden="true">
+                {done ? '✓' : ''}
+              </span>
+            </>
+          )
+          return slot === 'rest' ? (
+            <span key={weekday} className={`wp-cell is-rest${isToday ? ' is-today' : ''}`}>
+              {cell}
+            </span>
+          ) : (
+            <button
+              key={weekday}
+              type="button"
+              className={`wp-cell is-training${isToday ? ' is-today' : ''}`}
+              onClick={() => onOpenDay(slot)}
+              aria-label={`${weekdayLabel(weekday)}${slotLabel(slot)}，${done ? '已完成' : '未完成'}`}
+            >
+              {cell}
+            </button>
+          )
+        })}
       </div>
       {todaySlot === 'rest' ? (
         <p className="week-plan-today is-rest">今天是休息日，恢复比硬练更重要</p>
@@ -481,45 +514,6 @@ function WeekPlanCard({
           今天：{slotLabel(todaySlot)} · 开始训练 →
         </button>
       )}
-      <ul className="week-plan-rows">
-        {WEEK_DISPLAY_ORDER.map((weekday) => {
-          const slot = slotFor(weekday)
-          const dateKey = weekKeys[WEEK_DISPLAY_ORDER.indexOf(weekday)]
-          const done = sessions.some((item) => item.date === dateKey)
-          const isToday = dateKey === today
-          return (
-            <li key={weekday}>
-              {slot === 'rest' ? (
-                <span className={`week-plan-row is-rest${isToday ? ' is-today' : ''}`}>
-                  <span className="week-plan-day">{weekdayLabel(weekday)}</span>
-                  <span className="week-plan-slot">休息</span>
-                  <span className="week-plan-state" aria-hidden="true" />
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  className={`week-plan-row is-training${isToday ? ' is-today' : ''}`}
-                  onClick={() => onOpenDay(slot)}
-                  aria-label={`${weekdayLabel(weekday)}${slotLabel(slot)}，${done ? '已完成' : '未完成'}`}
-                >
-                  <span className="week-plan-day">
-                    {weekdayLabel(weekday)}
-                    {isToday ? ' · 今天' : ''}
-                  </span>
-                  <span className="week-plan-slot">{slotLabel(slot)}</span>
-                  <span className={`week-plan-state${done ? ' is-done' : ''}`} aria-hidden="true">
-                    {done ? '✓' : ''}
-                  </span>
-                </button>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-      <p className="week-plan-note">
-        90 天只跟练不研究：重量、组数记在训记，这里只记完成与否。
-        今天 {todayDate.getFullYear()}/{todayDate.getMonth() + 1}/{todayDate.getDate()}
-      </p>
     </div>
   )
 }
