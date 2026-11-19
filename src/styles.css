@@ -1324,6 +1324,36 @@ body::after {
   border-color: var(--accent-28);
 }
 
+/* 食谱筛选区：餐次/做法两组，各排成整齐两列 */
+.filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s2) var(--s2);
+  margin-bottom: var(--s4);
+}
+
+.filter-grid-label {
+  grid-column: 1 / -1;
+  margin: var(--s2) 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.filter-grid-label:first-child {
+  margin-top: 0;
+}
+
+.filter-grid-cells {
+  display: contents;
+}
+
+.filter-grid .filter-chip {
+  width: 100%;
+  text-align: center;
+  border-radius: var(--r-md);
+}
+
 .add-exercise-btn {
   flex: 1;
   min-height: 48px;

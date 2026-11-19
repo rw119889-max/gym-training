@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { Ingredient, Recipe } from '../types'
-import { getRecipe, getRecentIngredients, MEAL_LABELS, MEAL_SLOTS, newRecipe, rememberIngredients, saveRecipe } from '../lib/recipes'
+import { getRecipe, getRecentIngredients, MEAL_LABELS, MEAL_SLOTS, newRecipe, rememberIngredients, saveRecipe, COOK_MODES, COOK_MODE_LABELS } from '../lib/recipes'
 import { compressImage } from '../lib/image'
 import { deleteImage, putImage } from '../lib/storage'
 import { formatGram, recipeNutrition } from '../lib/nutrition'
@@ -251,6 +251,31 @@ export default function RecipeEditor({ recipeId, onBack, onSaved, onDirtyChange 
               onClick={() => patch({ meal })}
             >
               {MEAL_LABELS[meal]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="field">
+        <span className="field-label">做法分类</span>
+        <div className="filter-row meal-picker">
+          <button
+            type="button"
+            className="filter-chip"
+            aria-pressed={draft.mode === undefined}
+            onClick={() => patch({ mode: undefined })}
+          >
+            不限
+          </button>
+          {COOK_MODES.map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className="filter-chip"
+              aria-pressed={draft.mode === mode}
+              onClick={() => patch({ mode })}
+            >
+              {COOK_MODE_LABELS[mode]}
             </button>
           ))}
         </div>

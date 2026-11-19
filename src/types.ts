@@ -22,11 +22,15 @@ export interface Ingredient {
 
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'pre' | 'post' | 'snack'
 
+// 做法分类：筛选主维度之一，与自由文本的 method（做法步骤）互补
+export type CookMode = 'airfryer' | 'pan' | 'ricecooker' | 'steam' | 'boil'
+
 export interface Recipe {
   id: string
   name: string
   meal: MealSlot
   method: string
+  mode?: CookMode
   imageIds: string[]
   notes: string
   ingredients: Ingredient[]

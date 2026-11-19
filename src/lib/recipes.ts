@@ -1,4 +1,4 @@
-import type { MealSlot, Recipe } from '../types'
+import type { CookMode, MealSlot, Recipe } from '../types'
 import { readJSON, writeJSON } from './storage'
 import { deleteVideoClip, getVideos } from './videos'
 
@@ -15,12 +15,30 @@ export const MEAL_LABELS: Record<MealSlot, string> = {
   snack: '加餐',
 }
 
+export const COOK_MODES: CookMode[] = ['airfryer', 'pan', 'ricecooker', 'steam', 'boil']
+
+export const COOK_MODE_LABELS: Record<CookMode, string> = {
+  airfryer: '空气炸锅',
+  pan: '平底锅',
+  ricecooker: '电饭锅',
+  steam: '清蒸',
+  boil: '水煮',
+}
+
+const MODE_IDS = new Set<string>(COOK_MODES)
+
+// 白名单归一：脏数据/旧值一律去掉 mode，回落「不限」
+function normalizeMode(value: unknown): CookMode | undefined {
+  return typeof value === 'string' && MODE_IDS.has(value) ? (value as CookMode) : undefined
+}
+
 // 旧数据只有 imageId 单图、没有 notes；读取时补齐，并把单图迁移成 imageIds 数组
 function normalizeRecipe(raw: Recipe): Recipe {
   const { imageId, ...rest } = raw as Recipe & { imageId?: string | null }
   return {
     ...rest,
     meal: rest.meal ?? 'lunch',
+    mode: normalizeMode(rest.mode),
     cookMinutes: rest.cookMinutes ?? 15,
     spicy: rest.spicy ?? false,
     oilGrams: rest.oilGrams ?? 10,
@@ -138,8 +156,14 @@ export function toggleFavorite(id: string): boolean {
   )
 }
 
-// 排序：默认（新建在前）/ 最近做过（没做过的按更新时间垫底）/ 收藏优先
-export type RecipeSort = 'default' | 'cooked' | 'favorite'
+// 排序：最近创建（新建在前）/ 最近做过（没做过的按更新时间垫底）/ 收藏优先
+// 原 'default' 一档更名为 'created'，读取旧持久化值时映射
+export type RecipeSort = 'created' | 'cooked' | 'favorite'
+
+export function normalizeRecipeSort(value: string | null): RecipeSort {
+  if (value === 'cooked' || value === 'favorite' || value === 'created') return value
+  return 'created'
+}
 
 export function sortRecipes(recipes: Recipe[], mode: RecipeSort): Recipe[] {
   const lastCooked = (recipe: Recipe): string =>

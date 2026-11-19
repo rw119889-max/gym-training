@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { MealSlot, Recipe } from '../types'
+import type { CookMode, MealSlot, Recipe } from '../types'
 import RecipeEditor from './RecipeEditor'
 import RecipeImage from '../components/RecipeImage'
 import RecipeVideos from '../components/RecipeVideos'
 import {
+  COOK_MODES,
+  COOK_MODE_LABELS,
   deleteRecipe,
   duplicateRecipe,
   formatPrice,
@@ -11,6 +13,7 @@ import {
   markCookedToday,
   MEAL_LABELS,
   MEAL_SLOTS,
+  normalizeRecipeSort,
   sortRecipes,
   toggleFavorite,
 } from '../lib/recipes'
@@ -21,19 +24,24 @@ import { todayKey } from '../lib/date'
 import { useNotice } from '../hooks/useNotice'
 
 type View = { name: 'list' } | { name: 'detail'; id: string } | { name: 'edit'; id: string | null }
-type Filter = 'all' | MealSlot
+type Filter = 'all' | MealSlot | CookMode
 
 interface Props {
   active: boolean
 }
 
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'all', label: '全部' },
-  ...MEAL_SLOTS.map((meal) => ({ id: meal, label: MEAL_LABELS[meal] })),
-]
+const MEAL_FILTERS: { id: MealSlot; label: string }[] = MEAL_SLOTS.map((meal) => ({
+  id: meal,
+  label: MEAL_LABELS[meal],
+}))
+
+const MODE_FILTERS: { id: CookMode; label: string }[] = COOK_MODES.map((mode) => ({
+  id: mode,
+  label: COOK_MODE_LABELS[mode],
+}))
 
 const SORTS: { id: RecipeSort; label: string }[] = [
-  { id: 'default', label: '默认' },
+  { id: 'created', label: '最近创建' },
   { id: 'cooked', label: '最近做过' },
   { id: 'favorite', label: '收藏优先' },
 ]
@@ -99,7 +107,10 @@ function RecipeDetail({
 
       <div className="recipe-head">
         <h1 className="page-title">{recipe.name}</h1>
-        <span className="group-tag">{MEAL_LABELS[recipe.meal]}</span>
+        <span className="group-tag">
+          {MEAL_LABELS[recipe.meal]}
+          {recipe.mode && ` · ${COOK_MODE_LABELS[recipe.mode]}`}
+        </span>
       </div>
 
       <div className="macro-cards">
@@ -170,10 +181,7 @@ export default function RecipesTab({ active }: Props) {
   const [view, setView] = useState<View>({ name: 'list' })
   const [recipes, setRecipes] = useState<Recipe[]>(() => getRecipes())
   const [filter, setFilter] = useState<Filter>('all')
-  const [sort, setSort] = useState<RecipeSort>(() => {
-    const saved = readJSON<string>('recipeSort', 'default')
-    return SORTS.some((item) => item.id === saved) ? (saved as RecipeSort) : 'default'
-  })
+  const [sort, setSort] = useState<RecipeSort>(() => normalizeRecipeSort(readJSON<string>('recipeSort', 'created')))
   const viewRef = useRef(view)
   viewRef.current = view
   const activeRef = useRef(active)
@@ -307,7 +315,15 @@ export default function RecipesTab({ active }: Props) {
     )
   }
 
-  const filtered = filter === 'all' ? recipes : recipes.filter((recipe) => recipe.meal === filter)
+  // 筛选为单选互斥：选餐次列餐次、选做法列做法，「全部」重置
+  const filtered =
+    filter === 'all'
+      ? recipes
+      : recipes.filter((recipe) =>
+          (MEAL_SLOTS as readonly string[]).includes(filter)
+            ? recipe.meal === filter
+            : recipe.mode === filter,
+        )
   const visible = sortRecipes(filtered, sort)
 
   const changeSort = (next: RecipeSort) => {
@@ -325,18 +341,43 @@ export default function RecipesTab({ active }: Props) {
         </button>
       </div>
 
-      <div className="filter-row">
-        {FILTERS.map((item) => (
+      <div className="filter-grid">
+        <p className="filter-grid-label">按餐次</p>
+        <div className="filter-grid-cells">
           <button
-            key={item.id}
             type="button"
             className="filter-chip"
-            aria-pressed={filter === item.id}
-            onClick={() => setFilter(item.id)}
+            aria-pressed={filter === 'all'}
+            onClick={() => setFilter('all')}
           >
-            {item.label}
+            全部
           </button>
-        ))}
+          {MEAL_FILTERS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="filter-chip"
+              aria-pressed={filter === item.id}
+              onClick={() => setFilter(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <p className="filter-grid-label">按做法</p>
+        <div className="filter-grid-cells">
+          {MODE_FILTERS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="filter-chip"
+              aria-pressed={filter === item.id}
+              onClick={() => setFilter(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="list-tools">
@@ -361,7 +402,7 @@ export default function RecipesTab({ active }: Props) {
           <p className="empty-desc">菜名、做法、食材克数，蛋白/脂肪/碳水自动算。按餐次分类，建好后随时能改。</p>
         </div>
       ) : visible.length === 0 ? (
-        <p className="hint">这个餐次下还没有菜谱。切到「全部」看其他菜谱，或新建一条归到本餐次。</p>
+        <p className="hint">这个筛选下还没有菜谱。切到「全部」看其他菜谱，或在编辑菜谱时选上对应餐次/做法。</p>
       ) : (
         <div className="recipe-list">
           {visible.map((recipe) => {
@@ -382,8 +423,10 @@ export default function RecipesTab({ active }: Props) {
                 <span className="recipe-card-body">
                   <span className="recipe-card-name">{recipe.name}</span>
                   <span className="recipe-card-meta">
-                    {MEAL_LABELS[recipe.meal]} · 蛋白 {formatGram(total.protein)} g · 脂肪{' '}
-                    {formatGram(total.fat)} g · 碳水 {formatGram(total.carb)} g
+                    {MEAL_LABELS[recipe.meal]}
+                    {recipe.mode && ` · ${COOK_MODE_LABELS[recipe.mode]}`} · 蛋白{' '}
+                    {formatGram(total.protein)} g · 脂肪 {formatGram(total.fat)} g · 碳水{' '}
+                    {formatGram(total.carb)} g
                   </span>
                   <span className="recipe-badges">
                     {recipe.favorite && <span className="is-fav">★</span>}
