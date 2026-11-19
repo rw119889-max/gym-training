@@ -1103,7 +1103,7 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
           {route.kind === 'videos' ? '视频' : route.kind === 'photos' ? '照片' : '收藏文章'}
         </h1>
 
-        {route.kind === 'videos' && <ExerciseVideos exerciseId={activeExercise.id} />}
+        {route.kind === 'videos' && <ExerciseVideos exerciseId={activeExercise.id} showUpload />}
         {route.kind === 'photos' && <ExercisePhotos exerciseId={activeExercise.id} />}
         {route.kind === 'articles' && (
           <SavedArticles
