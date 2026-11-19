@@ -4,6 +4,8 @@ import type { ExerciseCategory, ExerciseProfile, TrainingSession } from '../type
 import ExerciseVideos from '../components/ExerciseVideos'
 import ExercisePhotos from '../components/ExercisePhotos'
 import SavedArticles from '../components/SavedArticles'
+import ConfirmDialog from '../components/ConfirmDialog'
+import SwipeToDelete from '../components/SwipeToDelete'
 import {
   PICKABLE_CATEGORIES,
   addExerciseProfile,
@@ -139,6 +141,7 @@ function WarmupCard({ day }: { day: 'push' | 'pull' }) {
   const [name, setName] = useState('')
   const [note, setNote] = useState('')
   const [open, setOpen] = useState(true)
+  const [pendingDelete, setPendingDelete] = useState<WarmupItem | null>(null)
 
   const handleAdd = () => {
     const item = addWarmup(day, name, note)
@@ -153,6 +156,7 @@ function WarmupCard({ day }: { day: 'push' | 'pull' }) {
   const handleRemove = (id: string) => {
     removeWarmup(day, id)
     setItems(getWarmups()[day])
+    setPendingDelete(null)
   }
 
   const handleReset = () => {
@@ -182,7 +186,11 @@ function WarmupCard({ day }: { day: 'push' | 'pull' }) {
           {items.length === 0 && <p className="field-hint">还没有热身项，点下方「+ 添加热身动作」。</p>}
           <ul className="warmup-list">
             {items.map((item) => (
-              <li key={item.id} className="warmup-item">
+              <SwipeToDelete
+                key={item.id}
+                className="warmup-item"
+                onAskDelete={() => setPendingDelete(item)}
+              >
                 <span className="warmup-item-text">
                   <span className="warmup-item-name">{item.name}</span>
                   {item.note && <span className="warmup-item-note">{item.note}</span>}
@@ -191,11 +199,11 @@ function WarmupCard({ day }: { day: 'push' | 'pull' }) {
                   type="button"
                   className="warmup-del"
                   aria-label={`删除热身项 ${item.name}`}
-                  onClick={() => handleRemove(item.id)}
+                  onClick={() => setPendingDelete(item)}
                 >
                   删除
                 </button>
-              </li>
+              </SwipeToDelete>
             ))}
           </ul>
           {adding ? (
@@ -250,6 +258,14 @@ function WarmupCard({ day }: { day: 'push' | 'pull' }) {
             </div>
           )}
         </div>
+      )}
+      {pendingDelete && (
+        <ConfirmDialog
+          message={`删掉热身项「${pendingDelete.name}」？`}
+          confirmLabel="删掉"
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => handleRemove(pendingDelete.id)}
+        />
       )}
     </div>
   )

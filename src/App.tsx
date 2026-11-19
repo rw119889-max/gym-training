@@ -192,13 +192,13 @@ export default function App() {
       </header>
 
       <main className="tab-content" id="main-content">
-        <div hidden={tab !== 'exercises'}>
+        <div className="tab-panel" hidden={tab !== 'exercises'}>
           <ExerciseTab active={tab === 'exercises'} onOpenNotes={openNotesFromPlan} />
         </div>
-        <div hidden={tab !== 'notes'}>
+        <div className="tab-panel" hidden={tab !== 'notes'}>
           <NotesTab active={tab === 'notes'} onBackToSource={returnFromNoteSeed} />
         </div>
-        <div hidden={tab !== 'recipes'}>
+        <div className="tab-panel" hidden={tab !== 'recipes'}>
           <RecipesTab active={tab === 'recipes'} />
         </div>
       </main>

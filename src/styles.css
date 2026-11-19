@@ -1370,7 +1370,7 @@ body::after {
 }
 
 .category-card:active {
-  transform: scale(0.99);
+  transform: scale(0.98);
   background-color: var(--surface-3);
 }
 
@@ -2300,7 +2300,7 @@ body::after {
 }
 
 .recipe-card:active {
-  transform: scale(0.99);
+  transform: scale(0.98);
 }
 
 .recipe-thumb {
@@ -3962,6 +3962,74 @@ body.player-open .tabbar {
   height: 20px;
 }
 
+/* ===== 交互动效：tab 切换淡入 / 底栏微动效 / 卡片按压反馈 =====
+   全部只用 opacity（tab 面板）或 transform（控件），cubic-bezier 曲线；
+   prefers-reduced-motion 全局规则会一并关闭 */
+
+/* tab 面板重新显示时轻淡入。display:none→显示会重播 animation，
+   只用 opacity：transform 会让 fixed 弹层（确认窗/弹层）相对面板定位，不能加 */
+.tab-panel {
+  animation: tab-fade-in 320ms var(--ease);
+}
+
+@keyframes tab-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tabbar button:active {
+  transform: scale(0.94);
+}
+
+.tabbar button {
+  transition: color var(--t-color) var(--ease), background-color var(--t-color) var(--ease),
+    transform var(--t-move) var(--ease);
+}
+
+.tabbar .tab-icon {
+  transition: transform var(--t-move) var(--ease);
+}
+
+.tabbar button:active .tab-icon {
+  transform: translateY(2px) scale(0.9);
+}
+
+/* 当前页指示条：切换时从中间展开，代替瞬变 */
+.tabbar button[aria-current="true"]::before {
+  background: var(--accent-text);
+  animation: tabbar-bar-in 360ms var(--ease);
+}
+
+@keyframes tabbar-bar-in {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* 卡片按压反馈（memo-card 的左滑 transform 在内层 content，li :active 不冲突） */
+.memo-card {
+  transition: transform var(--t-move) var(--ease);
+}
+
+.memo-card:active {
+  transform: scale(0.98);
+}
+
+.warmup-head {
+  transition: transform var(--t-move) var(--ease), background-color var(--t-color) var(--ease);
+}
+
+.warmup-head:active {
+  transform: scale(0.98);
+}
+
 .tabbar button[aria-current="true"] .tab-icon {
   color: var(--accent-text);
 }
@@ -4667,15 +4735,24 @@ button.week-plan-row:active {
 }
 
 .warmup-item {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s3);
-  padding: var(--s2) 0;
+  position: relative;
+  touch-action: pan-y;
+  overflow: hidden;
+  padding: 0;
   border-bottom: 1px solid var(--line);
 }
 
 .warmup-item:last-child {
   border-bottom: 0;
+}
+
+/* 左滑结构：内容移到 content 层，padding 一并迁移，露出右侧红色提示 */
+.warmup-item .memo-swipe-content {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+  background: var(--surface);
 }
 
 .warmup-item-text {
