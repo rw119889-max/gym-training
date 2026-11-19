@@ -499,42 +499,28 @@ export default function RecipesTab({ active }: Props) {
         <p className="hint">这个筛选下还没有菜谱。切到「全部」看其他菜谱，或在编辑菜谱时选上对应餐次/做法。</p>
       ) : (
         <div className="recipe-list">
-          {visible.map((recipe) => {
-            const total = recipeNutrition(recipe)
-            const cooked = recipe.cookedDates ?? []
-            return (
-              <button
-                key={recipe.id}
-                type="button"
-                className="recipe-card"
-                onClick={() => goDetail(recipe.id)}
-              >
+          {visible.map((recipe) => (
+            <button
+              key={recipe.id}
+              type="button"
+              className="recipe-card"
+              onClick={() => goDetail(recipe.id)}
+            >
+              <span className="recipe-media">
                 <RecipeImage
                   imageId={recipe.imageIds[0] ?? null}
                   alt={recipe.name}
                   className="recipe-thumb"
                 />
-                <span className="recipe-card-body">
-                  <span className="recipe-card-name">{recipe.name}</span>
-                  <span className="recipe-card-meta">
-                    {MEAL_LABELS[recipe.meal]}
-                    {recipe.mode && ` · ${COOK_MODE_LABELS[recipe.mode]}`} · 蛋白{' '}
-                    {formatGram(total.protein)} g · 脂肪 {formatGram(total.fat)} g · 碳水{' '}
-                    {formatGram(total.carb)} g
+                {recipe.favorite && (
+                  <span className="recipe-fav-badge" aria-label="收藏">
+                    ★
                   </span>
-                  <span className="recipe-badges">
-                    {recipe.favorite && <span className="is-fav">★</span>}
-                    {cooked.length > 0 && <span>做过 {cooked.length} 次</span>}
-                    <span>{recipe.cookMinutes} 分钟</span>
-                    {!recipe.spicy && <span>无辣</span>}
-                    {recipe.oilGrams <= 10 && <span>少油</span>}
-                    {recipe.saltGrams <= 3 && <span>少盐</span>}
-                    {recipe.price > 0 && <span>{formatPrice(recipe.price)}</span>}
-                  </span>
-                </span>
-              </button>
-            )
-          })}
+                )}
+              </span>
+              <span className="recipe-card-name">{recipe.name}</span>
+            </button>
+          ))}
         </div>
       )}
 
