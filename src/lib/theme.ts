@@ -1,8 +1,8 @@
 export type ThemeMode = 'auto' | 'light' | 'dark'
 
 /** 与 manifest / index.html 的 theme-color 保持一致 */
-const DARK_CHROME = '#08090b'
-const LIGHT_CHROME = '#f7f8f4'
+const DARK_CHROME = '#0a0a0b'
+const LIGHT_CHROME = '#f6f6f6'
 const DYNAMIC_META_ID = 'theme-color-forced'
 
 const MODES: ThemeMode[] = ['auto', 'light', 'dark']

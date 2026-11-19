@@ -1,5 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { ChangeEvent } from 'react'
 import type { VideoClip } from '../types'
+import type { PlanDay } from '../lib/coachPlans'
 import {
   getVideos,
   deleteVideoClip,
@@ -14,14 +16,14 @@ import {
 import { getVideo, putVideo, putPoster, deleteVideo, deletePoster } from '../lib/storage'
 import { inspectVideo } from '../lib/videoFile'
 import VideoSlide from './VideoSlide'
-import type { ChangeEvent } from 'react'
-import type { PlanDay } from '../lib/coachPlans'
 
 interface Props {
   day: PlanDay
   onBack: () => void
 }
 
+// 开练视频：全屏沉浸 feed（黑底、视频占满整屏、上下滑动切换，类短视频体验）。
+// 路由级页面（plan-videos），返回走 ExerciseTab 的 useOverlayHistory。
 export default function WarmupVideos({ day, onBack }: Props) {
   const [clips, setClips] = useState<VideoClip[]>(() => getVideos())
   const [busy, setBusy] = useState(false)
@@ -31,6 +33,7 @@ export default function WarmupVideos({ day, onBack }: Props) {
   const [index, setIndex] = useState(0)
   const [muted, setMuted] = useState(true)
   const [slow, setSlow] = useState(false)
+  const [manageOpen, setManageOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
 
@@ -41,17 +44,37 @@ export default function WarmupVideos({ day, onBack }: Props) {
 
   const refresh = () => setClips(getVideos())
 
+  // 全屏层期间隐藏底部导航（与 VideoPlayer 同款 body 类）
+  useEffect(() => {
+    document.body.classList.add('player-open')
+    return () => document.body.classList.remove('player-open')
+  }, [])
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onBack()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onBack])
+
   const handleFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = [...(event.target.files ?? [])]
     event.target.value = ''
     if (files.length === 0) return
 
     const oversize = files.filter((file) => file.size > MAX_CLIP_BYTES)
-    if (oversize.length > 0 && !window.confirm(`有 ${oversize.length} 条超过 200 MB，确定都存到手机上？`)) {
+    if (
+      oversize.length > 0 &&
+      !window.confirm(`有 ${oversize.length} 条超过 200 MB，确定都存到手机上？`)
+    ) {
       return
     }
     const incoming = files.reduce((sum, file) => sum + file.size, 0)
-    if (totalVideoBytes() + incoming > MAX_TOTAL_BYTES && !window.confirm('视频一共要超过 2 GB 了。建议先删掉几条不常用的，继续？')) {
+    if (
+      totalVideoBytes() + incoming > MAX_TOTAL_BYTES &&
+      !window.confirm('视频一共要超过 2 GB 了。建议先删掉几条不常用的，继续？')
+    ) {
       return
     }
 
@@ -124,19 +147,36 @@ export default function WarmupVideos({ day, onBack }: Props) {
     setIndex((value) => (value === next ? value : next))
   }
 
-  const used = clips.reduce((sum, clip) => sum + clip.size, 0)
+  const used = mine.reduce((sum, clip) => sum + clip.size, 0)
 
   return (
-    <section className="warmup-videos">
-      <button className="back-btn" type="button" onClick={onBack}>
-        ← {day === 'push' ? '推日' : '拉日'}
-      </button>
-
-      <div className="group-head">
-        <h1 className="page-title">开练视频</h1>
-        <span className="group-count">{mine.length} 条</span>
+    <section className="warmup-videos" role="dialog" aria-modal="true" aria-label="开练视频">
+      <div className="video-player-top">
+        <button type="button" className="wv-back" onClick={onBack}>
+          ← {day === 'push' ? '推日' : '拉日'}
+        </button>
+        <span className="video-player-title">开练视频</span>
+        <span className="photo-viewer-count">{mine.length} 条</span>
+        <button
+          type="button"
+          className="wv-chip"
+          disabled={busy}
+          onClick={() => fileRef.current?.click()}
+        >
+          {busy ? '保存中…' : '上传'}
+        </button>
+        {mine.length > 0 && (
+          <button
+            type="button"
+            className="wv-chip"
+            aria-pressed={manageOpen}
+            onClick={() => setManageOpen((value) => !value)}
+          >
+            {manageOpen ? '收起' : '管理'}
+          </button>
+        )}
       </div>
-      <p className="page-sub">上下滑动切换 · 点视频开声音 · 开练前刷一遍预习</p>
+      <input ref={fileRef} type="file" accept="video/*" multiple hidden onChange={handleFiles} />
 
       {notice && (
         <p className={`notice notice-${notice.tone}`} role="status">
@@ -144,23 +184,22 @@ export default function WarmupVideos({ day, onBack }: Props) {
         </p>
       )}
 
-      <div className="backup-actions warmup-upload-row">
-        <button
-          className="ghost-btn small"
-          type="button"
-          disabled={busy}
-          onClick={() => fileRef.current?.click()}
-        >
-          {busy ? '保存中…' : '+ 上传视频（可多选）'}
-        </button>
-      </div>
-      <input ref={fileRef} type="file" accept="video/*" multiple hidden onChange={handleFiles} />
-
       {mine.length === 0 ? (
-        <p className="hint">还没有视频。点上面「上传视频」，一次可以选多条，开练前刷一遍预习。</p>
+        <div className="wv-empty">
+          <p className="wv-empty-title">还没有视频</p>
+          <p className="wv-empty-sub">点右上「上传」，一次可以选多条。开练前上下滑动刷一遍预习。</p>
+          <button
+            type="button"
+            className="wv-chip wv-chip-big"
+            disabled={busy}
+            onClick={() => fileRef.current?.click()}
+          >
+            {busy ? '保存中…' : '上传视频'}
+          </button>
+        </div>
       ) : (
         <>
-          <div className="warmup-feed" ref={trackRef} onScroll={onFeedScroll}>
+          <div className="video-feed" ref={trackRef} onScroll={onFeedScroll}>
             {mine.map((clip, i) => (
               <div className="video-slide" key={clip.id}>
                 <VideoSlide
@@ -175,13 +214,17 @@ export default function WarmupVideos({ day, onBack }: Props) {
             ))}
           </div>
 
+          <p className="wv-pos">
+            {index + 1} / {mine.length} · 上下滑动切换 · 点视频开声音
+          </p>
+
           <div className="video-controls">
-            <button className="ghost-btn small" type="button" aria-pressed={!muted} onClick={toggleMute}>
+            <button type="button" className="wv-chip" aria-pressed={!muted} onClick={toggleMute}>
               {muted ? '声音关' : '声音开'}
             </button>
             <button
-              className="ghost-btn small"
               type="button"
+              className="wv-chip"
               aria-pressed={slow}
               onClick={() => setSlow((value) => !value)}
             >
@@ -189,63 +232,66 @@ export default function WarmupVideos({ day, onBack }: Props) {
             </button>
           </div>
 
-          <ul className="warmup-video-list">
-            {mine.map((clip) =>
-              editingId === clip.id ? (
-                <li key={clip.id} className="media-edit-card">
-                  <input
-                    className="field-input"
-                    value={editTitle}
-                    maxLength={30}
-                    autoFocus
-                    onChange={(event) => setEditTitle(event.target.value)}
-                  />
-                  <div className="media-edit-actions">
-                    <button className="save-btn" type="button" onClick={saveEdit}>
-                      保存
-                    </button>
-                    <button className="ghost-btn small" type="button" onClick={() => setEditingId(null)}>
-                      取消
-                    </button>
-                  </div>
-                </li>
-              ) : (
-                <li key={clip.id} className="warmup-video-row">
-                  <span className="warmup-video-row-text">
-                    <span className="warmup-video-row-name">{clip.label || '未命名视频'}</span>
-                    <span className="warmup-video-row-meta">
-                      {formatDuration(clip.duration)} · {formatBytes(clip.size)}
-                    </span>
-                  </span>
-                  <button
-                    className="ghost-btn small"
-                    type="button"
-                    aria-label={`改标题 ${clip.label || '未命名视频'}`}
-                    onClick={() => {
-                      setEditingId(clip.id)
-                      setEditTitle(clip.label)
-                    }}
-                  >
-                    改
-                  </button>
-                  <button
-                    className="note-action"
-                    type="button"
-                    aria-label={`删除 ${clip.label || '未命名视频'}`}
-                    onClick={() => void handleDelete(clip)}
-                  >
-                    ×
-                  </button>
-                </li>
-              ),
-            )}
-          </ul>
+          {manageOpen && (
+            <div className="wv-manage">
+              <ul className="warmup-video-list">
+                {mine.map((clip) =>
+                  editingId === clip.id ? (
+                    <li key={clip.id} className="media-edit-card">
+                      <input
+                        className="field-input"
+                        value={editTitle}
+                        maxLength={30}
+                        autoFocus
+                        onChange={(event) => setEditTitle(event.target.value)}
+                      />
+                      <div className="media-edit-actions">
+                        <button className="save-btn" type="button" onClick={saveEdit}>
+                          保存
+                        </button>
+                        <button className="wv-chip" type="button" onClick={() => setEditingId(null)}>
+                          取消
+                        </button>
+                      </div>
+                    </li>
+                  ) : (
+                    <li key={clip.id} className="warmup-video-row">
+                      <span className="warmup-video-row-text">
+                        <span className="warmup-video-row-name">{clip.label || '未命名视频'}</span>
+                        <span className="warmup-video-row-meta">
+                          {formatDuration(clip.duration)} · {formatBytes(clip.size)}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        className="wv-chip"
+                        aria-label={`改标题 ${clip.label || '未命名视频'}`}
+                        onClick={() => {
+                          setEditingId(clip.id)
+                          setEditTitle(clip.label)
+                        }}
+                      >
+                        改名
+                      </button>
+                      <button
+                        type="button"
+                        className="wv-chip is-danger"
+                        aria-label={`删除 ${clip.label || '未命名视频'}`}
+                        onClick={() => void handleDelete(clip)}
+                      >
+                        删除
+                      </button>
+                    </li>
+                  ),
+                )}
+              </ul>
+              <p className="wv-hint">
+                共 {formatBytes(used)}。视频不进备份，删了网站数据就没了，原片请留在相册。
+              </p>
+            </div>
+          )}
         </>
       )}
-
-      <p className="hint video-usage">
-        视频 {formatBytes(used)}。视频不进备份，删了网站数据就没了，原片请留在相册。
-      </p>
     </section>
   )
 }

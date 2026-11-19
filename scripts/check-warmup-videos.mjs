@@ -87,32 +87,42 @@ check('热身项无删除按钮', delBtns === 0 && delText === 0, `warmup-del=${
 await page.click('.warmup-video-entry')
 await page.waitForTimeout(500)
 const onVideosPage = await page.evaluate(() => ({
-  title: document.querySelector('.page-title')?.textContent ?? '',
-  feed: !!document.querySelector('.warmup-feed'),
-  slides: document.querySelectorAll('.warmup-feed .video-slide').length,
-  uploadBtn: [...document.querySelectorAll('button')].some((b) => (b.textContent ?? '').includes('上传视频')),
-  backBtn: document.querySelector('.back-btn')?.textContent ?? '',
+  title: document.querySelector('.video-player-title')?.textContent ?? '',
+  overlay: !!document.querySelector('.warmup-videos'),
+  feed: !!document.querySelector('.warmup-videos .video-feed'),
+  slides: document.querySelectorAll('.warmup-videos .video-slide').length,
+  uploadBtn: [...document.querySelectorAll('button')].some((b) => (b.textContent ?? '').includes('上传')),
+  backBtn: document.querySelector('.wv-back')?.textContent ?? '',
   rows: document.querySelectorAll('.warmup-video-row').length,
 }))
-check('二级页标题「开练视频」', onVideosPage.title === '开练视频', onVideosPage.title)
-check('feed 存在且 2 条 slide', onVideosPage.feed && onVideosPage.slides === 2, `slides=${onVideosPage.slides}`)
+check('全屏层标题「开练视频」', onVideosPage.title === '开练视频', onVideosPage.title)
+check('全屏 feed 存在且 2 条 slide', onVideosPage.feed && onVideosPage.slides === 2, `slides=${onVideosPage.slides}`)
 check('上传按钮存在（可多选）', onVideosPage.uploadBtn)
 check('返回键是「← 推日」', /推日/.test(onVideosPage.backBtn), onVideosPage.backBtn)
-check('管理列表 2 行（改/删）', onVideosPage.rows === 2, `rows=${onVideosPage.rows}`)
+
+// 管理面板默认收起，点「管理」展开后数行数
+await page.click('.warmup-videos button:has-text("管理")')
+await page.waitForTimeout(300)
+const manageRows = await page.locator('.warmup-video-row').count()
+const manageHint = await page.evaluate(() => !!document.querySelector('.wv-manage .wv-hint'))
+check('管理面板展开 2 行（改名/删除）', manageRows === 2 && manageHint, `rows=${manageRows} hint=${manageHint}`)
+await page.click('.warmup-videos button:has-text("收起")')
+await page.waitForTimeout(200)
+check('管理面板可收起', (await page.locator('.wv-manage').count()) === 0)
 
 // 4. 上下滑动切换：滚到第二条，计数/激活变化
-const feedBox = await page.locator('.warmup-feed').boundingBox()
+const feedBox = await page.locator('.warmup-videos .video-feed').boundingBox()
 await page.mouse.move(feedBox.x + feedBox.width / 2, feedBox.y + feedBox.height / 2)
 await page.mouse.wheel(0, feedBox.height)
 await page.waitForTimeout(600)
 const scrolled = await page.evaluate(() => {
-  const track = document.querySelector('.warmup-feed')
+  const track = document.querySelector('.warmup-videos .video-feed')
   return { top: track.scrollTop, h: track.clientHeight, n: track.children.length }
 })
 check('feed 可上下滚动（滚到第二条）', scrolled.top > scrolled.h * 0.5, `top=${scrolled.top}`)
 
 // 5. 返回键回 plan 页
-await page.click('.back-btn')
+await page.click('.wv-back')
 await page.waitForTimeout(400)
 const backOnPlan = await page.evaluate(() => ({
   warmup: !!document.querySelector('.warmup-card'),
@@ -150,7 +160,7 @@ check('拉日入口显示 1 条', /1 条/.test(pullEntry ?? ''), pullEntry ?? ''
 // 8. 拉日二级页只显示拉日的视频
 await page.click('.warmup-video-entry')
 await page.waitForTimeout(400)
-const pullFeed = await page.evaluate(() => document.querySelectorAll('.warmup-feed .video-slide').length)
+const pullFeed = await page.evaluate(() => document.querySelectorAll('.warmup-videos .video-slide').length)
 check('拉日 feed 只有拉日视频（1 条）', pullFeed === 1, `slides=${pullFeed}`)
 
 // 9. 视口溢出 + 错误
