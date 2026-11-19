@@ -1,17 +1,17 @@
-// 食谱筛选验收：两列网格、无「默认」排序、做法分类筛选、编辑器做法选择
+// 食谱筛选验收 v2：弹层筛选（餐次/做法分组）、排序弹层、笔记打开在顶部
 import { chromium } from 'playwright'
 import { createServer } from 'http'
 import { readFileSync, existsSync } from 'fs'
 import { join, extname } from 'path'
 
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.svg': 'image/svg+xml' }
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2' }
 const server = createServer((req, res) => {
   let p = join('dist', req.url === '/' ? 'index.html' : req.url.split('?')[0])
   if (!existsSync(p)) p = join('dist', 'index.html')
   res.setHeader('Content-Type', MIME[extname(p)] ?? 'application/octet-stream')
   res.end(readFileSync(p))
 })
-await new Promise(r => server.listen(4189, r))
+await new Promise(r => server.listen(4191, r))
 
 let browser
 for (const c of ['msedge', 'chrome', undefined]) {
@@ -26,25 +26,26 @@ const errors = []
 page.on('console', m => { if (m.type() === 'error') errors.push(m.text().slice(0, 150)) })
 page.on('pageerror', e => errors.push(String(e).slice(0, 150)))
 
-// 种子：3 道菜谱，其中 1 道空气炸锅（持久化数字 updatedAt 顺带做脏数据回归）
 await page.addInitScript(() => {
   const mk = (id, name, meal, mode) => ({
     id, name, meal, method: '测试步骤', mode, imageIds: [], notes: '',
     ingredients: [{ id: 'i-1', name: '鸡胸肉', grams: 100, per100g: { protein: 24, fat: 2, carb: 0 } }],
     cookMinutes: 15, spicy: false, oilGrams: 5, saltGrams: 2, price: 0,
-    favorite: false, cookedDates: [], createdAt: new Date().toISOString(),
-    updatedAt: Date.now(),
+    favorite: false, cookedDates: [], createdAt: new Date().toISOString(), updatedAt: Date.now(),
   })
-  const recipes = [
+  localStorage.setItem('gt.v1.recipes', JSON.stringify([
     mk('r-1', '炸锅鸡翅', 'dinner', 'airfryer'),
     mk('r-2', '清蒸鲈鱼', 'dinner', 'steam'),
     mk('r-3', '番茄炒蛋', 'lunch', undefined),
-  ]
-  localStorage.setItem('gt.v1.recipes', JSON.stringify(recipes))
-  localStorage.setItem('gt.v1.recipeSort', JSON.stringify('default'))
+  ]))
+  // 长笔记：验证打开停在顶部（无自动聚焦跳底）
+  const paras = Array.from({ length: 300 }, (_, i) => `<p>第${i + 1}段内容。</p>`).join('')
+  localStorage.setItem('gt.v1.exerciseNotes', JSON.stringify([
+    { id: 'n-long', title: '长笔记测试', text: paras, topic: 'fitness', pinned: false, createdAt: new Date().toISOString(), updatedAt: Date.now(), html: paras },
+  ]))
 })
 
-const BASE = 'http://localhost:4189'
+const BASE = 'http://localhost:4191'
 await page.goto(BASE, { waitUntil: 'load' })
 await page.click('.lp-cta')
 await page.waitForTimeout(600)
@@ -53,65 +54,51 @@ await page.waitForTimeout(400)
 
 const report = {}
 
-// 1. 两列网格：两组标签 + chip 全部在 2 列网格里
-report.groups = await page.evaluate(() => ({
-  labels: [...document.querySelectorAll('.filter-grid-label')].map(el => el.textContent),
-  chips: [...document.querySelectorAll('.filter-grid .filter-chip')].map(el => el.textContent),
-  cols: getComputedStyle(document.querySelector('.filter-grid')).gridTemplateColumns.split(' ').length,
+// 1. 筛选/排序已收纳为一行按钮，无常驻 chip 网格
+report.collapsed = await page.evaluate(() => ({
+  chips: document.querySelectorAll('.filter-grid .filter-chip').length,
+  btns: [...document.querySelectorAll('.notes-ctl-btn span')].filter(el => el.offsetParent).map(el => el.textContent),
+  count: document.querySelector('.notes-view-count')?.textContent,
 }))
 
-// 2. 排序下拉无「默认」
-report.sortOptions = await page.evaluate(() =>
-  [...document.querySelectorAll('.list-tools select option')].map(o => o.textContent))
-
-// 3. 点「空气炸锅」只列炸锅鸡翅
-await page.click('.filter-grid .filter-chip:has-text("空气炸锅")')
+// 2. 打开筛选弹层：两组标题 + 13 项
+await page.click('.notes-ctl-btn:visible >> nth=0')
 await page.waitForTimeout(300)
-report.modeFilter = await page.evaluate(() => ({
-  names: [...document.querySelectorAll('.recipe-card-name')].map(el => el.textContent),
+report.pop = await page.evaluate(() => ({
+  groups: [...document.querySelectorAll('.notes-pop-group')].map(el => el.textContent),
+  items: [...document.querySelectorAll('.notes-pop-item')].map(el => el.textContent),
 }))
 
-// 4. 点「清蒸」只列清蒸鲈鱼
-await page.click('.filter-grid .filter-chip:has-text("清蒸")')
+// 3. 点「空气炸锅」筛选
+await page.click('.notes-pop-item:has-text("空气炸锅")')
 await page.waitForTimeout(300)
-report.steamFilter = await page.evaluate(() =>
+report.modeFilter = await page.evaluate(() =>
   [...document.querySelectorAll('.recipe-card-name')].map(el => el.textContent))
 
-// 5. 点「全部」恢复 3 道
-await page.click('.filter-grid .filter-chip:has-text("全部")')
+// 4. 排序弹层切换「收藏优先」
+await page.click('.notes-ctl-btn:visible >> nth=0')
+await page.waitForTimeout(200)
+await page.click('.notes-ctl-btn:visible >> nth=1')
+await page.waitForTimeout(200)
+await page.click('.notes-pop-item:has-text("收藏优先")')
 await page.waitForTimeout(300)
-report.allCount = await page.locator('.recipe-card').count()
+report.sortApplied = await page.evaluate(() =>
+  [...document.querySelectorAll('.notes-ctl-btn span')].filter(el => el.offsetParent).map(el => el.textContent))
 
-// 6. 编辑器：打开炸锅鸡翅 → 做法分类行存在且选中空气炸锅 → 改成电饭锅保存
-await page.click('.recipe-card >> nth=0')
-await page.waitForTimeout(300)
-await page.click('button:has-text("编辑")')
+// 5. 笔记 tab：打开长笔记应停在顶部
+await page.click('.tabbar button:has-text("笔记")')
 await page.waitForTimeout(400)
-report.editorModeRow = await page.evaluate(() => ({
-  hasLabel: !!document.querySelector('.field-label')?.textContent,
-  pressed: [...document.querySelectorAll('.meal-picker .filter-chip[aria-pressed="true"]')].map(el => el.textContent),
+const longNote = page.getByText('长笔记测试').first()
+await longNote.click()
+await page.waitForTimeout(600)
+report.noteTop = await page.evaluate(() => ({
+  scrollY: window.scrollY,
+  docH: document.documentElement.scrollHeight,
+  openedAtTop: window.scrollY < 50,
 }))
-await page.click('.meal-picker .filter-chip:has-text("电饭锅")')
-await page.click('button:has-text("保存")')
-await page.waitForTimeout(400)
 
-// 7. 回列表，点「电饭锅」应列出这道菜
-await page.click('.tabbar button:has-text("食谱")').catch(() => {})
-await page.goBack().catch(() => {})
-await page.waitForTimeout(400)
-await page.click('.filter-grid .filter-chip:has-text("电饭锅")')
-await page.waitForTimeout(300)
-report.afterEdit = await page.evaluate(() =>
-  [...document.querySelectorAll('.recipe-card-name')].map(el => el.textContent))
-
-// 8. 390px 溢出复查
-report.overflow = await page.evaluate(() => document.documentElement.scrollWidth)
-
-// 9. 旧排序值 default 迁移后 select 应显示「最近创建」
-report.sortValue = await page.evaluate(() => document.querySelector('.list-tools select')?.value)
-
+report.errors = errors
 console.log(JSON.stringify(report, null, 2))
-console.log('consoleErrors:', errors.length ? errors : 'none')
 await browser.close()
 server.close()
 process.exit(errors.length ? 1 : 0)

@@ -258,15 +258,9 @@ function NoteEditor({
         .catch(() => undefined)
     }
 
-    if (initial.id) {
-      editor.focus()
-      const range = document.createRange()
-      range.selectNodeContents(editor)
-      range.collapse(false)
-      const selection = window.getSelection()
-      selection?.removeAllRanges()
-      selection?.addRange(range)
-    } else {
+    if (!initial.id) {
+      // 新笔记聚焦标题方便直接开写；已有笔记不自动聚焦——
+      // 移动端 focus 会把光标（collapse 到末尾）滚进视野，表现为打开即跳到底部
       titleRef.current?.focus()
     }
 

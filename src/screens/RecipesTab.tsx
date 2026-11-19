@@ -182,6 +182,16 @@ export default function RecipesTab({ active }: Props) {
   const [recipes, setRecipes] = useState<Recipe[]>(() => getRecipes())
   const [filter, setFilter] = useState<Filter>('all')
   const [sort, setSort] = useState<RecipeSort>(() => normalizeRecipeSort(readJSON<string>('recipeSort', 'created')))
+  const [popOpen, setPopOpen] = useState<null | 'filter' | 'sort'>(null)
+
+  useEffect(() => {
+    if (!popOpen) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPopOpen(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [popOpen])
   const viewRef = useRef(view)
   viewRef.current = view
   const activeRef = useRef(active)
@@ -331,6 +341,12 @@ export default function RecipesTab({ active }: Props) {
     writeJSON('recipeSort', next)
   }
 
+  const filterLabel =
+    filter === 'all'
+      ? '全部'
+      : [...MEAL_FILTERS, ...MODE_FILTERS].find((item) => item.id === filter)?.label ?? '全部'
+  const sortLabel = SORTS.find((item) => item.id === sort)?.label ?? '最近创建'
+
   return (
     <section>
       {noticeNode}
@@ -341,60 +357,138 @@ export default function RecipesTab({ active }: Props) {
         </button>
       </div>
 
-      <div className="filter-grid">
-        <p className="filter-grid-label">按餐次</p>
-        <div className="filter-grid-cells">
-          <button
-            type="button"
-            className="filter-chip"
-            aria-pressed={filter === 'all'}
-            onClick={() => setFilter('all')}
-          >
-            全部
-          </button>
-          {MEAL_FILTERS.map((item) => (
+      {recipes.length > 0 && (
+        <div className="notes-view-row">
+          <div className={popOpen === 'filter' ? 'notes-ctl-wrap is-open' : 'notes-ctl-wrap'}>
             <button
-              key={item.id}
               type="button"
-              className="filter-chip"
-              aria-pressed={filter === item.id}
-              onClick={() => setFilter(item.id)}
+              className="notes-ctl-btn"
+              aria-haspopup="listbox"
+              aria-expanded={popOpen === 'filter'}
+              onClick={() => setPopOpen(popOpen === 'filter' ? null : 'filter')}
             >
-              {item.label}
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M4 5.5h16M7 12h10M10 18.5h4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span>{filterLabel}</span>
+              <svg className="notes-ctl-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
-          ))}
-        </div>
-        <p className="filter-grid-label">按做法</p>
-        <div className="filter-grid-cells">
-          {MODE_FILTERS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className="filter-chip"
-              aria-pressed={filter === item.id}
-              onClick={() => setFilter(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
+            {popOpen === 'filter' && (
+              <div className="notes-pop" role="listbox" aria-label="筛选菜谱">
+                <p className="notes-pop-group">按餐次</p>
+                {[{ id: 'all' as Filter, label: '全部' }, ...MEAL_FILTERS].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="option"
+                    aria-selected={filter === item.id}
+                    className={filter === item.id ? 'notes-pop-item is-active' : 'notes-pop-item'}
+                    onClick={() => {
+                      setFilter(item.id)
+                      setPopOpen(null)
+                    }}
+                  >
+                    <span>{item.label}</span>
+                    {filter === item.id && (
+                      <svg viewBox="0 0 24 24" aria-hidden="true" className="notes-pop-check">
+                        <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+                <p className="notes-pop-group">按做法</p>
+                {MODE_FILTERS.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="option"
+                    aria-selected={filter === item.id}
+                    className={filter === item.id ? 'notes-pop-item is-active' : 'notes-pop-item'}
+                    onClick={() => {
+                      setFilter(item.id)
+                      setPopOpen(null)
+                    }}
+                  >
+                    <span>{item.label}</span>
+                    {filter === item.id && (
+                      <svg viewBox="0 0 24 24" aria-hidden="true" className="notes-pop-check">
+                        <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-      <div className="list-tools">
-        <label className="notes-view-ctl">
-          <select
-            value={sort}
-            aria-label="排序方式"
-            onChange={(event) => changeSort(event.target.value as RecipeSort)}
-          >
-            {SORTS.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+          <div className={popOpen === 'sort' ? 'notes-ctl-wrap is-open' : 'notes-ctl-wrap'}>
+            <button
+              type="button"
+              className="notes-ctl-btn"
+              aria-haspopup="listbox"
+              aria-expanded={popOpen === 'sort'}
+              onClick={() => setPopOpen(popOpen === 'sort' ? null : 'sort')}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M8 5.5v13m0 0l-3.5-3.5M8 18.5l3.5-3.5M16 18.5v-13m0 0l-3.5 3.5M16 5.5l3.5 3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span>{sortLabel}</span>
+              <svg className="notes-ctl-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {popOpen === 'sort' && (
+              <div className="notes-pop" role="listbox" aria-label="排序方式">
+                {SORTS.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="option"
+                    aria-selected={sort === item.id}
+                    className={sort === item.id ? 'notes-pop-item is-active' : 'notes-pop-item'}
+                    onClick={() => {
+                      changeSort(item.id)
+                      setPopOpen(null)
+                    }}
+                  >
+                    <span>{item.label}</span>
+                    {sort === item.id && (
+                      <svg viewBox="0 0 24 24" aria-hidden="true" className="notes-pop-check">
+                        <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <span className="notes-view-count">{visible.length} 道</span>
+        </div>
+      )}
+      {popOpen && (
+        <button
+          type="button"
+          className="notes-pop-backdrop"
+          aria-label="关闭菜单"
+          onClick={() => setPopOpen(null)}
+        />
+      )}
 
       {recipes.length === 0 ? (
         <div className="empty">
