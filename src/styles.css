@@ -76,7 +76,6 @@
   --hover-wash: rgba(255, 255, 255, 0.04);
 
   /* --- 装饰：网格 / 背景光晕 / 图片占位 --- */
-  --grid-line: rgba(255, 255, 255, 0.022);
   --glow-1: rgba(255, 255, 255, 0.05);
   --glow-2: rgba(255, 255, 255, 0.02);
   --glow-3: rgba(255, 255, 255, 0);
@@ -164,7 +163,6 @@
   --glass: rgba(250, 250, 250, 0.96);
   --hover-wash: rgba(0, 0, 0, 0.05);
 
-  --grid-line: rgba(0, 0, 0, 0.05);
   --glow-1: rgba(0, 0, 0, 0.04);
   --glow-2: rgba(0, 0, 0, 0.015);
   --glow-3: rgba(0, 0, 0, 0);
@@ -316,20 +314,6 @@ body::before {
     var(--glow-2) 34%,
     var(--glow-3) 66%
   );
-  pointer-events: none;
-}
-
-/* 网格纹理 */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(circle at 50% 42%, #000 0%, transparent 70%);
-  -webkit-mask-image: radial-gradient(circle at 50% 42%, #000 0%, transparent 70%);
   pointer-events: none;
 }
 
