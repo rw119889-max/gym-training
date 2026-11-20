@@ -1626,7 +1626,7 @@ body::before {
   text-wrap: pretty;
 }
 
-/* ---------- 教练页分组折叠：本周做什么 → 我的进度 → 学习资料 ---------- */
+/* ---------- 教练页分组折叠：训练逻辑 / 学习资料 ---------- */
 .coach-group {
   margin-top: var(--s4);
 }
@@ -4265,71 +4265,6 @@ body.player-open .tabbar {
   outline-offset: -4px;
 }
 
-.training-stats {
-  margin-top: var(--s4);
-  padding: var(--s4);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-}
-
-.training-stats-title {
-  margin-bottom: var(--s2);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: var(--faint);
-}
-
-.training-stats-line {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.training-stats-meta {
-  margin-top: var(--s1);
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--faint);
-}
-
-.training-stats-toggle {
-  margin-top: var(--s3);
-}
-
-.training-records {
-  display: flex;
-  flex-direction: column;
-  margin-top: var(--s3);
-  list-style: none;
-}
-
-.training-record {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s3);
-  padding: var(--s2) 0;
-  border-top: 1px solid var(--line);
-}
-
-.training-record-text {
-  font-size: 12px;
-  color: var(--text-2);
-}
-
-.training-record-del {
-  flex: 0 0 auto;
-  padding: 4px 8px;
-  font-size: 12px;
-  color: var(--danger);
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  cursor: pointer;
-}
-
 /* ---------- 响应式 ---------- */
 
 @media (max-width: 480px) {
@@ -4482,33 +4417,6 @@ button.wp-cell:active {
   border-color: var(--accent-28);
 }
 
-.cycle-card {
-  margin: 0 0 var(--s3);
-  padding: var(--s3);
-  background: var(--surface-1);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-}
-
-.cycle-title {
-  margin: 0 0 var(--s1);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.cycle-line {
-  margin: 0;
-  font-size: 12px;
-  color: var(--text-2);
-  font-variant-numeric: tabular-nums;
-}
-
-.cycle-meta {
-  margin: var(--s1) 0 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-
 /* 笔记主题 / 训练感受 */
 .note-topic-row,
 .note-mood-row,
@@ -4645,12 +4553,6 @@ button.wp-cell:active {
   opacity: 0.5;
 }
 
-.training-record-del {
-  min-width: 48px;
-  min-height: 48px;
-  padding: 0 12px;
-}
-
 .remove-btn {
   width: 48px;
   height: 48px;
@@ -4732,11 +4634,6 @@ button.wp-cell:active {
   color: var(--text-2);
 }
 
-.training-record-del:hover {
-  background: var(--danger-12);
-  border-color: var(--danger-28);
-}
-
 .remove-btn:hover {
   color: var(--text);
   border-color: var(--line-strong);
@@ -4750,7 +4647,6 @@ button.wp-cell:active {
 .topic-chip:active,
 .image-remove:active,
 .remove-btn:active,
-.training-record-del:active,
 .memo-pin:active,
 .note-tool-icon:active,
 .back-btn:active {
@@ -4766,11 +4662,6 @@ button.wp-cell:active {
 .remove-btn {
   transition: color var(--t-color) var(--ease), border-color var(--t-color) var(--ease),
     transform var(--t-move) var(--ease);
-}
-
-.training-record-del {
-  transition: color var(--t-color) var(--ease), border-color var(--t-color) var(--ease),
-    background-color var(--t-color) var(--ease), transform var(--t-move) var(--ease);
 }
 
 .memo-pin {

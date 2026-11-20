@@ -23,10 +23,8 @@ import { formatBytes, getVideos } from '../lib/videos'
 import { exportBackup, importBackup, readBackupSummary } from '../lib/backup'
 import { useOverlayHistory } from '../hooks/useOverlayHistory'
 import { todayKey } from '../lib/date'
-import { countByDay, getSessions, removeSession } from '../lib/trainingLog'
+import { getSessions } from '../lib/trainingLog'
 import {
-  cycleInfo,
-  restartCycle,
   slotFor,
   slotLabel,
   weekDateKeys,
@@ -553,50 +551,6 @@ function WeekPlanCard({
   )
 }
 
-// 90 天学习周期卡：开始日期、第几天/周、推拉次数、复盘里程碑
-function CycleCard({
-  sessions,
-  onRestart,
-}: {
-  sessions: TrainingSession[]
-  onRestart: () => void
-}) {
-  const info = cycleInfo(sessions, new Date())
-  if (!info.started) {
-    return (
-      <div className="cycle-card">
-        <h2 className="cycle-title">90 天学习周期</h2>
-        <p className="cycle-line">完成第一次跟练后自动开始计时。</p>
-      </div>
-    )
-  }
-  return (
-    <div className="cycle-card">
-      <h2 className="cycle-title">90 天学习周期</h2>
-      <p className="cycle-line">
-        第 {info.dayNo} 天 · 第 {info.weekNo} 周 · 已完成推日 {info.pushCount} 次、拉日{' '}
-        {info.pullCount} 次
-      </p>
-      <p className="cycle-meta">
-        {info.finished
-          ? '第 90 天已过：该复盘总结了，决定下一个三个月练什么。'
-          : info.nextMilestone && `下一次复盘：第 ${info.nextMilestone} 天（还差 ${info.daysToMilestone} 天）`}
-      </p>
-      {info.finished && (
-        <button
-          type="button"
-          className="ghost-btn small"
-          onClick={() => {
-            if (window.confirm('复盘完成后开启下一个 90 天周期？')) onRestart()
-          }}
-        >
-          开启下一周期
-        </button>
-      )}
-    </div>
-  )
-}
-
 function GuideLine({ item }: { item: GuideItem }) {
   return (
     <p className="guide-line">
@@ -897,7 +851,6 @@ export default function ExerciseTab({ active }: Props) {
   const [backupBusy, setBackupBusy] = useState(false)
   const [backupNotice, setBackupNotice] = useState<string | null>(null)
   const [sessions, setSessions] = useState(() => getSessions())
-  const [recordsOpen, setRecordsOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   // 跨 tab 写心得期间为 true：切走时保留层级与路由，回来接着写前的计划页继续用
   const keepRouteRef = useRef(false)
@@ -1034,17 +987,6 @@ export default function ExerciseTab({ active }: Props) {
     setExercises(getExerciseProfiles())
     setEditing(null)
     setRoute({ level: 'category', category })
-  }
-
-  const handleUndoCheckin = (id: string) => {
-    if (!window.confirm('撤销这次打卡记录？')) return
-    removeSession(id)
-    setSessions(getSessions())
-  }
-
-  const handleRestartCycle = () => {
-    if (!restartCycle(new Date())) return
-    setSessions(getSessions())
   }
 
   const handleExport = async () => {
@@ -1341,54 +1283,6 @@ export default function ExerciseTab({ active }: Props) {
             )
           })}
         </div>
-
-        <details className="coach-group">
-          <summary>我的进度 · 周期与跟练统计</summary>
-          <CycleCard sessions={sessions} onRestart={handleRestartCycle} />
-          <div className="training-stats">
-            <h2 className="training-stats-title">我的跟练</h2>
-            <p className="training-stats-line">
-              推日 {countByDay('push')} 次 · 拉日 {countByDay('pull')} 次 · 共 {sessions.length} 次
-            </p>
-            <p className="training-stats-meta">
-              {sessions.length > 0
-                ? `最近：${sessions[sessions.length - 1].date} ${sessions[sessions.length - 1].day === 'push' ? '推日' : '拉日'}`
-                : '还没有跟练记录，打开推日或拉日开始第一次。'}
-            </p>
-            {sessions.length > 0 && (
-              <>
-                <button
-                  type="button"
-                  className="ghost-btn small training-stats-toggle"
-                  aria-expanded={recordsOpen}
-                  onClick={() => setRecordsOpen((prev) => !prev)}
-                >
-                  {recordsOpen ? '收起记录' : '查看记录'}
-                </button>
-                {recordsOpen && (
-                  <ul className="training-records">
-                    {[...sessions].reverse().slice(0, 20).map((item) => (
-                      <li key={item.id} className="training-record">
-                        <span className="training-record-text">
-                          {item.day === 'push' ? '推日' : '拉日'} 第 {item.seq} 次 · {item.date}
-                          {item.noteId ? ' · 有心得' : ''}
-                        </span>
-                        <button
-                          type="button"
-                          className="training-record-del"
-                          aria-label="删除记录"
-                          onClick={() => handleUndoCheckin(item.id)}
-                        >
-                          删除
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </>
-            )}
-          </div>
-        </details>
 
         <details className="coach-group">
           <summary>训练逻辑与系列总纲</summary>

@@ -36,6 +36,14 @@ await page.locator('.tabbar button:visible', { hasText: /动作|训练/ }).first
 await page.waitForTimeout(400)
 await page.click('.coach-card')
 await page.waitForTimeout(300)
+// 列表页快照：确认「我的进度 · 周期与跟练统计」区块已删，每日计划仍在
+const listSnapshot = await page.evaluate(() => ({
+  hasProgress: /我的进度|周期与跟练统计|90 天学习周期|我的跟练/.test(document.body.innerText),
+  hasCycle: !!document.querySelector('.cycle-card, .training-stats, .training-records'),
+  hasDaily: !!document.querySelector('.plan-day-card') && /每日计划/.test(document.body.innerText),
+}))
+await page.waitForTimeout(300) // 等每日计划卡片入场动画结束再截图
+await page.screenshot({ path: 'shot-plan-list.png' })
 await page.click('.plan-day-card.is-push')
 await page.waitForSelector('.plan-card-stage', { timeout: 8000 })
 await page.waitForTimeout(400)
@@ -96,6 +104,7 @@ const s1 = await page.evaluate(() => ({
   })(),
 }))
 check('结构：仅手势翻页，无按钮无页码', s1.stage && s1.top && s1.noFoot && s1.noNav && s1.noPageText, '')
+check('我的进度/周期/跟练统计已删，每日计划保留', !listSnapshot.hasProgress && !listSnapshot.hasCycle && listSnapshot.hasDaily, '')
 check('卡片高度自适应，无框内滚动', s1.noInnerScroll, '')
 check('热身清单已删，开练视频入口保留', s1.noWarmupList && s1.hasVideoEntry, '')
 check('苹果风格字体栈', /-apple-system|SF Pro|PingFang/.test(s1.font), s1.font.slice(0, 60))
