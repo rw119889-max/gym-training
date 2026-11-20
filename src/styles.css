@@ -4192,14 +4192,6 @@ body.player-open .tabbar {
   transform: scale(0.98);
 }
 
-.warmup-head {
-  transition: transform var(--t-move) var(--ease), background-color var(--t-color) var(--ease);
-}
-
-.warmup-head:active {
-  transform: scale(0.98);
-}
-
 .tabbar button[aria-current="true"] .tab-icon {
   color: var(--accent-text);
 }
@@ -4839,108 +4831,9 @@ button.wp-cell:active {
   transform: none;
 }
 
-/* ===== 计划日：热身卡 + 动作替换 ===== */
+/* ===== 计划日：动作替换 ===== */
 
-.warmup-card {
-  margin: var(--s4) 0;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  overflow: hidden;
-}
-
-.warmup-head {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  width: 100%;
-  min-height: 48px;
-  padding: var(--s3) var(--s4);
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  text-align: left;
-}
-
-.warmup-title {
-  flex: 1;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.warmup-count {
-  font-size: 12px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.warmup-head .plan-exercise-chevron {
-  width: 20px;
-  height: 20px;
-  transition: transform var(--t-move) var(--ease);
-}
-
-.warmup-head .plan-exercise-chevron.is-open {
-  transform: rotate(180deg);
-}
-
-.warmup-body {
-  padding: 0 var(--s4) var(--s4);
-  display: grid;
-  gap: var(--s2);
-}
-
-.warmup-list {
-  list-style: none;
-  display: grid;
-  gap: var(--s2);
-}
-
-.warmup-item {
-  position: relative;
-  touch-action: pan-y;
-  overflow: hidden;
-  padding: 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.warmup-item:last-child {
-  border-bottom: 0;
-}
-
-/* 左滑结构：内容移到 content 层，padding 一并迁移，露出右侧红色提示 */
-.warmup-item .memo-swipe-content {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s3);
-  padding: var(--s2) 0;
-  background: var(--surface);
-}
-
-.warmup-item-text {
-  flex: 1;
-  display: grid;
-  gap: 2px;
-}
-
-.warmup-item-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
-}
-
-.warmup-item-name::before {
-  content: "· ";
-  color: var(--accent-text);
-}
-
-.warmup-item-note {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-/* 开练视频入口卡（热身卡上方）：整行可点，进二级视频页 */
+/* 开练视频入口卡：整行可点，进二级视频页 */
 .warmup-video-entry {
   display: flex;
   align-items: center;
@@ -5167,13 +5060,6 @@ button.wp-cell:active {
   margin: var(--s2) 0 0;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.5);
-}
-
-.warmup-add {
-  display: grid;
-  gap: var(--s2);
-  padding-top: var(--s2);
-  border-top: 1px dashed var(--line);
 }
 
 .swap-editor {

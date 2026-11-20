@@ -4,8 +4,6 @@ import type { ExerciseCategory, ExerciseProfile, TrainingSession } from '../type
 import ExerciseVideos from '../components/ExerciseVideos'
 import ExercisePhotos from '../components/ExercisePhotos'
 import SavedArticles from '../components/SavedArticles'
-import ConfirmDialog from '../components/ConfirmDialog'
-import SwipeToDelete from '../components/SwipeToDelete'
 import WarmupVideos from '../components/WarmupVideos'
 import {
   PICKABLE_CATEGORIES,
@@ -37,8 +35,6 @@ import {
   weekdayLabel,
   WEEK_DISPLAY_ORDER,
 } from '../lib/weeklyPlan'
-import { addWarmup, getWarmups, removeWarmup, resetWarmups } from '../lib/warmups'
-import type { WarmupItem } from '../lib/warmups'
 import { getPlanOverride, removePlanOverride, setPlanOverride } from '../lib/planOverrides'
 import type { PlanOverride } from '../lib/planOverrides'
 import { PLAN_BRIEF } from '../lib/planBrief'
@@ -133,135 +129,6 @@ function SwapEditor({
           )}
         </div>
       </form>
-    </div>
-  )
-}
-
-// 热身卡：推/拉日各一套，可添加/删除条目、可恢复默认
-function WarmupCard({ day }: { day: 'push' | 'pull' }) {
-  const [items, setItems] = useState<WarmupItem[]>(() => getWarmups()[day])
-  const [adding, setAdding] = useState(false)
-  const [name, setName] = useState('')
-  const [note, setNote] = useState('')
-  const [open, setOpen] = useState(true)
-  const [pendingDelete, setPendingDelete] = useState<WarmupItem | null>(null)
-
-  const handleAdd = () => {
-    const item = addWarmup(day, name, note)
-    if (item) {
-      setItems(getWarmups()[day])
-      setName('')
-      setNote('')
-      setAdding(false)
-    }
-  }
-
-  const handleRemove = (id: string) => {
-    removeWarmup(day, id)
-    setItems(getWarmups()[day])
-    setPendingDelete(null)
-  }
-
-  const handleReset = () => {
-    resetWarmups(day)
-    setItems(getWarmups()[day])
-    setAdding(false)
-  }
-
-  return (
-    <div className="warmup-card">
-      <button
-        type="button"
-        className="warmup-head"
-        aria-expanded={open}
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        <span className="warmup-title">热身（先热身再上重量）</span>
-        <span className="warmup-count">{items.length} 项</span>
-        <span className={`plan-exercise-chevron${open ? ' is-open' : ''}`} aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 9.5l6 6 6-6" />
-          </svg>
-        </span>
-      </button>
-      {open && (
-        <div className="warmup-body">
-          {items.length === 0 && <p className="field-hint">还没有热身项，点下方「+ 添加热身动作」。</p>}
-          <ul className="warmup-list">
-            {items.map((item) => (
-              <SwipeToDelete
-                key={item.id}
-                className="warmup-item"
-                onAskDelete={() => setPendingDelete(item)}
-              >
-                <span className="warmup-item-text">
-                  <span className="warmup-item-name">{item.name}</span>
-                  {item.note && <span className="warmup-item-note">{item.note}</span>}
-                </span>
-              </SwipeToDelete>
-            ))}
-          </ul>
-          {adding ? (
-            <div className="warmup-add">
-              <input
-                className="field-input"
-                value={name}
-                maxLength={20}
-                autoFocus
-                placeholder="热身动作名，如：弹力带肩环绕"
-                onChange={(event) => setName(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    handleAdd()
-                  }
-                }}
-              />
-              <input
-                className="field-input"
-                value={note}
-                maxLength={40}
-                placeholder="要点（可留空），如：半程，十几二十次 × 2 组"
-                onChange={(event) => setNote(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    handleAdd()
-                  }
-                }}
-              />
-              <div className="backup-actions">
-                <button className="save-btn" type="button" disabled={!name.trim()} onClick={handleAdd}>
-                  添加
-                </button>
-                <button className="ghost-btn small" type="button" onClick={() => setAdding(false)}>
-                  取消
-                </button>
-                <button className="ghost-btn small" type="button" onClick={handleReset}>
-                  恢复默认
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="backup-actions">
-              <button className="ghost-btn small" type="button" onClick={() => setAdding(true)}>
-                + 添加热身动作
-              </button>
-              <button className="ghost-btn small" type="button" onClick={handleReset}>
-                恢复默认
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-      {pendingDelete && (
-        <ConfirmDialog
-          message={`删掉热身项「${pendingDelete.name}」？`}
-          confirmLabel="删掉"
-          onCancel={() => setPendingDelete(null)}
-          onConfirm={() => handleRemove(pendingDelete.id)}
-        />
-      )}
     </div>
   )
 }
@@ -1430,8 +1297,6 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
             ›
           </span>
         </button>
-
-        <WarmupCard day={route.day} />
 
         <PlanCardPager day={day} dayId={route.day} />
 

@@ -78,10 +78,12 @@ async function release(dir, fraction = 0.6) {
   }, { dir, fraction })
 }
 
-// 1. 结构：无上一页/下一页/页码，只有 stage + 顶层页
+// 1. 结构：无上一页/下一页/页码，热身清单已删，开练视频入口保留
 const s1 = await page.evaluate(() => ({
   stage: !!document.querySelector('.plan-card-stage'),
   top: !!document.querySelector('.plan-card-page.is-top'),
+  noWarmupList: !document.querySelector('.warmup-card') && !/添加热身动作|恢复默认|热身（先热身/.test(document.body.innerText),
+  hasVideoEntry: !!document.querySelector('.warmup-video-entry'),
   noFoot: !document.querySelector('.plan-card-foot'),
   noNav: document.querySelectorAll('.plan-card-nav, .plan-card-count').length === 0,
   noPageText: !/上一页|下一页/.test(document.body.innerText),
@@ -89,6 +91,7 @@ const s1 = await page.evaluate(() => ({
   font: getComputedStyle(document.querySelector('.plan-card-page')).fontFamily,
 }))
 check('结构：仅手势翻页，无按钮无页码', s1.stage && s1.top && s1.noFoot && s1.noNav && s1.noPageText, '')
+check('热身清单已删，开练视频入口保留', s1.noWarmupList && s1.hasVideoEntry, '')
 check('苹果风格字体栈', /-apple-system|SF Pro|PingFang/.test(s1.font), s1.font.slice(0, 60))
 const firstName = s1.name
 
