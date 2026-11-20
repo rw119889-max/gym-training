@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, CSSProperties } from 'react'
 import type { ExerciseCategory, ExerciseProfile, TrainingSession } from '../types'
 import ExerciseVideos from '../components/ExerciseVideos'
 import ExercisePhotos from '../components/ExercisePhotos'
@@ -16,7 +16,7 @@ import {
   updateExerciseProfile,
 } from '../lib/exerciseProfiles'
 import { COACH_SERIES, PLAN_DAYS, findPlanDay } from '../lib/coachPlans'
-import type { PlanDay, PlanExercise } from '../lib/coachPlans'
+import type { PlanDay, PlanDayInfo, PlanExercise } from '../lib/coachPlans'
 import { SERIES_GUIDE } from '../lib/coachGuide'
 import type { GuideItem } from '../lib/coachGuide'
 import { getExercisePhotos } from '../lib/exercisePhotos'
@@ -265,7 +265,8 @@ function WarmupCard({ day }: { day: 'push' | 'pull' }) {
   )
 }
 
-function PlanExerciseCard({
+/* 计划详情翻页卡：单页动作卡（内容全部展开，无手风琴） */
+function PlanExercisePage({
   exercise,
   index,
   day,
@@ -274,7 +275,6 @@ function PlanExerciseCard({
   index: number
   day: 'push' | 'pull'
 }) {
-  const [open, setOpen] = useState(false)
   // 动作替换：进入页面时读一次覆盖；替换/还原后由子组件刷新
   const [override, setOverride] = useState<PlanOverride | null>(() => getPlanOverride(exercise.id))
   const [replacing, setReplacing] = useState(false)
@@ -293,19 +293,16 @@ function PlanExerciseCard({
   }
 
   return (
-    <li className={open ? 'plan-exercise is-open' : 'plan-exercise'}>
-      <button
-        type="button"
-        className="plan-exercise-head"
-        aria-expanded={open}
-        onClick={() => setOpen((prev) => !prev)}
-      >
+    <div className="plan-card-body">
+      <div className="plan-card-head">
         <span className="plan-exercise-index" aria-hidden="true">
           {index + 1}
         </span>
-        <span className="plan-exercise-main">
-          <span className="plan-exercise-name">{displayName}</span>
-          {override && <span className="plan-chip is-swapped">已替换</span>}
+        <div className="plan-exercise-main">
+          <span className="plan-card-name-row">
+            <span className="plan-exercise-name">{displayName}</span>
+            {override && <span className="plan-chip is-swapped">已替换</span>}
+          </span>
           <span className="plan-exercise-muscles">
             {override ? `原动作：${exercise.name}` : exercise.muscles}
           </span>
@@ -317,92 +314,262 @@ function PlanExerciseCard({
               {exercise.intensity}
             </span>
           </span>
-        </span>
-        <span className="plan-exercise-chevron" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 9.5l6 6 6-6" />
-          </svg>
-        </span>
-      </button>
-      {open && (
-        <div className="plan-exercise-body">
-          {replacing ? (
-            <SwapEditor day={day} current={override} onDone={applyOverride} />
-          ) : (
-            <ul className="plan-tips">
-              {exercise.tips.map((tip) => (
-                <li key={tip}>{tip}</li>
-              ))}
-            </ul>
-          )}
-          <div className="swap-row">
-            {replacing ? (
+        </div>
+      </div>
+      {replacing ? (
+        <SwapEditor day={day} current={override} onDone={applyOverride} />
+      ) : (
+        <ul className="plan-tips">
+          {exercise.tips.map((tip) => (
+            <li key={tip}>{tip}</li>
+          ))}
+        </ul>
+      )}
+      <div className="swap-row">
+        {replacing ? (
+          <button
+            type="button"
+            className="ghost-btn small"
+            onClick={() => setReplacing(false)}
+          >
+            取消替换
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="ghost-btn small"
+              onClick={() => setReplacing(true)}
+            >
+              {override ? '换一个动作' : '替换动作'}
+            </button>
+            {override && (
               <button
                 type="button"
                 className="ghost-btn small"
-                onClick={() => setReplacing(false)}
+                onClick={() => applyOverride(null)}
               >
-                取消替换
+                还原成 {exercise.name}
               </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="ghost-btn small"
-                  onClick={() => setReplacing(true)}
-                >
-                  {override ? '换一个动作' : '替换动作'}
-                </button>
-                {override && (
-                  <button
-                    type="button"
-                    className="ghost-btn small"
-                    onClick={() => applyOverride(null)}
-                  >
-                    还原成 {exercise.name}
-                  </button>
-                )}
-              </>
             )}
-          </div>
-          <ExerciseVideos exerciseId={exercise.id} />
-          {exercise.notes && exercise.notes.length > 0 && (
-            <div className="plan-block">
-              <h3 className="plan-block-title">教练补充</h3>
-              <GuideLines items={exercise.notes} />
+          </>
+        )}
+      </div>
+      <ExerciseVideos exerciseId={exercise.id} />
+      {exercise.notes && exercise.notes.length > 0 && (
+        <div className="plan-block">
+          <h3 className="plan-block-title">教练补充</h3>
+          <GuideLines items={exercise.notes} />
+        </div>
+      )}
+      {hasRegression || hasProgression ? (
+        <div className="plan-block plan-regpro">
+          {hasRegression && (
+            <div className="plan-regpro-col">
+              <h3 className="plan-block-title">退阶</h3>
+              <GuideLines items={exercise.regression ?? []} />
             </div>
           )}
-          {hasRegression || hasProgression ? (
-            <div className="plan-block plan-regpro">
-              {hasRegression && (
-                <div className="plan-regpro-col">
-                  <h3 className="plan-block-title">退阶</h3>
-                  <GuideLines items={exercise.regression ?? []} />
-                </div>
-              )}
-              {hasProgression && (
-                <div className="plan-regpro-col">
-                  <h3 className="plan-block-title">进阶</h3>
-                  <GuideLines items={exercise.progression ?? []} />
-                </div>
-              )}
-            </div>
-          ) : null}
-          {exercise.adjust && (
-            <div className="plan-block plan-adjust">
-              <h3 className="plan-block-title">次数 / 重量怎么调</h3>
-              <p className="guide-line-text">{exercise.adjust}</p>
-            </div>
-          )}
-          {exercise.faq && exercise.faq.length > 0 && (
-            <div className="plan-block">
-              <h3 className="plan-block-title">常见问题</h3>
-              <FaqList entries={exercise.faq} />
+          {hasProgression && (
+            <div className="plan-regpro-col">
+              <h3 className="plan-block-title">进阶</h3>
+              <GuideLines items={exercise.progression ?? []} />
             </div>
           )}
         </div>
+      ) : null}
+      {exercise.adjust && (
+        <div className="plan-block plan-adjust">
+          <h3 className="plan-block-title">次数 / 重量怎么调</h3>
+          <p className="guide-line-text">{exercise.adjust}</p>
+        </div>
       )}
-    </li>
+      {exercise.faq && exercise.faq.length > 0 && (
+        <div className="plan-block">
+          <h3 className="plan-block-title">常见问题</h3>
+          <FaqList entries={exercise.faq} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* 计划详情翻页卡：触屏左滑翻页（带折痕受光）+ 底部上一页/下一页/n m 分页 */
+const CARD_TURN_DEG = 72
+const CARD_SETTLE_MS = 360
+
+function PlanCardPager({ day, dayId }: { day: PlanDayInfo; dayId: 'push' | 'pull' }) {
+  const total = day.exercises.length
+  const [page, setPage] = useState(0)
+  // drag > 0：向左拖（翻下一页）；px
+  const [drag, setDrag] = useState(0)
+  // 收尾动画方向：±1 提交翻页，9 回弹归位，0 静止
+  const [settling, setSettling] = useState(0)
+  const stageRef = useRef<HTMLDivElement | null>(null)
+  const touchRef = useRef<{
+    x: number
+    y: number
+    t: number
+    vx: number
+    locked: '' | 'h' | 'v'
+  } | null>(null)
+  const busyRef = useRef(false)
+
+  const W = () => stageRef.current?.clientWidth || 320
+  const canGo = (dir: number) => {
+    const n = page + dir
+    return n >= 0 && n < total
+  }
+
+  const commit = (dir: number) => {
+    if (busyRef.current || !canGo(dir)) return
+    busyRef.current = true
+    setSettling(dir)
+    setDrag(dir * W())
+    window.setTimeout(() => {
+      setPage((p) => Math.min(total - 1, Math.max(0, p + dir)))
+      setDrag(0)
+      setSettling(0)
+      busyRef.current = false
+    }, CARD_SETTLE_MS)
+  }
+
+  const settleBack = () => {
+    if (busyRef.current) return
+    busyRef.current = true
+    setSettling(9)
+    setDrag(0)
+    window.setTimeout(() => {
+      setSettling(0)
+      busyRef.current = false
+    }, CARD_SETTLE_MS)
+  }
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (busyRef.current) return
+    const t = e.touches[0]
+    touchRef.current = { x: t.clientX, y: t.clientY, t: performance.now(), vx: 0, locked: '' }
+  }
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    const st = touchRef.current
+    if (!st || busyRef.current) return
+    const t = e.touches[0]
+    const dx = st.x - t.clientX
+    const dy = st.y - t.clientY
+    if (!st.locked) {
+      if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) st.locked = 'h'
+      else if (Math.abs(dy) > 12) st.locked = 'v'
+      if (!st.locked) return
+    }
+    if (st.locked !== 'h') return
+    const now = performance.now()
+    st.vx = dx / Math.max(1, now - st.t)
+    const dir = dx > 0 ? 1 : -1
+    // 到边界后给阻尼，松手回弹
+    setDrag(canGo(dir) ? dx : dx * 0.22)
+  }
+
+  const onTouchEnd = () => {
+    const st = touchRef.current
+    touchRef.current = null
+    if (!st || st.locked !== 'h' || busyRef.current) return
+    const dir = drag > 0 ? 1 : -1
+    const passed = Math.abs(drag) > W() * 0.32 || Math.abs(st.vx) > 0.55
+    if (passed && canGo(dir)) {
+      commit(dir)
+    } else {
+      settleBack()
+    }
+  }
+
+  const width = stageRef.current?.clientWidth || 320
+  const p = Math.min(1, Math.abs(drag) / width)
+  const dir = drag >= 0 ? 1 : -1
+  const dragging = drag !== 0
+  const turnDeg = (dir > 0 ? -1 : 1) * CARD_TURN_DEG * p
+  const hinge = dir > 0 ? 'left center' : 'right center'
+  const shadeBg =
+    dir > 0
+      ? 'linear-gradient(90deg, rgba(0,0,0,0.42), rgba(0,0,0,0) 62%)'
+      : 'linear-gradient(270deg, rgba(0,0,0,0.42), rgba(0,0,0,0) 62%)'
+
+  const topStyle: CSSProperties =
+    dragging || settling !== 0
+      ? {
+          transform: `rotateY(${turnDeg}deg)`,
+          transformOrigin: hinge,
+          opacity: 1 - 0.85 * p * p,
+          transition:
+            settling !== 0
+              ? `transform ${CARD_SETTLE_MS}ms var(--ease), opacity ${CARD_SETTLE_MS}ms var(--ease)`
+              : undefined,
+        }
+      : {}
+
+  const underIndex = dragging ? page + dir : -1
+  const underStyle: CSSProperties =
+    underIndex >= 0 && underIndex < total
+      ? {
+          transform: `scale(${0.96 + 0.04 * p})`,
+          filter: `brightness(${1 - 0.28 * (1 - p)})`,
+        }
+      : {}
+
+  return (
+    <div className={`plan-card is-${dayId}`}>
+      <div
+        className="plan-card-stage"
+        ref={stageRef}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+      >
+        {underIndex >= 0 && underIndex < total && (
+          <div className="plan-card-page is-under" style={underStyle} aria-hidden="true">
+            <PlanExercisePage
+              exercise={day.exercises[underIndex]}
+              index={underIndex}
+              day={dayId}
+            />
+          </div>
+        )}
+        <div
+          key={`page-${page}`}
+          className={`plan-card-page is-top${dragging ? ' is-turning' : ''}`}
+          style={topStyle}
+        >
+          <PlanExercisePage exercise={day.exercises[page]} index={page} day={dayId} />
+          <div
+            className="plan-card-shade"
+            style={{ background: shadeBg, opacity: p }}
+            aria-hidden="true"
+          />
+        </div>
+      </div>
+      <div className="plan-card-foot">
+        <button
+          type="button"
+          className="plan-card-nav"
+          disabled={page === 0}
+          onClick={() => commit(-1)}
+        >
+          上一页
+        </button>
+        <span className="plan-card-count">
+          {page + 1} / {total}
+        </span>
+        <button
+          type="button"
+          className="plan-card-nav"
+          disabled={page === total - 1}
+          onClick={() => commit(1)}
+        >
+          下一页
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -1251,7 +1418,7 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
           <span className="group-count">{day.exercises.length} 个动作</span>
         </div>
         <p className="page-sub">
-          {day.focus} · 按顺序练，点动作展开要点
+          {day.focus} · 按顺序练，触屏左滑翻看下一页
         </p>
 
         <button
@@ -1279,16 +1446,7 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
 
         <WarmupCard day={route.day} />
 
-        <ol className={`plan-exercise-list is-${day.id}`}>
-          {day.exercises.map((exercise, index) => (
-            <PlanExerciseCard
-              key={exercise.id}
-              exercise={exercise}
-              index={index}
-              day={route.day}
-            />
-          ))}
-        </ol>
+        <PlanCardPager day={day} dayId={route.day} />
 
         <TrainingCheckin
           day={route.day}

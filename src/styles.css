@@ -1778,44 +1778,134 @@ body::before {
   text-overflow: ellipsis;
 }
 
-/* ---------- 计划详情：动作手风琴 ---------- */
+/* ---------- 计划详情：翻页卡片 ---------- */
 
-.plan-exercise-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s3);
-  list-style: none;
+.plan-card-stage {
+  position: relative;
+  height: 62vh;
+  min-height: 360px;
+  perspective: 1400px;
+  overflow: hidden;
+  border-radius: var(--r-md);
 }
 
-.plan-exercise {
-  overflow: hidden;
+.plan-card-page {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   background-color: var(--surface-1);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
-  transition: border-color var(--t-color) var(--ease);
 }
 
-.plan-exercise-list.is-push .plan-exercise.is-open {
-  border-color: var(--accent-28);
+.plan-card-page.is-top {
+  z-index: 2;
+  touch-action: pan-y;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
-.plan-exercise-list.is-pull .plan-exercise.is-open {
-  border-color: var(--info-28);
+.plan-card-page.is-under {
+  z-index: 1;
 }
 
-.plan-exercise-head {
+/* 翻页落定后的进场：新页微微上浮归位 */
+.plan-card-page.is-top:not(.is-turning) {
+  animation: planCardIn 260ms var(--ease);
+}
+
+@keyframes planCardIn {
+  from {
+    opacity: 0.4;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 翻页时上层纸面的折痕受光层 */
+.plan-card-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.plan-card-head {
   display: flex;
   align-items: flex-start;
   gap: var(--s3);
-  width: 100%;
-  min-height: 64px;
+}
+
+.plan-card-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.plan-card-body {
   padding: var(--s4);
-  text-align: left;
+}
+
+.plan-card-body .plan-tips {
+  padding: 0;
+  margin: var(--s3) 0 0;
+  animation: none;
+}
+
+.plan-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s3) var(--s2) 0;
+}
+
+.plan-card-nav {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text);
-  background: none;
-  border: 0;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  padding: 8px 16px;
   cursor: pointer;
+  transition: opacity var(--t-color) var(--ease), transform var(--t-color) var(--ease),
+    border-color var(--t-color) var(--ease);
+}
+
+.plan-card-nav:hover:not(:disabled) {
+  border-color: var(--accent-28);
+}
+
+.plan-card-nav:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.plan-card-nav:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.plan-card-count {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-card-page.is-top:not(.is-turning) {
+    animation: none;
+  }
 }
 
 .plan-exercise-index {
@@ -1831,13 +1921,13 @@ body::before {
   border-radius: var(--r-full);
 }
 
-.plan-exercise-list.is-push .plan-exercise-index {
+.plan-card.is-push .plan-exercise-index {
   color: var(--accent-text);
   background: var(--accent-06);
   border: 1px solid var(--accent-28);
 }
 
-.plan-exercise-list.is-pull .plan-exercise-index {
+.plan-card.is-pull .plan-exercise-index {
   color: var(--info);
   background: var(--info-12);
   border: 1px solid var(--info-28);
@@ -1899,38 +1989,10 @@ body::before {
   border-color: var(--warning-28);
 }
 
-.plan-exercise-chevron {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 28px;
-  color: var(--faint);
-  transition: transform var(--t-move) var(--ease), color var(--t-color) var(--ease);
-}
-
-.plan-exercise-chevron svg {
-  width: 18px;
-  height: 18px;
-}
-
-.plan-exercise.is-open .plan-exercise-chevron {
-  transform: rotate(180deg);
-}
-
-.plan-exercise-list.is-push .plan-exercise.is-open .plan-exercise-chevron {
-  color: var(--accent-text);
-}
-
-.plan-exercise-list.is-pull .plan-exercise.is-open .plan-exercise-chevron {
-  color: var(--info);
-}
-
 .plan-tips {
   margin: 0;
-  padding: 0 var(--s4) var(--s4) calc(var(--s4) + 28px + var(--s3)); /* 对齐 .plan-exercise-head 序号列：16 + 28 + 12 */
+  padding: 0;
   list-style: none;
-  animation: fadeUp var(--t-move) var(--ease);
 }
 
 .plan-tips li {
@@ -1957,32 +2019,15 @@ body::before {
   border-radius: 2px;
 }
 
-.plan-exercise-list.is-push .plan-tips li::before {
+.plan-card.is-push .plan-tips li::before {
   background: var(--accent-28);
 }
 
-.plan-exercise-list.is-pull .plan-tips li::before {
+.plan-card.is-pull .plan-tips li::before {
   background: var(--info-28);
 }
 
-@media (max-width: 380px) {
-  .plan-tips {
-    padding-left: var(--s4);
-  }
-}
-
 /* ---------- 教练系列总纲 / 动作深化 ---------- */
-
-.plan-exercise-body {
-  padding: 0 var(--s4) var(--s4) calc(var(--s4) + 28px + var(--s3)); /* 对齐 .plan-exercise-head 序号列：16 + 28 + 12 */
-  animation: fadeUp var(--t-move) var(--ease);
-}
-
-.plan-exercise-body .plan-tips {
-  padding: 0;
-  margin-bottom: var(--s3);
-  animation: none;
-}
 
 .plan-block {
   margin-top: var(--s3);
@@ -2247,12 +2292,6 @@ body::before {
 @media (max-width: 560px) {
   .plan-regpro {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 380px) {
-  .plan-exercise-body {
-    padding-left: var(--s4);
   }
 }
 
