@@ -150,12 +150,29 @@ await page.waitForTimeout(450)
 const s5 = await page.evaluate(() => document.querySelector('.plan-card-count')?.textContent ?? '')
 check('上一页回退生效', s5.startsWith(String(total - 1)), `${total} → ${s5}`)
 
-// 5. 页内滚动不被横向手势劫持：卡片内容可滚动
+// 5. 默认简洁：一句话 + 3 条短口令，详细内容折叠；展开后原文仍在
 const s6 = await page.evaluate(() => {
   const top = document.querySelector('.plan-card-page.is-top')
-  return { scrollable: top.scrollHeight > top.clientHeight }
+  const detail = top.querySelector('.plan-card-detail')
+  return {
+    text: (top.innerText ?? '').replace(/\s+/g, ''),
+    detailOpen: detail?.open ?? null,
+    steps: top.querySelectorAll('.plan-card-steps li').length,
+    hasCue: !!top.querySelector('.plan-card-cue-text'),
+  }
 })
-check('卡片内容可纵向滚动', s6.scrollable, '')
+check('默认简洁：一句话 + 3 条口令，详细折叠', s6.text.length < 200 && s6.detailOpen === false && s6.steps === 3 && s6.hasCue,
+  `默认可见 ${s6.text.length} 字`)
+await page.click('.plan-card-page.is-top .plan-card-detail summary')
+await page.waitForTimeout(200)
+const s7 = await page.evaluate(() => {
+  const top = document.querySelector('.plan-card-page.is-top')
+  return {
+    open: top.querySelector('.plan-card-detail')?.open ?? null,
+    fullTips: top.querySelectorAll('.plan-card-detail .plan-tips li').length,
+  }
+})
+check('展开详细讲解后教练原文仍在', s7.open === true && s7.fullTips > 3, `${s7.fullTips} 条原文要点`)
 
 // 6. 零控制台错误
 const errors = await page.evaluate(() => window.__errors ?? [])

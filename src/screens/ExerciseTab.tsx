@@ -41,6 +41,7 @@ import { addWarmup, getWarmups, removeWarmup, resetWarmups } from '../lib/warmup
 import type { WarmupItem } from '../lib/warmups'
 import { getPlanOverride, removePlanOverride, setPlanOverride } from '../lib/planOverrides'
 import type { PlanOverride } from '../lib/planOverrides'
+import { PLAN_BRIEF } from '../lib/planBrief'
 
 type MediaKind = 'videos' | 'photos' | 'articles'
 type Bucket = ExerciseCategory | 'unassigned'
@@ -275,12 +276,17 @@ function PlanExercisePage({
   index: number
   day: 'push' | 'pull'
 }) {
+  const brief = PLAN_BRIEF[exercise.id] ?? {
+    cue: exercise.tips[0] ?? '',
+    steps: exercise.tips.slice(1, 4),
+    effort: exercise.toFailure ? '最后可以拼一拼' : '留点力气',
+  }
   // 动作替换：进入页面时读一次覆盖；替换/还原后由子组件刷新
   const [override, setOverride] = useState<PlanOverride | null>(() => getPlanOverride(exercise.id))
   const [replacing, setReplacing] = useState(false)
   const hasRegression = (exercise.regression?.length ?? 0) > 0
   const hasProgression = (exercise.progression?.length ?? 0) > 0
-  const displayName = override ? override.name : exercise.name
+  const displayName = override ? override.name : brief.title ?? exercise.name
 
   const applyOverride = (next: PlanOverride | null) => {
     if (next) {
@@ -303,92 +309,100 @@ function PlanExercisePage({
             <span className="plan-exercise-name">{displayName}</span>
             {override && <span className="plan-chip is-swapped">已替换</span>}
           </span>
-          <span className="plan-exercise-muscles">
-            {override ? `原动作：${exercise.name}` : exercise.muscles}
-          </span>
-          <span className="plan-exercise-tags">
-            <span className="plan-chip is-sets">{exercise.sets}</span>
-            <span
-              className={exercise.toFailure ? 'plan-chip is-failure' : 'plan-chip is-control'}
-            >
-              {exercise.intensity}
-            </span>
-          </span>
+          {override && (
+            <span className="plan-exercise-muscles">原动作：{exercise.name}</span>
+          )}
         </div>
       </div>
+
       {replacing ? (
         <SwapEditor day={day} current={override} onDone={applyOverride} />
       ) : (
-        <ul className="plan-tips">
-          {exercise.tips.map((tip) => (
-            <li key={tip}>{tip}</li>
-          ))}
-        </ul>
-      )}
-      <div className="swap-row">
-        {replacing ? (
-          <button
-            type="button"
-            className="ghost-btn small"
-            onClick={() => setReplacing(false)}
-          >
-            取消替换
-          </button>
-        ) : (
-          <>
+        <>
+          <div className="plan-card-chips">
+            <span className="plan-chip is-sets">{exercise.sets}</span>
+            <span className="plan-chip is-effort">{brief.effort}</span>
+          </div>
+
+          <div className="plan-card-cue">
+            <span className="plan-card-cue-label">一句话</span>
+            <p className="plan-card-cue-text">{brief.cue}</p>
+          </div>
+
+          <ol className="plan-card-steps">
+            {brief.steps.map((step, stepIndex) => (
+              <li key={step}>
+                <span className="plan-card-step-no" aria-hidden="true">{stepIndex + 1}</span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ol>
+
+          <details className="plan-card-detail">
+            <summary>想看详细讲解 <span aria-hidden="true">›</span></summary>
+            <div className="plan-card-detail-body">
+              <ul className="plan-tips">
+                {exercise.tips.map((tip) => (
+                  <li key={tip}>{tip}</li>
+                ))}
+              </ul>
+              <ExerciseVideos exerciseId={exercise.id} />
+              {exercise.notes && exercise.notes.length > 0 && (
+                <div className="plan-block">
+                  <h3 className="plan-block-title">教练补充</h3>
+                  <GuideLines items={exercise.notes} />
+                </div>
+              )}
+              {hasRegression || hasProgression ? (
+                <div className="plan-block plan-regpro">
+                  {hasRegression && (
+                    <div className="plan-regpro-col">
+                      <h3 className="plan-block-title">退阶</h3>
+                      <GuideLines items={exercise.regression ?? []} />
+                    </div>
+                  )}
+                  {hasProgression && (
+                    <div className="plan-regpro-col">
+                      <h3 className="plan-block-title">进阶</h3>
+                      <GuideLines items={exercise.progression ?? []} />
+                    </div>
+                  )}
+                </div>
+              ) : null}
+              {exercise.adjust && (
+                <div className="plan-block plan-adjust">
+                  <h3 className="plan-block-title">次数 / 重量怎么调</h3>
+                  <p className="guide-line-text">{exercise.adjust}</p>
+                </div>
+              )}
+              {exercise.faq && exercise.faq.length > 0 && (
+                <div className="plan-block">
+                  <h3 className="plan-block-title">常见问题</h3>
+                  <FaqList entries={exercise.faq} />
+                </div>
+              )}
+            </div>
+          </details>
+
+          <div className="plan-card-actions">
             <button
               type="button"
-              className="ghost-btn small"
+              className="plan-card-text-btn"
               onClick={() => setReplacing(true)}
             >
-              {override ? '换一个动作' : '替换动作'}
+              {override ? '换一个动作' : '换动作'}
             </button>
             {override && (
               <button
                 type="button"
-                className="ghost-btn small"
+                className="plan-card-text-btn"
                 onClick={() => applyOverride(null)}
               >
-                还原成 {exercise.name}
+                用回原动作
               </button>
             )}
-          </>
-        )}
-      </div>
-      <ExerciseVideos exerciseId={exercise.id} />
-      {exercise.notes && exercise.notes.length > 0 && (
-        <div className="plan-block">
-          <h3 className="plan-block-title">教练补充</h3>
-          <GuideLines items={exercise.notes} />
-        </div>
-      )}
-      {hasRegression || hasProgression ? (
-        <div className="plan-block plan-regpro">
-          {hasRegression && (
-            <div className="plan-regpro-col">
-              <h3 className="plan-block-title">退阶</h3>
-              <GuideLines items={exercise.regression ?? []} />
-            </div>
-          )}
-          {hasProgression && (
-            <div className="plan-regpro-col">
-              <h3 className="plan-block-title">进阶</h3>
-              <GuideLines items={exercise.progression ?? []} />
-            </div>
-          )}
-        </div>
-      ) : null}
-      {exercise.adjust && (
-        <div className="plan-block plan-adjust">
-          <h3 className="plan-block-title">次数 / 重量怎么调</h3>
-          <p className="guide-line-text">{exercise.adjust}</p>
-        </div>
-      )}
-      {exercise.faq && exercise.faq.length > 0 && (
-        <div className="plan-block">
-          <h3 className="plan-block-title">常见问题</h3>
-          <FaqList entries={exercise.faq} />
-        </div>
+          </div>
+        </>
       )}
     </div>
   )

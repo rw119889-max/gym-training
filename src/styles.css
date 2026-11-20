@@ -1782,8 +1782,8 @@ body::before {
 
 .plan-card-stage {
   position: relative;
-  height: 62vh;
-  min-height: 360px;
+  height: min(44vh, 380px);
+  min-height: 300px;
   perspective: 1400px;
   overflow: hidden;
   border-radius: var(--r-md);
@@ -1852,6 +1852,147 @@ body::before {
 
 .plan-card-body {
   padding: var(--s4);
+}
+
+.plan-card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
+.plan-chip.is-effort {
+  color: var(--accent-text);
+  background: var(--accent-06);
+  border-color: var(--accent-28);
+}
+
+/* 一句话：卡片上最显眼的一块 */
+.plan-card-cue {
+  margin-top: var(--s4);
+  padding: var(--s3) var(--s4);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.plan-card-cue-label {
+  display: block;
+  margin-bottom: var(--s1);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.plan-card-cue-text {
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 650;
+  color: var(--text);
+  text-wrap: pretty;
+}
+
+/* 三条短口令 */
+.plan-card-steps {
+  display: grid;
+  gap: var(--s2);
+  margin: var(--s3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-card-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-2);
+  text-wrap: pretty;
+}
+
+.plan-card-step-no {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+}
+
+.plan-card.is-push .plan-card-step-no {
+  color: var(--accent-text);
+  background: var(--accent-06);
+  border-color: var(--accent-28);
+}
+
+.plan-card.is-pull .plan-card-step-no {
+  color: var(--info);
+  background: var(--info-12);
+  border-color: var(--info-28);
+}
+
+/* 详细讲解默认折叠，想看再展开 */
+.plan-card-detail {
+  margin-top: var(--s4);
+  border-top: 1px solid var(--line);
+}
+
+.plan-card-detail summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s3) 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.plan-card-detail summary::-webkit-details-marker {
+  display: none;
+}
+
+.plan-card-detail summary span {
+  transition: transform var(--t-move) var(--ease);
+}
+
+.plan-card-detail[open] summary span {
+  transform: rotate(90deg);
+}
+
+.plan-card-detail-body {
+  padding-bottom: var(--s4);
+}
+
+.plan-card-actions {
+  display: flex;
+  gap: var(--s3);
+  margin-top: var(--s1);
+}
+
+.plan-card-text-btn {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: none;
+  padding: 8px 0;
+  cursor: pointer;
+  transition: color var(--t-color) var(--ease);
+}
+
+.plan-card-text-btn:hover {
+  color: var(--text);
 }
 
 .plan-card-body .plan-tips {
