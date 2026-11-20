@@ -1851,12 +1851,54 @@ body::before {
 }
 
 .plan-card-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin: 0 0 8px;
   font-size: 12px;
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: 0.04em;
   color: var(--muted);
+}
+
+/* 动作编号：用户自编辑，点一下改，虚线提示可编辑 */
+.plan-card-no {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--card-accent, var(--accent-text));
+  background: none;
+  border: 0;
+  border-bottom: 1px dashed currentColor;
+  padding: 0 1px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.plan-card-no.is-empty {
+  font-weight: 500;
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+.plan-card-no:active {
+  opacity: 0.5;
+}
+
+.plan-card-no-input {
+  width: 76px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--card-accent, var(--accent-text));
+  border-radius: 6px;
+  padding: 3px 6px;
+  outline: none;
 }
 
 .plan-card-title {

@@ -99,6 +99,33 @@ check('结构：仅手势翻页，无按钮无页码', s1.stage && s1.top && s1.
 check('卡片高度自适应，无框内滚动', s1.noInnerScroll, '')
 check('热身清单已删，开练视频入口保留', s1.noWarmupList && s1.hasVideoEntry, '')
 check('苹果风格字体栈', /-apple-system|SF Pro|PingFang/.test(s1.font), s1.font.slice(0, 60))
+
+// 1b. 动作编号：默认无系统自动编号，点一下自己编辑并存本地
+const noBefore = await page.evaluate(() => {
+  const eb = document.querySelector('.plan-card-page.is-top .plan-card-eyebrow')
+  return {
+    text: eb?.textContent?.trim() ?? '',
+    hasEntry: !!eb?.querySelector('.plan-card-no.is-empty'),
+    hasSysNo: /动作\s*[1-9]/.test(eb?.textContent ?? ''),
+  }
+})
+check('序号无系统编号，显示自编辑入口', noBefore.hasEntry && !noBefore.hasSysNo, noBefore.text)
+await page.click('.plan-card-page.is-top .plan-card-no')
+await page.fill('.plan-card-page.is-top .plan-card-no-input', 'A1')
+await page.keyboard.press('Enter')
+await page.waitForTimeout(120)
+const noAfter = await page.evaluate(() => {
+  const keys = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)
+    if (k && (localStorage.getItem(k) ?? '').includes('A1')) keys.push(k)
+  }
+  return {
+    text: document.querySelector('.plan-card-page.is-top .plan-card-eyebrow')?.textContent?.trim() ?? '',
+    persisted: keys.length > 0,
+  }
+})
+check('点序号可编辑并保存到本地', /A1/.test(noAfter.text) && noAfter.persisted, noAfter.text)
 const firstName = s1.name
 
 // 2. 左滑拖到中途（停住）截图看折痕受光

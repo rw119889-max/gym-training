@@ -36,6 +36,7 @@ import {
 import { getPlanOverride, removePlanOverride, setPlanOverride } from '../lib/planOverrides'
 import type { PlanOverride } from '../lib/planOverrides'
 import { PLAN_BRIEF } from '../lib/planBrief'
+import { getPlanNumber, setPlanNumber } from '../lib/planNumbers'
 
 type MediaKind = 'videos' | 'photos' | 'articles'
 type Bucket = ExerciseCategory | 'unassigned'
@@ -134,11 +135,9 @@ function SwapEditor({
 /* 计划详情翻页卡：单页动作卡（内容全部展开，无手风琴） */
 function PlanExercisePage({
   exercise,
-  index,
   day,
 }: {
   exercise: PlanExercise
-  index: number
   day: 'push' | 'pull'
 }) {
   const brief = PLAN_BRIEF[exercise.id] ?? {
@@ -146,12 +145,33 @@ function PlanExercisePage({
     steps: exercise.tips.slice(1, 4),
     effort: exercise.toFailure ? '最后可以拼一拼' : '留点力气',
   }
+  // 动作编号：用户自己编辑，存本地；不显示系统按数组顺序生成的序号
+  const [number, setNumber] = useState(() => getPlanNumber(exercise.id))
+  const [editingNumber, setEditingNumber] = useState(false)
+  const [numberDraft, setNumberDraft] = useState('')
+  const cancelNumberRef = useRef(false)
   // 动作替换：进入页面时读一次覆盖；替换/还原后由子组件刷新
   const [override, setOverride] = useState<PlanOverride | null>(() => getPlanOverride(exercise.id))
   const [replacing, setReplacing] = useState(false)
   const hasRegression = (exercise.regression?.length ?? 0) > 0
   const hasProgression = (exercise.progression?.length ?? 0) > 0
   const displayName = override ? override.name : brief.title ?? exercise.name
+
+  const startEditNumber = () => {
+    setNumberDraft(number)
+    cancelNumberRef.current = false
+    setEditingNumber(true)
+  }
+  const commitNumber = () => {
+    if (cancelNumberRef.current) {
+      cancelNumberRef.current = false
+      setEditingNumber(false)
+      return
+    }
+    setPlanNumber(exercise.id, numberDraft)
+    setNumber(numberDraft.trim().slice(0, 12))
+    setEditingNumber(false)
+  }
 
   const applyOverride = (next: PlanOverride | null) => {
     if (next) {
@@ -167,7 +187,37 @@ function PlanExercisePage({
     <div className="plan-card-body">
       <header className="plan-card-head">
         <p className="plan-card-eyebrow">
-          {day === 'push' ? '推日' : '拉日'} · 动作 {index + 1}
+          {day === 'push' ? '推日' : '拉日'} · 动作{' '}
+          {editingNumber ? (
+            <input
+              className="plan-card-no-input"
+              value={numberDraft}
+              autoFocus
+              maxLength={12}
+              inputMode="text"
+              aria-label="编辑动作编号"
+              onChange={(e) => setNumberDraft(e.target.value)}
+              onBlur={commitNumber}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  e.currentTarget.blur()
+                } else if (e.key === 'Escape') {
+                  cancelNumberRef.current = true
+                  e.currentTarget.blur()
+                }
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              className={number ? 'plan-card-no' : 'plan-card-no is-empty'}
+              onClick={startEditNumber}
+              aria-label={number ? `动作编号 ${number}，点击修改` : '设置动作编号'}
+            >
+              {number || '＋ 编号'}
+            </button>
+          )}
         </p>
         <h2 className="plan-card-title">
           {displayName}
@@ -401,11 +451,7 @@ function PlanCardPager({ day, dayId }: { day: PlanDayInfo; dayId: 'push' | 'pull
       >
         {underIndex >= 0 && underIndex < total && (
           <div className="plan-card-page is-under" style={underStyle} aria-hidden="true">
-            <PlanExercisePage
-              exercise={day.exercises[underIndex]}
-              index={underIndex}
-              day={dayId}
-            />
+            <PlanExercisePage exercise={day.exercises[underIndex]} day={dayId} />
           </div>
         )}
         <div
@@ -413,7 +459,7 @@ function PlanCardPager({ day, dayId }: { day: PlanDayInfo; dayId: 'push' | 'pull
           className={`plan-card-page is-top${dragging ? ' is-turning' : ''}`}
           style={topStyle}
         >
-          <PlanExercisePage exercise={day.exercises[page]} index={page} day={dayId} />
+          <PlanExercisePage exercise={day.exercises[page]} day={dayId} />
           <div
             className="plan-card-shade"
             style={{ background: shadeBg, opacity: p }}
