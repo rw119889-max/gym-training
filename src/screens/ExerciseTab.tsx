@@ -36,7 +36,7 @@ import {
 import { getPlanOverride, removePlanOverride, setPlanOverride } from '../lib/planOverrides'
 import type { PlanOverride } from '../lib/planOverrides'
 import { PLAN_BRIEF } from '../lib/planBrief'
-import { getPlanNumber, setPlanNumber } from '../lib/planNumbers'
+import { getPlanText, removePlanText, setPlanText } from '../lib/planTexts'
 
 type MediaKind = 'videos' | 'photos' | 'articles'
 type Bucket = ExerciseCategory | 'unassigned'
@@ -145,33 +145,41 @@ function PlanExercisePage({
     steps: exercise.tips.slice(1, 4),
     effort: exercise.toFailure ? '最后可以拼一拼' : '留点力气',
   }
-  // 动作编号：用户自己编辑，存本地；不显示系统按数组顺序生成的序号
-  const [number, setNumber] = useState(() => getPlanNumber(exercise.id))
-  const [editingNumber, setEditingNumber] = useState(false)
-  const [numberDraft, setNumberDraft] = useState('')
-  const cancelNumberRef = useRef(false)
+  // 文案：用户自己编写的一句话 + 三条口令，存本地覆盖系统预设
+  const [custom, setCustom] = useState(() => getPlanText(exercise.id))
+  const [editingCopy, setEditingCopy] = useState(false)
+  const [draftCue, setDraftCue] = useState('')
+  const [draftSteps, setDraftSteps] = useState<string[]>([])
+
+  const cue = custom?.cue ?? brief.cue
+  const steps = custom?.steps ?? brief.steps
+
+  const startEditCopy = () => {
+    setDraftCue(cue)
+    setDraftSteps([...steps, '', '', ''].slice(0, 3))
+    setEditingCopy(true)
+  }
+  const saveCopy = () => {
+    const next = {
+      cue: draftCue.trim() || brief.cue,
+      steps: draftSteps.map((s) => s.trim()).filter(Boolean).slice(0, 3),
+    }
+    setPlanText(exercise.id, next)
+    setCustom(next)
+    setEditingCopy(false)
+  }
+  const restoreCopy = () => {
+    removePlanText(exercise.id)
+    setCustom(undefined)
+    setEditingCopy(false)
+  }
+
   // 动作替换：进入页面时读一次覆盖；替换/还原后由子组件刷新
   const [override, setOverride] = useState<PlanOverride | null>(() => getPlanOverride(exercise.id))
   const [replacing, setReplacing] = useState(false)
   const hasRegression = (exercise.regression?.length ?? 0) > 0
   const hasProgression = (exercise.progression?.length ?? 0) > 0
   const displayName = override ? override.name : brief.title ?? exercise.name
-
-  const startEditNumber = () => {
-    setNumberDraft(number)
-    cancelNumberRef.current = false
-    setEditingNumber(true)
-  }
-  const commitNumber = () => {
-    if (cancelNumberRef.current) {
-      cancelNumberRef.current = false
-      setEditingNumber(false)
-      return
-    }
-    setPlanNumber(exercise.id, numberDraft)
-    setNumber(numberDraft.trim().slice(0, 12))
-    setEditingNumber(false)
-  }
 
   const applyOverride = (next: PlanOverride | null) => {
     if (next) {
@@ -187,37 +195,8 @@ function PlanExercisePage({
     <div className="plan-card-body">
       <header className="plan-card-head">
         <p className="plan-card-eyebrow">
-          {day === 'push' ? '推日' : '拉日'} · 动作{' '}
-          {editingNumber ? (
-            <input
-              className="plan-card-no-input"
-              value={numberDraft}
-              autoFocus
-              maxLength={12}
-              inputMode="text"
-              aria-label="编辑动作编号"
-              onChange={(e) => setNumberDraft(e.target.value)}
-              onBlur={commitNumber}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  e.currentTarget.blur()
-                } else if (e.key === 'Escape') {
-                  cancelNumberRef.current = true
-                  e.currentTarget.blur()
-                }
-              }}
-            />
-          ) : (
-            <button
-              type="button"
-              className={number ? 'plan-card-no' : 'plan-card-no is-empty'}
-              onClick={startEditNumber}
-              aria-label={number ? `动作编号 ${number}，点击修改` : '设置动作编号'}
-            >
-              {number || '＋ 编号'}
-            </button>
-          )}
+          {day === 'push' ? '推日' : '拉日'}
+          {custom && <span className="plan-card-custom-badge">已改文案</span>}
         </p>
         <h2 className="plan-card-title">
           {displayName}
@@ -237,15 +216,48 @@ function PlanExercisePage({
             <span className="plan-chip is-effort">{brief.effort}</span>
           </div>
 
-          <div className="plan-card-cue">
-            <p className="plan-card-cue-text">{brief.cue}</p>
-          </div>
+          {editingCopy ? (
+            <div className="plan-card-copy-editor">
+              <label className="plan-card-field">
+                <span>一句话</span>
+                <textarea
+                  value={draftCue}
+                  rows={2}
+                  maxLength={60}
+                  autoFocus
+                  onChange={(e) => setDraftCue(e.target.value)}
+                />
+              </label>
+              <label className="plan-card-field">
+                <span>三条口令（一行一条）</span>
+                <textarea
+                  value={draftSteps.join('\n')}
+                  rows={3}
+                  onChange={(e) => setDraftSteps(e.target.value.split('\n'))}
+                />
+              </label>
+              <div className="plan-card-edit-actions">
+                <button type="button" className="save-btn small" onClick={saveCopy}>保存</button>
+                <button type="button" className="ghost-btn small" onClick={() => setEditingCopy(false)}>取消</button>
+                {custom && <button type="button" className="ghost-btn small" onClick={restoreCopy}>恢复默认</button>}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="plan-card-cue" onClick={startEditCopy} title="点这里修改文案">
+                <p className="plan-card-cue-text">{cue}</p>
+              </div>
 
-          <ol className="plan-card-steps">
-            {brief.steps.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
+              <ol className="plan-card-steps" onClick={startEditCopy}>
+                {steps.map((step, i) => (
+                  <li key={i}>{step}</li>
+                ))}
+              </ol>
+              <button type="button" className="plan-card-edit-trigger" onClick={startEditCopy}>
+                改文案
+              </button>
+            </>
+          )}
 
           <details className="plan-card-detail">
             <summary>想看详细讲解 <span aria-hidden="true">›</span></summary>
@@ -422,7 +434,7 @@ function PlanCardPager({ day, dayId }: { day: PlanDayInfo; dayId: 'push' | 'pull
       ? {
           transform: `rotateY(${turnDeg}deg)`,
           transformOrigin: hinge,
-          opacity: 1 - 0.85 * p * p,
+          opacity: 1 - 0.5 * p * p,
           transition:
             settling !== 0
               ? `transform ${CARD_SETTLE_MS}ms var(--ease), opacity ${CARD_SETTLE_MS}ms var(--ease)`

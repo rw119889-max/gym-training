@@ -1817,21 +1817,7 @@ body::before {
   z-index: 1;
 }
 
-/* 翻页落定后的进场：新页微微上浮归位 */
-.plan-card-page.is-top:not(.is-turning) {
-  animation: planCardIn 260ms var(--ease);
-}
-
-@keyframes planCardIn {
-  from {
-    opacity: 0.4;
-    transform: scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
+/* 翻页落定不做进场动画：新页直接稳定显示，避免与 3D 翻页收尾叠加出震动感 */
 
 /* 翻页时上层纸面的折痕受光层 */
 .plan-card-shade {
@@ -1862,43 +1848,81 @@ body::before {
   color: var(--muted);
 }
 
-/* 动作编号：用户自编辑，点一下改，虚线提示可编辑 */
-.plan-card-no {
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+/* 自定义文案标记 */
+.plan-card-custom-badge {
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--card-accent, var(--accent-text));
+  background: var(--accent-06);
+  border-radius: var(--r-full);
+}
+
+/* 文案编辑入口：轻提示，不抢视觉 */
+.plan-card-cue,
+.plan-card-steps {
+  cursor: text;
+}
+
+.plan-card-edit-trigger {
+  display: block;
+  margin: 12px 0 0 auto;
+  padding: 4px 0;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
   background: none;
   border: 0;
-  border-bottom: 1px dashed currentColor;
-  padding: 0 1px;
   cursor: pointer;
   touch-action: manipulation;
 }
 
-.plan-card-no.is-empty {
-  font-weight: 500;
-  color: var(--muted);
-  opacity: 0.75;
+.plan-card-edit-trigger:hover {
+  color: var(--card-accent, var(--accent-text));
 }
 
-.plan-card-no:active {
-  opacity: 0.5;
+/* 文案编辑区 */
+.plan-card-copy-editor {
+  display: grid;
+  gap: 16px;
 }
 
-.plan-card-no-input {
-  width: 76px;
-  font-family: inherit;
+.plan-card-field {
+  display: grid;
+  gap: 6px;
+}
+
+.plan-card-field > span {
   font-size: 12px;
   font-weight: 600;
+  color: var(--muted);
+}
+
+.plan-card-field textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
   color: var(--text);
   background: var(--surface-2);
-  border: 1px solid var(--card-accent, var(--accent-text));
-  border-radius: 6px;
-  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  resize: vertical;
   outline: none;
+}
+
+.plan-card-field textarea:focus {
+  border-color: var(--card-accent, var(--accent-text));
+}
+
+.plan-card-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
 }
 
 .plan-card-title {

@@ -99,33 +99,46 @@ check('结构：仅手势翻页，无按钮无页码', s1.stage && s1.top && s1.
 check('卡片高度自适应，无框内滚动', s1.noInnerScroll, '')
 check('热身清单已删，开练视频入口保留', s1.noWarmupList && s1.hasVideoEntry, '')
 check('苹果风格字体栈', /-apple-system|SF Pro|PingFang/.test(s1.font), s1.font.slice(0, 60))
+const anim = await page.evaluate(() => getComputedStyle(document.querySelector('.plan-card-page.is-top')).animationName)
+check('无落定上弹动画（消除震动）', anim === 'none', anim)
 
-// 1b. 动作编号：默认无系统自动编号，点一下自己编辑并存本地
-const noBefore = await page.evaluate(() => {
+// 1b. 顶部无编号入口；卡片文案可自己编写并存本地
+const copyBefore = await page.evaluate(() => {
   const eb = document.querySelector('.plan-card-page.is-top .plan-card-eyebrow')
   return {
-    text: eb?.textContent?.trim() ?? '',
-    hasEntry: !!eb?.querySelector('.plan-card-no.is-empty'),
-    hasSysNo: /动作\s*[1-9]/.test(eb?.textContent ?? ''),
+    eyebrow: eb?.textContent?.trim() ?? '',
+    hasNoBtn: !!document.querySelector('.plan-card-no, .plan-card-no-input'),
+    cue: document.querySelector('.plan-card-page.is-top .plan-card-cue-text')?.textContent?.trim() ?? '',
   }
 })
-check('序号无系统编号，显示自编辑入口', noBefore.hasEntry && !noBefore.hasSysNo, noBefore.text)
-await page.click('.plan-card-page.is-top .plan-card-no')
-await page.fill('.plan-card-page.is-top .plan-card-no-input', 'A1')
-await page.keyboard.press('Enter')
-await page.waitForTimeout(120)
-const noAfter = await page.evaluate(() => {
+check('顶部无编号入口', !copyBefore.hasNoBtn && !/动作\s*[1-9]/.test(copyBefore.eyebrow), copyBefore.eyebrow)
+await page.click('.plan-card-page.is-top .plan-card-edit-trigger')
+await page.waitForSelector('.plan-card-page.is-top .plan-card-copy-editor', { timeout: 3000 })
+await page.fill('.plan-card-page.is-top .plan-card-field textarea:first-of-type', '我自己写的一句话')
+await page.click('.plan-card-page.is-top .save-btn')
+await page.waitForTimeout(150)
+const copyAfter = await page.evaluate(() => {
   const keys = []
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i)
-    if (k && (localStorage.getItem(k) ?? '').includes('A1')) keys.push(k)
+    if (k && (localStorage.getItem(k) ?? '').includes('我自己写的一句话')) keys.push(k)
   }
   return {
-    text: document.querySelector('.plan-card-page.is-top .plan-card-eyebrow')?.textContent?.trim() ?? '',
+    cue: document.querySelector('.plan-card-page.is-top .plan-card-cue-text')?.textContent?.trim() ?? '',
+    badge: !!document.querySelector('.plan-card-page.is-top .plan-card-custom-badge'),
     persisted: keys.length > 0,
   }
 })
-check('点序号可编辑并保存到本地', /A1/.test(noAfter.text) && noAfter.persisted, noAfter.text)
+check('文案可自己编写并显示已改标记', copyAfter.cue === '我自己写的一句话' && copyAfter.badge && copyAfter.persisted, copyAfter.cue)
+// 恢复默认
+await page.click('.plan-card-page.is-top .plan-card-edit-trigger')
+await page.click('.plan-card-page.is-top .plan-card-edit-actions .ghost-btn:last-child')
+await page.waitForTimeout(150)
+const copyRestored = await page.evaluate(() => ({
+  cue: document.querySelector('.plan-card-page.is-top .plan-card-cue-text')?.textContent?.trim() ?? '',
+  badge: !!document.querySelector('.plan-card-page.is-top .plan-card-custom-badge'),
+}))
+check('恢复默认文案生效', copyRestored.cue === copyBefore.cue && !copyRestored.badge, copyRestored.cue)
 const firstName = s1.name
 
 // 2. 左滑拖到中途（停住）截图看折痕受光
