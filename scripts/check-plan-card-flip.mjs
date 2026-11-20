@@ -89,8 +89,14 @@ const s1 = await page.evaluate(() => ({
   noPageText: !/上一页|下一页/.test(document.body.innerText),
   name: document.querySelector('.plan-card-page.is-top .plan-card-title')?.textContent?.trim() ?? '',
   font: getComputedStyle(document.querySelector('.plan-card-page')).fontFamily,
+  noInnerScroll: (() => {
+    const t = document.querySelector('.plan-card-page.is-top')
+    const s = document.querySelector('.plan-card-stage')
+    return !!t && !!s && t.scrollHeight <= t.clientHeight + 2 && Math.abs(t.clientHeight - s.clientHeight) < 4
+  })(),
 }))
 check('结构：仅手势翻页，无按钮无页码', s1.stage && s1.top && s1.noFoot && s1.noNav && s1.noPageText, '')
+check('卡片高度自适应，无框内滚动', s1.noInnerScroll, '')
 check('热身清单已删，开练视频入口保留', s1.noWarmupList && s1.hasVideoEntry, '')
 check('苹果风格字体栈', /-apple-system|SF Pro|PingFang/.test(s1.font), s1.font.slice(0, 60))
 const firstName = s1.name

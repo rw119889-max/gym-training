@@ -62,8 +62,9 @@ describe('coachPlans', () => {
     expect(findPlanDay('pull').label).toBe('拉日')
   })
 
-  it('系列信息包含两位博主与去腿说明', () => {
-    expect(COACH_SERIES.coaches).toEqual(['凯圣王', '谭成义'])
+  it('系列信息统一为「我的计划」并保留去腿说明', () => {
+    expect(COACH_SERIES.coaches).toEqual(['我的计划'])
+    expect(COACH_SERIES.title).toBe('我的计划')
     expect(COACH_SERIES.keptNote).toContain('腿日已去掉')
   })
 

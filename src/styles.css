@@ -1536,7 +1536,7 @@ body::before {
   border-radius: var(--r-full);
 }
 
-/* ---------- 凯圣王 × 谭成义 · 跟练系列 ---------- */
+/* ---------- 我的计划 · 推拉分化计划 ---------- */
 
 .coach-card {
   display: flex;
@@ -1780,21 +1780,15 @@ body::before {
 
 /* ---------- 计划详情：翻页卡片（Apple 风格排版） ---------- */
 
+/* 卡片高度由内容撑开，随整页滚动；两页叠在同一 grid 单元做 3D 翻页 */
 .plan-card-stage {
   position: relative;
-  height: min(50vh, 440px);
-  min-height: 340px;
+  display: grid;
   perspective: 1400px;
-  overflow: hidden;
-  border-radius: var(--r-lg);
 }
 
 .plan-card-page {
-  position: absolute;
-  inset: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  grid-area: 1 / 1;
   background-color: var(--surface-1);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
@@ -1808,6 +1802,7 @@ body::before {
 .plan-card.is-pull { --card-accent: var(--info); }
 
 .plan-card-page.is-top {
+  position: relative;
   z-index: 2;
   touch-action: pan-y;
   transform-style: preserve-3d;
@@ -1815,7 +1810,10 @@ body::before {
   will-change: transform;
 }
 
+/* 底层页绝对定位铺满，不参与撑高，避免翻页时高度跳动 */
 .plan-card-page.is-under {
+  position: absolute;
+  inset: 0;
   z-index: 1;
 }
 
@@ -4201,71 +4199,6 @@ body.player-open .tabbar {
   outline-offset: -4px;
 }
 
-/* ---------- 跟练打卡 ---------- */
-
-.training-checkin {
-  margin-top: var(--s6);
-  padding: var(--s4);
-  background-color: var(--surface-1);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-1);
-}
-
-.training-checkin.is-pull {
-  border-left-color: var(--info);
-}
-
-.training-checkin-top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s3);
-}
-
-.training-checkin-title {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--faint);
-}
-
-.training-checkin-seq {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.training-checkin.is-push .training-checkin-seq {
-  color: var(--accent-text);
-}
-
-.training-checkin.is-pull .training-checkin-seq {
-  color: var(--info);
-}
-
-.training-checkin-meta {
-  margin-top: var(--s1);
-  font-size: 12px;
-  color: var(--faint);
-}
-
-.training-checkin-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s2);
-  margin-top: var(--s4);
-}
-
-.training-checkin-done {
-  flex: 1 1 100%;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--success);
-}
-
 .training-stats {
   margin-top: var(--s4);
   padding: var(--s4);
@@ -4508,38 +4441,6 @@ button.wp-cell:active {
   margin: var(--s1) 0 0;
   font-size: 12px;
   color: var(--muted);
-}
-
-/* 计划页吸底操作栏 */
-.has-actionbar {
-  padding-bottom: 96px;
-}
-
-.plan-actionbar {
-  position: fixed;
-  right: 0;
-  bottom: calc(64px + env(safe-area-inset-bottom));
-  left: 0;
-  z-index: 15;
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  padding: 12px var(--s3);
-  background: var(--glass);
-  border-top: 1px solid var(--line);
-  backdrop-filter: saturate(150%) blur(20px);
-  -webkit-backdrop-filter: saturate(150%) blur(20px);
-}
-
-.plan-actionbar-main {
-  flex: 1 1 auto;
-}
-
-.plan-actionbar-done {
-  flex: 1 1 auto;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent-text);
 }
 
 /* 笔记主题 / 训练感受 */

@@ -23,11 +23,9 @@ import { formatBytes, getVideos } from '../lib/videos'
 import { exportBackup, importBackup, readBackupSummary } from '../lib/backup'
 import { useOverlayHistory } from '../hooks/useOverlayHistory'
 import { todayKey } from '../lib/date'
-import { completeSession, countByDay, getSessions, removeSession } from '../lib/trainingLog'
-import { writeJSON } from '../lib/storage'
+import { countByDay, getSessions, removeSession } from '../lib/trainingLog'
 import {
   cycleInfo,
-  ensureCycleStart,
   restartCycle,
   slotFor,
   slotLabel,
@@ -423,48 +421,6 @@ function PlanCardPager({ day, dayId }: { day: PlanDayInfo; dayId: 'push' | 'pull
           />
         </div>
       </div>
-    </div>
-  )
-}
-
-function TrainingCheckin({
-  day,
-  label,
-  sessions,
-  onUndo,
-}: {
-  day: 'push' | 'pull'
-  label: string
-  sessions: TrainingSession[]
-  onUndo: (id: string) => void
-}) {
-  const today = todayKey()
-  const daySessions = sessions.filter((item) => item.day === day)
-  const done = daySessions.find((item) => item.date === today)
-  const last = daySessions[daySessions.length - 1]
-  const nextSeq = daySessions.reduce((max, item) => Math.max(max, item.seq), 0) + 1
-
-  return (
-    <div className={`training-checkin is-${day}`}>
-      <div className="training-checkin-top">
-        <span className="training-checkin-title">本次训练</span>
-        <span className="training-checkin-seq">
-          {label} · 第 {done ? done.seq : nextSeq} 次
-        </span>
-      </div>
-      <p className="training-checkin-meta">
-        {last ? `上次：${last.date}` : '还没有记录，这是第一次'}
-      </p>
-      <p className="training-checkin-meta">
-        {done
-          ? `✓ 今天已完成第 ${done.seq} 次${done.noteId ? ' · 有心得' : ''}`
-          : '还没打卡，点下方「完成本次训练」'}
-      </p>
-      {done && (
-        <button type="button" className="ghost-btn small" onClick={() => onUndo(done.id)}>
-          撤销打卡
-        </button>
-      )}
     </div>
   )
 }
@@ -876,7 +832,7 @@ function StorageUsage() {
   )
 }
 
-export default function ExerciseTab({ active, onOpenNotes }: Props) {
+export default function ExerciseTab({ active }: Props) {
   const [exercises, setExercises] = useState<ExerciseProfile[]>(() => getExerciseProfiles())
   const [route, setRoute] = useState<Route>({ level: 'home' })
   const [editing, setEditing] = useState<EditorState | null>(null)
@@ -1022,12 +978,6 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
     setRoute({ level: 'category', category })
   }
 
-  const handleCheckin = (day: 'push' | 'pull') => {
-    completeSession(day)
-    ensureCycleStart(new Date())
-    setSessions(getSessions())
-  }
-
   const handleUndoCheckin = (id: string) => {
     if (!window.confirm('撤销这次打卡记录？')) return
     removeSession(id)
@@ -1037,23 +987,6 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
   const handleRestartCycle = () => {
     if (!restartCycle(new Date())) return
     setSessions(getSessions())
-  }
-
-  const handleWriteNote = (day: 'push' | 'pull', label: string) => {
-    // 未打卡先打卡（写心得即视为完成），拿到本次 session 供回填
-    const session = completeSession(day)
-    ensureCycleStart(new Date())
-    setSessions(getSessions())
-    writeJSON('noteSeed', {
-      sessionId: session.id,
-      title: `${label} · 第 ${session.seq} 次 · 训练心得`,
-      text: `${session.date}\n\n`,
-    })
-    // 挂起本 tab 的历史层级与计划页路由：
-    // 不做 history.back() 级联（避免与笔记页 pushState 竞态、不丢计划页状态），
-    // 笔记草稿关闭后由 App 跳回本 tab，计划页原样续用
-    keepRouteRef.current = true
-    onOpenNotes()
   }
 
   const handleExport = async () => {
@@ -1258,11 +1191,9 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
 
   if (route.level === 'plan') {
     const day = findPlanDay(route.day)
-    const today = todayKey()
-    const done = sessions.find((item) => item.day === route.day && item.date === today)
 
     return (
-      <section className="has-actionbar">
+      <section>
         <button className="back-btn" type="button" onClick={() => setRoute({ level: 'coaches' })}>
           ← {COACH_SERIES.title}
         </button>
@@ -1299,48 +1230,6 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
         </button>
 
         <PlanCardPager day={day} dayId={route.day} />
-
-        <TrainingCheckin
-          day={route.day}
-          label={day.label}
-          sessions={sessions}
-          onUndo={(id) => handleUndoCheckin(id)}
-        />
-
-        {/* 吸底操作栏：「完成本次训练」「写心得」始终可见，不用滚到页底找 */}
-        <div className="plan-actionbar" role="toolbar" aria-label="本次训练操作">
-          {done ? (
-            <>
-              <span className="plan-actionbar-done">
-                ✓ 第 {done.seq} 次已完成{done.noteId ? ' · 有心得' : ''}
-              </span>
-              <button
-                type="button"
-                className="ghost-btn small"
-                onClick={() => handleWriteNote(route.day, day.label)}
-              >
-                {done.noteId ? '再写心得' : '写心得'}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className="save-btn plan-actionbar-main"
-                onClick={() => handleCheckin(route.day)}
-              >
-                完成本次训练
-              </button>
-              <button
-                type="button"
-                className="ghost-btn small"
-                onClick={() => handleWriteNote(route.day, day.label)}
-              >
-                写心得
-              </button>
-            </>
-          )}
-        </div>
       </section>
     )
   }
@@ -1537,10 +1426,10 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
     <section>
       <h1 className="page-title">动作</h1>
       <p className="page-sub">
-        我的动作档案 + 跟练系列 · 本周安排在跟练模块里
+        我的动作档案 + 我的计划 · 本周安排在我的计划里
       </p>
 
-      <h2 className="section-title">跟练系列</h2>
+      <h2 className="section-title">我的计划</h2>
       <button
         type="button"
         className="coach-card"
@@ -1550,7 +1439,7 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
         }}
       >
         <span className="coach-card-glyph" aria-hidden="true">
-          凯谭
+          计划
         </span>
         <span className="coach-card-body">
           <span className="coach-card-name">
