@@ -9,7 +9,7 @@
   <link rel="icon" href="./icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="./icons/apple-touch-180.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta id="ios-status-bar" name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="自律更自由">
   <title>自律更自由</title>
   <meta
@@ -29,11 +29,14 @@
             : 'light'
         }
         document.documentElement.setAttribute('data-theme', mode)
+        // iOS 独立 App 的状态栏随主题切换，避免浅色主题配深色状态栏
+        var bar = document.getElementById('ios-status-bar')
+        if (bar) bar.setAttribute('content', mode === 'light' ? 'default' : 'black-translucent')
       } catch (e) {}
     })()
   </script>
-  <script type="module" crossorigin src="./assets/index-CmPytBPu.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-C_75TKoj.css">
+  <script type="module" crossorigin src="./assets/index-CTI45nnF.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DfWv5sTc.css">
 </head>
 <body>
   <div id="root"></div>
