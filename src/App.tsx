@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import Landing from './screens/Landing'
 import ExerciseTab from './screens/ExerciseTab'
@@ -6,7 +6,7 @@ import NotesTab from './screens/NotesTab'
 import RecipesTab from './screens/RecipesTab'
 import { TAB_ICONS, type TabId } from './components/TabIcons'
 import { APP_VERSION } from './version'
-import { readJSON, writeJSON } from './lib/storage'
+import { readJSON, subscribeStorageError, writeJSON } from './lib/storage'
 import { applyTheme, isThemeMode, nextThemeMode, type ThemeMode } from './lib/theme'
 import { applyUpdate, checkForUpdate, forceRefresh, getUpdateReady, subscribeUpdate } from './lib/sw'
 
@@ -45,15 +45,13 @@ const TABS: { id: Tab; label: string }[] = [
 ]
 
 export default function App() {
-  const [entered, setEntered] = useState(false)
+  // 落地页只在首次进入出现；之后记住状态，PWA 更新重载也不会被送回封面
+  const [entered, setEntered] = useState(() => readJSON<boolean>('entered', false) === true)
   const [tab, setTab] = useState<Tab>(() => {
     const saved = readJSON<Tab | 'training' | 'videos'>('tab', 'exercises')
     if (saved === 'recipes' || saved === 'notes') return saved
     return 'exercises'
   })
-  // 跨 tab 写心得的返回目标（应用级状态，不依赖浏览器历史）：
-  // 计划页 → 写心得时记下来源 tab，笔记草稿关闭后跳回去。
-  const noteSourceRef = useRef<Tab | null>(null)
 
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     const saved = readJSON<unknown>('themeMode', 'auto')
@@ -87,8 +85,17 @@ export default function App() {
   const showNotice = (text: string) => {
     setNotice(text)
     window.clearTimeout(noticeTimer.current)
-    noticeTimer.current = window.setTimeout(() => setNotice(null), 2400)
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 3300)
   }
+
+  // 任意 writeJSON 失败（空间满/被禁用）时统一提示，不再逐个调用方弹窗
+  useEffect(
+    () =>
+      subscribeStorageError(() =>
+        showNotice('保存失败：手机存储可能已满，请导出备份后清理空间'),
+      ),
+    [],
+  )
 
   const handleCheckUpdate = async () => {
     if (updateReady) {
@@ -127,31 +134,14 @@ export default function App() {
     void handleCheckUpdate()
   }
 
-  // 用户点底部 tab 是主动切换：清掉写心得的返回意图
-  const handleTabClick = (next: Tab) => {
-    noteSourceRef.current = null
-    setTab(next)
-  }
-
-  // 计划页「写心得」入口：记住来源，切到笔记 tab
-  const openNotesFromPlan = useCallback(() => {
-    noteSourceRef.current = 'exercises'
-    setTab('notes')
-  }, [])
-
-  // 笔记草稿（来自写心得的种子）关闭后回到原计划页；
-  // 来源已被用户手动切换清掉时则原地不动
-  const returnFromNoteSeed = useCallback(() => {
-    const target = noteSourceRef.current
-    noteSourceRef.current = null
-    if (target) setTab(target)
-  }, [])
+  const handleTabClick = (next: Tab) => setTab(next)
 
   if (!entered) {
     return (
       <Landing
         onStart={(target) => {
           if (target) setTab(target)
+          writeJSON('entered', true)
           setEntered(true)
         }}
       />
@@ -193,10 +183,10 @@ export default function App() {
 
       <main className="tab-content" id="main-content">
         <div className="tab-panel" hidden={tab !== 'exercises'}>
-          <ExerciseTab active={tab === 'exercises'} onOpenNotes={openNotesFromPlan} />
+          <ExerciseTab active={tab === 'exercises'} />
         </div>
         <div className="tab-panel" hidden={tab !== 'notes'}>
-          <NotesTab active={tab === 'notes'} onBackToSource={returnFromNoteSeed} />
+          <NotesTab active={tab === 'notes'} />
         </div>
         <div className="tab-panel" hidden={tab !== 'recipes'}>
           <RecipesTab active={tab === 'recipes'} />

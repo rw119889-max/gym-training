@@ -72,6 +72,7 @@
   --surface-1: #121314;
   --surface-2: #17181a;
   --surface-3: #1f2022;
+  --surface: var(--surface-1); /* 兼容别名：旧选择器仍写 --surface */
   --glass: rgba(10, 10, 11, 0.94);
   --hover-wash: rgba(255, 255, 255, 0.04);
 
@@ -92,17 +93,18 @@
   --text-2: #c7c7c7; /* 11.49 */
   --muted: #9c9c9c; /* 7.20 */
   --faint: #868686; /* 5.50 */
+  --text-3: var(--muted); /* 兼容别名：第三档文字沿用 --muted */
 
   /* --- 主色：填充 / 文字 / 渐变亮端 三者分离 --- */
   --accent: #c92a2a; /* 仅作填充（实心块） */
-  --accent-hi: #e8524a; /* 仅作渐变亮端 */
+  --accent-hi: #cc4841; /* 仅作渐变亮端；白字叠加实测 4.59:1 ✓ */
   --accent-text: #ff8a8a; /* 文字与图标 */
   --accent-text-hi: #ffa6a6; /* 文字 hover 提亮 */
   --accent-ink: #ffffff; /* 实心主色上的前景 */
   --accent-06: rgba(201, 42, 42, 0.12);
   --accent-12: rgba(201, 42, 42, 0.2);
   --accent-28: rgba(201, 42, 42, 0.4);
-  --accent-ring: rgba(255, 138, 138, 0.5); /* 3.97 vs bg：焦点环/控件状态需 ≥3:1 */
+  --accent-ring: rgba(255, 138, 138, 0.56); /* 焦点环/控件状态需 ≥3:1，三种底色实测均达标 */
 
   /* --- 语义：错误 --- */
   --danger: #ff7e7e; /* 7.62 */
@@ -160,6 +162,7 @@
   --surface-1: #ffffff;
   --surface-2: #f0f0f0;
   --surface-3: #e5e5e5;
+  --surface: var(--surface-1); /* 兼容别名：旧选择器仍写 --surface */
   --glass: rgba(250, 250, 250, 0.96);
   --hover-wash: rgba(0, 0, 0, 0.05);
 
@@ -177,10 +180,11 @@
   --text-2: #3d3d3d;
   --muted: #575757; /* s3 5.57 */
   --faint: #616161; /* s3 4.71 ✓ */
+  --text-3: var(--muted); /* 兼容别名：第三档文字沿用 --muted */
 
   /* 浅色填充主色较深色降一档（荧光→沉稳黄绿），避免白底上过于刺眼；ink 对比仍 ≥9:1 */
   --accent: #c92a2a;
-  --accent-hi: #e04b42;
+  --accent-hi: #ce453d; /* 白字叠加实测 4.62:1 ✓ */
   --accent-text: #b32525;
   --accent-text-hi: #8f1d1d;
   --accent-ink: #ffffff;
@@ -1792,8 +1796,11 @@ body::before {
   background-color: var(--surface-1);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 36px rgba(0, 0, 0, 0.1);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "HarmonyOS Sans SC", "Manrope", sans-serif;
+  box-shadow: var(--shadow-1);
+  /* 与 body 字体栈对齐：Manrope 统一拉丁/数字，中文回退苹方；
+     "SF Pro Text" / "PingFang SC" / system-ui 仍在栈内，苹果观感不退化。 */
+  font-family: "Manrope", "SF Pro Text", "PingFang SC", "HarmonyOS Sans SC", "MiSans",
+    "Microsoft YaHei", "Noto Sans SC", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -2194,6 +2201,10 @@ body::before {
   gap: var(--s3);
 }
 
+.plan-regpro-col {
+  min-width: 0; /* 两列等宽时允许内容收缩，长文本不会撑破网格 */
+}
+
 .plan-adjust {
   padding: 12px 12px;
   background: var(--surface-2);
@@ -2416,6 +2427,12 @@ body::before {
 }
 
 /* ---------- 食谱 ---------- */
+
+.recipe-videos {
+  display: grid;
+  gap: var(--s3);
+  margin-top: var(--s4);
+}
 
 .recipe-list {
   display: grid;
@@ -3171,6 +3188,33 @@ html:has(body.note-composing) {
   inset: -8px;
 }
 
+/* 小热区扩容：只放大可点区域，不改任何可见尺寸/颜色。
+   文字链四周扩 8px；36px 的 chip / 进度按钮四周扩 4px 即可到 44px，且不与相邻控件抢点击。 */
+.plan-card-edit-trigger,
+.plan-card-text-btn,
+.faq-q,
+.plan-card-detail summary,
+.wv-chip,
+.video-seek-btn {
+  position: relative;
+}
+
+.plan-card-edit-trigger::after,
+.plan-card-text-btn::after,
+.faq-q::after,
+.plan-card-detail summary::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+
+.wv-chip::after,
+.video-seek-btn::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
 /* ---------- 折叠区 ---------- */
 
 .fold {
@@ -3590,6 +3634,25 @@ html:has(body.note-composing) {
   gap: var(--s2);
 }
 
+/* 媒体条目就地编辑卡：照片/视频/文章编辑器共用，放在网格单元内不撑破布局 */
+.media-edit-card {
+  display: grid;
+  align-content: start;
+  gap: var(--s2);
+  min-width: 0;
+  padding: var(--s3);
+  background: var(--surface-2);
+  border: 1px solid var(--line-ctl);
+  border-radius: var(--r-md);
+}
+
+.media-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
 .video-item {
   position: relative;
 }
@@ -3709,6 +3772,24 @@ img.article-image-in {
   color: var(--muted);
 }
 
+/* 字段级错误（如重复动作名）：role="alert" 的 danger 视觉态 */
+.field-error {
+  display: block;
+  margin-top: var(--s2);
+  padding: var(--s2) var(--s3);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--danger);
+  background: var(--danger-12);
+  border: 1px solid var(--danger-28);
+  border-radius: var(--r-sm);
+}
+
+/* 保存按钮：.cta 已提供完整样式，此处仅登记语义类名，与 .cta 等价 */
+.editor-save {
+  width: 100%;
+}
+
 .video-item-bar {
   display: flex;
   flex-direction: column;
@@ -3799,7 +3880,7 @@ img.article-image-in {
 .photo-viewer-count {
   flex: none;
   font-size: 12px;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.85); /* 固定叠在 --video-bg 上，不随主题翻转 */
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -3849,7 +3930,7 @@ img.article-image-in {
 .video-slide-meta {
   padding: 2px 0 4px;
   font-size: 12px;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.7); /* 固定叠在 --video-bg 上，不随主题翻转 */
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -3953,7 +4034,7 @@ img.article-image-in {
 
 .video-missing {
   font-size: 14px;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.8); /* 固定叠在 --video-bg 上，不随主题翻转 */
 }
 
 .video-controls {
@@ -4070,7 +4151,7 @@ body.player-open .tabbar {
   bottom: calc(env(safe-area-inset-bottom) + 8px);
   left: 50%;
   font-size: 12px;
-  color: var(--faint);
+  color: rgba(255, 255, 255, 0.7); /* 固定叠在 --video-bg 上，不随主题翻转 */
   white-space: nowrap;
   pointer-events: none;
   transform: translateX(-50%);
@@ -4417,9 +4498,8 @@ button.wp-cell:active {
   border-color: var(--accent-28);
 }
 
-/* 笔记主题 / 训练感受 */
+/* 笔记主题 */
 .note-topic-row,
-.note-mood-row,
 .ingredient-chips {
   display: flex;
   flex-wrap: wrap;
@@ -4428,11 +4508,6 @@ button.wp-cell:active {
   margin: var(--s2) 0 0;
 }
 
-.note-mood-row .topic-chip {
-  min-height: 44px;
-}
-
-.note-mood-label,
 .ingredient-chips-label {
   flex: none;
   font-size: 12px;

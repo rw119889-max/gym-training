@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, CSSProperties } from 'react'
 import type { ExerciseCategory, ExerciseProfile, TrainingSession } from '../types'
 import ExerciseVideos from '../components/ExerciseVideos'
@@ -57,7 +57,6 @@ interface EditorState {
 
 interface Props {
   active: boolean
-  onOpenNotes: () => void
 }
 
 function bucketOf(item: ExerciseProfile): Bucket {
@@ -201,7 +200,7 @@ function PlanExercisePage({
           {override && <span className="plan-chip is-swapped">已替换</span>}
         </h2>
         {override && (
-          <p className="plan-card-original">原动作：{exercise.name}</p>
+          <p className="plan-card-original">原动作：{exercise.name} · 要点 / 视频参考原动作</p>
         )}
       </header>
 
@@ -265,7 +264,7 @@ function PlanExercisePage({
                   <li key={tip}>{tip}</li>
                 ))}
               </ul>
-              <ExerciseVideos exerciseId={exercise.id} />
+              <ExerciseVideos exerciseId={exercise.id} showUpload />
               {exercise.notes && exercise.notes.length > 0 && (
                 <div className="plan-block">
                   <h3 className="plan-block-title">教练补充</h3>
@@ -854,6 +853,8 @@ export default function ExerciseTab({ active }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   // 跨 tab 写心得期间为 true：切走时保留层级与路由，回来接着写前的计划页继续用
   const keepRouteRef = useRef(false)
+  // 一次渲染只读一次视频列表，供各页面复用；切换路由或 tab 时重读
+  const videos = useMemo(() => getVideos(), [route, active])
 
   // 外部 tab（笔记写心得）可能改动记录，回到动作页时重读一次；
   // 回到本 tab 即结束挂起，恢复正常「切 tab 收层」的行为
@@ -1071,7 +1072,7 @@ export default function ExerciseTab({ active }: Props) {
   }
 
   if (route.level === 'exercise' && activeExercise) {
-    const mineVideos = getVideos().filter((clip) => clip.exerciseId === activeExercise.id)
+    const mineVideos = videos.filter((clip) => clip.exerciseId === activeExercise.id)
     const videoBytes = mineVideos.reduce((sum, clip) => sum + clip.size, 0)
     const photoCount = getExercisePhotos(activeExercise.id).length
     const articleCount = getSavedArticlesOfExercise(activeExercise.id).length
@@ -1191,6 +1192,7 @@ export default function ExerciseTab({ active }: Props) {
 
   if (route.level === 'plan') {
     const day = findPlanDay(route.day)
+    const warmupCount = videos.filter((clip) => clip.exerciseId === `warmup:${route.day}`).length
 
     return (
       <section>
@@ -1219,8 +1221,8 @@ export default function ExerciseTab({ active }: Props) {
           <span className="wve-text">
             <span className="wve-title">开练视频</span>
             <span className="wve-sub">
-              {getVideos().filter((clip) => clip.exerciseId === `warmup:${route.day}`).length > 0
-                ? `${getVideos().filter((clip) => clip.exerciseId === `warmup:${route.day}`).length} 条 · 开练前刷一遍预习`
+              {warmupCount > 0
+                ? `${warmupCount} 条 · 开练前刷一遍预习`
                 : '还没有视频，点进去上传动作示范'}
             </span>
           </span>
@@ -1310,7 +1312,7 @@ export default function ExerciseTab({ active }: Props) {
   if (route.level === 'category') {
     const label = route.category === 'unassigned' ? '未分类' : categoryLabel(route.category)
     const items = exercises.filter((item) => bucketOf(item) === route.category)
-    const clips = getVideos()
+    const clips = videos
 
     return (
       <section>

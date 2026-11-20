@@ -140,9 +140,11 @@ export function markCookedToday(id: string, today: string): boolean {
     KEY,
     getRecipes().map((recipe) => {
       if (recipe.id !== id) return recipe
-      const cooked = (recipe.cookedDates ?? []).filter((item) => item !== today)
-      cooked.push(today)
-      return { ...recipe, cookedDates: cooked.slice(-60), updatedAt: recipe.updatedAt }
+      // 按日期排序后再截断，避免回填旧日期时把最近的记录挤掉
+      const cooked = [...(recipe.cookedDates ?? []).filter((item) => item !== today), today]
+        .sort()
+        .slice(-60)
+      return { ...recipe, cookedDates: cooked, updatedAt: recipe.updatedAt }
     }),
   )
 }
@@ -186,7 +188,12 @@ export function sortRecipes(recipes: Recipe[], mode: RecipeSort): Recipe[] {
       return a.updatedAt < b.updatedAt ? 1 : -1
     })
   }
-  return list
+  // created：按创建时间倒序（新的在前），不依赖存储/导入顺序
+  return list.sort((a, b) => {
+    const ca = a.createdAt ?? ''
+    const cb = b.createdAt ?? ''
+    return ca === cb ? 0 : ca < cb ? 1 : -1
+  })
 }
 
 // —— 常用食材（最近使用）——

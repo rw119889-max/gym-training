@@ -18,12 +18,11 @@ import type { NoteSort, NoteTopic } from '../lib/exerciseNotes'
 import { collectMediaIds, hasNoteMedia, textToHtml } from '../lib/noteMedia'
 import { compressImage } from '../lib/image'
 import { inspectVideo } from '../lib/videoFile'
-import { deleteImage, deleteVideo, getImage, getVideo, putImage, putVideo, readJSON, writeJSON, removeKey } from '../lib/storage'
+import { deleteImage, deleteVideo, getImage, getVideo, putImage, putVideo, readJSON, writeJSON } from '../lib/storage'
 import { useOverlayHistory } from '../hooks/useOverlayHistory'
 import ConfirmDialog from '../components/ConfirmDialog'
 import SwipeToDelete from '../components/SwipeToDelete'
 import { useNotice } from '../hooks/useNotice'
-import { linkNote } from '../lib/trainingLog'
 
 const MAX_VIDEO_BYTES = 200 * 1024 * 1024
 
@@ -46,19 +45,8 @@ interface Draft {
   sessionId?: string
 }
 
-// 训练感受快捷模板：点一下在正文顶部写一行「感受：xx」，可换选覆盖
-const MOOD_OPTIONS = ['顺利', '一般', '状态差', '动作不熟', '需要复习动作']
-
-// 从跟练打卡跳过来的一次性写心得意图，用完即清
-interface NoteSeed {
-  sessionId: string
-  title: string
-  text: string
-}
-
 interface Props {
   active: boolean
-  onBackToSource?: () => void
 }
 
 function PinIcon({ filled }: { filled: boolean }) {
@@ -425,34 +413,6 @@ function NoteEditor({
     setPop(null)
   }
 
-  // 训练感受快捷模板：在正文顶部写一行「感受：xx」，换选时覆盖旧行
-  const applyMood = (label: string) => {
-    const editor = editorRef.current
-    if (!editor) return
-    const existing = Array.from(editor.children).find(
-      (el) => el instanceof HTMLElement && (el.textContent ?? '').startsWith('感受：'),
-    )
-    if (existing instanceof HTMLElement) {
-      existing.textContent = `感受：${label}`
-    } else {
-      editor.focus()
-      const selection = window.getSelection()
-      const range = document.createRange()
-      range.selectNodeContents(editor)
-      range.collapse(true)
-      selection?.removeAllRanges()
-      selection?.addRange(range)
-      const inserted = document.execCommand('insertHTML', false, `<div>感受：${label}</div><div><br></div>`)
-      if (!inserted) {
-        const wrapper = document.createElement('div')
-        wrapper.textContent = `感受：${label}`
-        editor.prepend(wrapper)
-      }
-    }
-    markDirty()
-    refreshHasContent()
-  }
-
   // 弹层开着时，点正文或别处就收起；点弹层自身和开关按钮不收起
   useEffect(() => {
     if (!pop) return
@@ -650,22 +610,6 @@ function NoteEditor({
         ))}
       </div>
 
-      {initial.sessionId && (
-        <div className="note-mood-row" role="group" aria-label="训练感受快捷模板">
-          <span className="note-mood-label">训练感受</span>
-          {MOOD_OPTIONS.map((label) => (
-            <button
-              key={label}
-              type="button"
-              className="topic-chip"
-              onClick={() => applyMood(label)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-
       <div className="note-meta-row">
         <span>{formatNoteTime(createdAtRef.current)}</span>
         <span className="note-meta-sep">|</span>
@@ -845,7 +789,7 @@ function MemoSwipeCard({ onAskDelete, children }: { onAskDelete: () => void; chi
   )
 }
 
-export default function NotesTab({ active, onBackToSource }: Props) {
+export default function NotesTab({ active }: Props) {
   const [notes, setNotes] = useState<ExerciseNote[]>(() => getExerciseNotes())
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<NoteSort>(() => {
@@ -858,9 +802,6 @@ export default function NotesTab({ active, onBackToSource }: Props) {
   const confirmedRef = useRef(false)
   const listScrollRef = useRef(0)
   const wasEditingRef = useRef(false)
-  // 本次草稿是否由「写心得」种子打开；关闭后让 App 跳回来源计划页
-  const seedFlowRef = useRef(false)
-  const hadDraftRef = useRef(false)
   const { show: showListNotice, node: listNoticeNode } = useNotice()
 
   const confirmDiscard = () => {
@@ -889,39 +830,7 @@ export default function NotesTab({ active, onBackToSource }: Props) {
   useEffect(() => {
     if (!active) return
     setNotes(getExerciseNotes())
-    // 消费「写心得」意图：预填一篇关联本次打卡的笔记
-    const seed = readJSON<NoteSeed | null>('noteSeed', null)
-    if (seed && typeof seed.sessionId === 'string') {
-      removeKey('noteSeed')
-      seedFlowRef.current = true
-      listScrollRef.current = window.scrollY
-      dirtyRef.current = false
-      setDraft({
-        id: null,
-        title: typeof seed.title === 'string' ? seed.title : '',
-        text: typeof seed.text === 'string' ? seed.text : '',
-        pinned: false,
-        topic: null,
-        createdAt: new Date().toISOString(),
-        sessionId: seed.sessionId,
-      })
-    }
   }, [active])
-
-  // 草稿从打开变为关闭（保存/放弃/返回键都汇到这里）且是种子流程时，
-  // 通知 App 跳回来源计划页。用户中途手动切 tab 会被 App 清掉来源，落空即可。
-  useEffect(() => {
-    if (draft) {
-      hadDraftRef.current = true
-      return
-    }
-    if (!hadDraftRef.current) return
-    hadDraftRef.current = false
-    if (seedFlowRef.current) {
-      seedFlowRef.current = false
-      onBackToSource?.()
-    }
-  }, [draft, onBackToSource])
 
   // 写笔记时隐藏页头和底部导航，进入专注的全屏编辑
   useEffect(() => {
@@ -954,9 +863,13 @@ export default function NotesTab({ active, onBackToSource }: Props) {
   const visible = sortNotes(
     filterNotes(
       keyword
-        ? notes.filter((note) =>
-            `${note.title ?? ''}\n${note.text}`.toLowerCase().includes(keyword),
-          )
+        ? notes.filter((note) => {
+            // html 去掉标签后一起搜，纯图片/富文本笔记也能被搜到
+            const richText = (note.html ?? '').replace(/<[^>]*>/g, ' ')
+            return `${note.title ?? ''}\n${note.text}\n${richText}`
+              .toLowerCase()
+              .includes(keyword)
+          })
         : notes,
       activeFilter,
     ),
@@ -1049,12 +962,6 @@ export default function NotesTab({ active, onBackToSource }: Props) {
         topic: next.topic,
       })
       if (!created) return false
-      if (next.sessionId) {
-        // 笔记本体已保存；只是关联回填失败时不丢内容，提示后照常关闭
-        if (!linkNote(next.sessionId, created.id)) {
-          showListNotice('笔记已保存，但跟练打卡的心得关联失败，可在跟练记录里重新关联。')
-        }
-      }
     }
     setDraft(null)
     dirtyRef.current = false

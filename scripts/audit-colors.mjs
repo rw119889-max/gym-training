@@ -4,19 +4,23 @@
  */
 import fs from 'fs'
 
-const lines = fs.readFileSync('src/styles.css', 'utf8').split('\n')
+// styles.css 是 CRLF；统一换行后再按行匹配，否则 /^...$/ 会被行尾 \r 破坏
+const lines = fs.readFileSync('src/styles.css', 'utf8').replace(/\r\n/g, '\n').split('\n')
 const roots = []
 lines.forEach((l, i) => { if (/^:root \{$/.test(l)) roots.push(i) })
-const mediaStart = lines.findIndex((l) => /^@media \(prefers-color-scheme: light\)/.test(l))
 const attrStart = lines.findIndex((l) => /^:root\[data-theme="light"\]/.test(l))
-// data-theme 块只到它自己的闭合括号为止；后面还有组件样式，不能一并当成主题 token
-const attrEnd = lines.findIndex((l, i) => i > attrStart && /^\}/.test(l))
-const dark = lines.slice(roots[1], mediaStart).join('\n')
-const lightMedia = lines.slice(mediaStart, attrStart).join('\n')
-const lightAttr = lines.slice(attrStart, attrEnd + 1).join('\n')
+if (attrStart === -1) {
+  console.error('未找到 :root[data-theme="light"] 浅色主题块')
+  process.exit(1)
+}
+// 浅色唯一来源是 data-theme 块；两个主题块都只截到各自闭合括号为止，
+// 后面的组件样式不能一并当成主题 token（否则会把局部 --card-accent 等混进来）。
+const blockEnd = (start) => lines.findIndex((l, i) => i > start && /^\}/.test(l))
+const dark = lines.slice(roots[1], blockEnd(roots[1]) + 1).join('\n')
+const light = lines.slice(attrStart, blockEnd(attrStart) + 1).join('\n')
 
 const parse = (src) => { const o = {}; for (const m of src.matchAll(/(--[a-z0-9-]+):\s*([^;]+);/g)) o[m[1]] = m[2].trim(); return o }
-const D = parse(dark), L = parse(lightMedia), LA = parse(lightAttr)
+const D = parse(dark), L = parse(light)
 
 const H = (h) => { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map((c) => c + c).join(''); return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) }
 const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4) }
@@ -99,15 +103,11 @@ function report (label, T) {
 }
 
 report('深色主题', D)
-report('浅色主题（媒体查询）', L)
-
-const keys = new Set([...Object.keys(L), ...Object.keys(LA)])
-const diff = [...keys].filter((k) => L[k] !== LA[k])
-console.log('\n浅色两套（媒体查询 / data-theme）一致性:', diff.length ? '不一致 → ' + diff.join(', ') : '完全一致 ✓')
+report('浅色主题（data-theme）', L)
 
 // 只关心颜色 token：圆角/间距/时长与刻意不随主题翻转的遮罩层不算缺失
 const IGNORE = /^--(r|s\d|t|ease|scrim|on-scrim|video-bg)/
 const missingInLight = Object.keys(D).filter((k) => !IGNORE.test(k) && !(k in L))
 console.log('深色有、浅色缺失的颜色 token:', missingInLight.length ? missingInLight.join(', ') : '无 ✓')
 console.log('\n结论:', fails === 0 ? '全部达标 ✓' : `${fails} 项未达标`)
-process.exit(fails === 0 && diff.length === 0 ? 0 : 1)
+process.exit(fails === 0 ? 0 : 1)

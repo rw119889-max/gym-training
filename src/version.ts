@@ -1,2 +1,2 @@
 // 页面上可见的版本徽标，随改版手动更新
-export const APP_VERSION = 'v5.47 · 11-20'
+export const APP_VERSION = 'v5.48 · 11-20'

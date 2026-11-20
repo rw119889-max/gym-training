@@ -131,6 +131,18 @@ async function parseBackup(file: File): Promise<ParsedBackup> {
   for (const [key, value] of Object.entries(parsed.data)) {
     if (!key.startsWith(PREFIX) || LOCAL_ONLY_KEYS.has(key)) continue
     if (typeof value !== 'string') throw new Error(`备份文件格式不对（数据键 ${key} 异常）`)
+    // 校验每个值确实是合法 JSON、且不是字面量 null/undefined；
+    // 否则导入后 readJSON 会拿到脏值，轻则数据错乱重则列表白屏。
+    try {
+      const decoded: unknown = JSON.parse(value)
+      if (decoded === null || decoded === undefined) {
+        throw new Error(`数据键 ${key} 内容为空`)
+      }
+    } catch (error) {
+      throw new Error(
+        `备份文件格式不对（数据键 ${key} 不是合法数据）：${error instanceof Error ? error.message : ''}`,
+      )
+    }
     data[key] = value
   }
   const images: Record<string, string> = {}

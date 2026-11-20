@@ -2,13 +2,41 @@ const PREFIX = 'gt.v1.'
 
 let storageWarned = false
 
+// 读取时校验「合法但类型错误」的脏数据：备份导入/手改/旧版本可能写入
+// "null"、数字、对象等，直接与 fallback 形状不符的值一律回落，避免下游
+// .map/.filter 拿到 null 或字符串导致整页白屏。形状以 fallback 为准：
+// fallback 是数组 → 结果必须是数组；是对象 → 必须是非 null 的普通对象。
 export function readJSON<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(PREFIX + key)
-    return raw === null ? fallback : (JSON.parse(raw) as T)
+    if (raw === null) return fallback
+    const parsed = JSON.parse(raw) as T
+    if (parsed === null || parsed === undefined) return fallback
+    // fallback 为 null/undefined 表示调用方自行判定形状（如 Array.isArray(stored)），
+    // 这里必须直接返回解析值；注意 typeof null === 'object'，不可落入下面的对象分支。
+    if (fallback === null || fallback === undefined) return parsed
+    if (Array.isArray(fallback)) {
+      return (Array.isArray(parsed) ? parsed : fallback) as T
+    }
+    if (typeof fallback === 'object') {
+      const isPlainObject = typeof parsed === 'object' && !Array.isArray(parsed)
+      return (isPlainObject ? parsed : fallback) as T
+    }
+    return parsed
   } catch {
     return fallback
   }
+}
+
+// 存储写入失败事件：集中通知 UI，避免每个 writeJSON 调用方各自处理。
+// App 顶层监听，弹一条「存储已满」提示；lib 层仍保留 boolean 返回值供
+// 关键路径（笔记/菜谱）保持编辑态。
+const STORAGE_ERROR_EVENT = 'gt-storage-error'
+
+export function subscribeStorageError(fn: () => void): () => void {
+  if (typeof window === 'undefined') return () => {}
+  window.addEventListener(STORAGE_ERROR_EVENT, fn)
+  return () => window.removeEventListener(STORAGE_ERROR_EVENT, fn)
 }
 
 // 返回是否写入成功。调用方必须检查返回值：
@@ -24,6 +52,9 @@ export function writeJSON(key: string, value: unknown): boolean {
     if (!storageWarned) {
       storageWarned = true
       console.error(`[storage] 写入失败（可能空间已满）：${PREFIX}${key}`)
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event(STORAGE_ERROR_EVENT))
     }
     return false
   }

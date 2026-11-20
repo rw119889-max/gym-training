@@ -34,6 +34,11 @@ export function resolveDark(mode: ThemeMode): boolean {
  */
 function syncChromeColor(mode: ThemeMode) {
   const existing = document.getElementById(DYNAMIC_META_ID)
+  // iOS 独立 App 状态栏：跟随主题（含 auto 解析后的结果）
+  const bar = document.getElementById('ios-status-bar')
+  if (bar instanceof HTMLMetaElement) {
+    bar.content = resolveDark(mode) ? 'black-translucent' : 'default'
+  }
   if (mode === 'auto') {
     existing?.remove()
     return
