@@ -1,4 +1,4 @@
-// 计划详情翻页卡验收：结构 + 按钮翻页 + 触屏左滑（带折痕受光中间态）+ 边界回弹 + 零报错
+// 计划详情翻页卡验收：无按钮无页码 + 纯手势左右滑翻页（折痕受光中间态）+ 边界回弹 + 苹果风格排版 + 零报错
 import { chromium } from 'playwright'
 import { createServer } from 'http'
 import { readFileSync, existsSync } from 'fs'
@@ -41,116 +41,97 @@ await page.waitForSelector('.plan-card-stage', { timeout: 8000 })
 await page.waitForTimeout(400)
 
 const check = (name, ok, extra = '') => console.log(`${ok ? '✓' : '✗'} ${name}${extra ? ` — ${extra}` : ''}`)
+const topName = () => page.evaluate(() => document.querySelector('.plan-card-page.is-top .plan-card-title')?.textContent?.trim() ?? '')
 
-// 1. 结构：stage + 顶层页 + 底部分页（上一页禁用 / 下一页可用 / n m 计数）
+// 注入一次横向滑动。dir=1 左滑（下一页），dir=-1 右滑（上一页）；hold=拖动后停住不松手
+async function swipe(dir, fraction = 0.6, hold = false) {
+  await page.evaluate(async ({ dir, fraction, hold }) => {
+    const stage = document.querySelector('.plan-card-stage')
+    const rect = stage.getBoundingClientRect()
+    const y = rect.top + rect.height / 2
+    const startX = rect.left + rect.width * (dir > 0 ? 0.85 : 0.15)
+    const mk = (x) => new Touch({ identifier: 1, target: stage, clientX: x, clientY: y })
+    const fire = (type, x) =>
+      stage.dispatchEvent(new TouchEvent(type, {
+        bubbles: true, cancelable: true,
+        touches: [mk(x)], targetTouches: [mk(x)], changedTouches: [mk(x)],
+      }))
+    fire('touchstart', startX)
+    const steps = 14
+    for (let i = 1; i <= steps; i++) {
+      fire('touchmove', startX - dir * (rect.width * fraction * i) / steps)
+      await new Promise((r) => requestAnimationFrame(r))
+    }
+    if (!hold) fire('touchend', startX - dir * rect.width * fraction)
+  }, { dir, fraction, hold })
+}
+async function release(dir, fraction = 0.6) {
+  await page.evaluate(({ dir, fraction }) => {
+    const stage = document.querySelector('.plan-card-stage')
+    const rect = stage.getBoundingClientRect()
+    const y = rect.top + rect.height / 2
+    const mk = (x) => new Touch({ identifier: 1, target: stage, clientX: x, clientY: y })
+    stage.dispatchEvent(new TouchEvent('touchend', {
+      bubbles: true, cancelable: true, touches: [], targetTouches: [],
+      changedTouches: [mk(rect.left + rect.width * (dir > 0 ? 0.85 - fraction : 0.15 + fraction))],
+    }))
+  }, { dir, fraction })
+}
+
+// 1. 结构：无上一页/下一页/页码，只有 stage + 顶层页
 const s1 = await page.evaluate(() => ({
   stage: !!document.querySelector('.plan-card-stage'),
   top: !!document.querySelector('.plan-card-page.is-top'),
-  prev: document.querySelector('.plan-card-foot .plan-card-nav')?.textContent ?? '',
-  prevDisabled: document.querySelector('.plan-card-foot .plan-card-nav')?.disabled ?? null,
-  nextText: [...document.querySelectorAll('.plan-card-foot .plan-card-nav')].map((b) => b.textContent),
-  count: document.querySelector('.plan-card-count')?.textContent ?? '',
-  firstName: document.querySelector('.plan-card-page.is-top .plan-exercise-name')?.textContent ?? '',
+  noFoot: !document.querySelector('.plan-card-foot'),
+  noNav: document.querySelectorAll('.plan-card-nav, .plan-card-count').length === 0,
+  noPageText: !/上一页|下一页/.test(document.body.innerText),
+  name: document.querySelector('.plan-card-page.is-top .plan-card-title')?.textContent?.trim() ?? '',
+  font: getComputedStyle(document.querySelector('.plan-card-page')).fontFamily,
 }))
-check('翻页卡结构存在（stage + 顶层页 + 分页栏）', s1.stage && s1.top, '')
-check('初始态：1/n，上一页禁用', s1.count.startsWith('1') && s1.prevDisabled === true && s1.prev === '上一页', s1.count)
-const firstName = s1.firstName
+check('结构：仅手势翻页，无按钮无页码', s1.stage && s1.top && s1.noFoot && s1.noNav && s1.noPageText, '')
+check('苹果风格字体栈', /-apple-system|SF Pro|PingFang/.test(s1.font), s1.font.slice(0, 60))
+const firstName = s1.name
 
-// 2. 触屏左滑：拖到 40% 截图（折痕受光可见），松手提交 → 翻到第 2 页
-const swipe = await page.evaluate(async () => {
-  const stage = document.querySelector('.plan-card-stage')
-  const rect = stage.getBoundingClientRect()
-  const y = rect.top + rect.height / 2
-  const mk = (x) => new Touch({ identifier: 1, target: stage, clientX: x, clientY: y })
-  const fire = (type, x) =>
-    stage.dispatchEvent(new TouchEvent(type, {
-      bubbles: true, cancelable: true,
-      touches: [mk(x)], targetTouches: [mk(x)], changedTouches: [mk(x)],
-    }))
-  const W = rect.width
-  const startX = rect.left + W * 0.85
-  fire('touchstart', startX)
-  const steps = 14
-  for (let i = 1; i <= steps; i++) {
-    // 拖到 40% 停住
-    if (i <= Math.round(steps * 0.4 / 0.55)) {
-      const x = startX - (W * 0.55 * i) / steps
-      fire('touchmove', x)
-    }
-    await new Promise((r) => requestAnimationFrame(r))
-  }
-  return { dragged: true }
-})
-check('左滑拖拽已注入', swipe.dragged, '')
-await page.evaluate(() => {
-  document.querySelector('.plan-card-stage')?.scrollIntoView({ block: 'center' })
-})
-await page.waitForTimeout(300)
+// 2. 左滑拖到中途（停住）截图看折痕受光
+await page.evaluate(() => document.querySelector('.plan-card-stage')?.scrollIntoView({ block: 'center' }))
+await swipe(1, 0.4, true)
+await page.waitForTimeout(250)
 await page.screenshot({ path: 'shot-plan-card-midswipe.png' })
-
-// 松手 → 应提交翻页
-await page.evaluate(() => {
-  const stage = document.querySelector('.plan-card-stage')
-  const rect = stage.getBoundingClientRect()
-  const y = rect.top + rect.height / 2
-  const mk = (x) => new Touch({ identifier: 1, target: stage, clientX: x, clientY: y })
-  stage.dispatchEvent(new TouchEvent('touchend', { bubbles: true, cancelable: true, touches: [], targetTouches: [], changedTouches: [mk(rect.left + rect.width * 0.3)] }))
+const mid = await page.evaluate(() => {
+  const top = document.querySelector('.plan-card-page.is-top')
+  return { turning: top.classList.contains('is-turning'), shade: Number(getComputedStyle(top.querySelector('.plan-card-shade')).opacity) }
 })
-await page.waitForTimeout(600)
-const s2 = await page.evaluate(() => ({
-  count: document.querySelector('.plan-card-count')?.textContent ?? '',
-  name: document.querySelector('.plan-card-page.is-top .plan-exercise-name')?.textContent ?? '',
-  prevDisabled: [...document.querySelectorAll('.plan-card-foot .plan-card-nav')][0]?.disabled ?? null,
-}))
-check('左滑翻到第 2 页', s2.count.startsWith('2') && s2.name !== firstName, `${firstName} → ${s2.name}`)
+check('左滑中途：纸页翻起 + 折痕受光', mid.turning && mid.shade > 0.2, `shade=${mid.shade.toFixed(2)}`)
+
+// 松手提交 → 翻到第 2 页
+await release(1, 0.4)
+await page.waitForTimeout(650)
+const secondName = await topName()
+check('左滑提交翻到下一页', secondName !== firstName, `${firstName} → ${secondName}`)
 await page.screenshot({ path: 'shot-plan-card-page2.png' })
 
-// 3. 下一页按钮连点到最后一页：下一页禁用 + 继续左滑回弹不越界
-const total = Number(s2.count.split('/')[1].trim())
-for (let i = 0; i < total; i++) {
-  const btns = await page.locator('.plan-card-foot .plan-card-nav').all()
-  const disabled = await btns[1].isDisabled()
-  if (disabled) break
-  await btns[1].click()
-  await page.waitForTimeout(450)
+// 3. 左滑到末页后继续左滑回弹（动作名不再变化）
+const seen = [firstName, secondName]
+for (let i = 0; i < 12; i++) {
+  const before = await topName()
+  await swipe(1, 0.6)
+  await page.waitForTimeout(500)
+  const after = await topName()
+  if (after === before) break
+  seen.push(after)
 }
-const s3 = await page.evaluate(() => ({
-  count: document.querySelector('.plan-card-count')?.textContent ?? '',
-  nextDisabled: [...document.querySelectorAll('.plan-card-foot .plan-card-nav')][1]?.disabled ?? null,
-}))
-check(`按钮翻页到末页 ${s3.count}，下一页禁用`, s3.count.startsWith(String(total)) && s3.nextDisabled === true, '')
+const lastName = await topName()
+await swipe(1, 0.6)
+await page.waitForTimeout(500)
+check('末页继续左滑回弹不越界', (await topName()) === lastName, `共翻出 ${seen.length} 页，末页 ${lastName}`)
 
-const swipeLast = await page.evaluate(async () => {
-  const stage = document.querySelector('.plan-card-stage')
-  const rect = stage.getBoundingClientRect()
-  const y = rect.top + rect.height / 2
-  const mk = (x) => new Touch({ identifier: 1, target: stage, clientX: x, clientY: y })
-  const fire = (type, x) =>
-    stage.dispatchEvent(new TouchEvent(type, {
-      bubbles: true, cancelable: true,
-      touches: [mk(x)], targetTouches: [mk(x)], changedTouches: [mk(x)],
-    }))
-  const startX = rect.left + rect.width * 0.85
-  fire('touchstart', startX)
-  for (let i = 1; i <= 10; i++) {
-    fire('touchmove', startX - (rect.width * 0.5 * i) / 10)
-    await new Promise((r) => requestAnimationFrame(r))
-  }
-  fire('touchend', startX - rect.width * 0.5)
-  return true
-})
-await page.waitForTimeout(600)
-const s4 = await page.evaluate(() => document.querySelector('.plan-card-count')?.textContent ?? '')
-check('末页继续左滑回弹不越界', swipeLast && s4.startsWith(String(total)), s4)
+// 4. 右滑回到上一页
+await swipe(-1, 0.6)
+await page.waitForTimeout(500)
+const backName = await topName()
+check('右滑回退到上一页', backName !== lastName && seen.includes(backName), `${lastName} → ${backName}`)
 
-// 4. 上一页按钮回退
-const btns = await page.locator('.plan-card-foot .plan-card-nav').all()
-await btns[0].click()
-await page.waitForTimeout(450)
-const s5 = await page.evaluate(() => document.querySelector('.plan-card-count')?.textContent ?? '')
-check('上一页回退生效', s5.startsWith(String(total - 1)), `${total} → ${s5}`)
-
-// 5. 默认简洁：一句话 + 3 条短口令，详细内容折叠；展开后原文仍在
+// 5. 默认简洁：一句话 + 3 条口令，详细折叠；展开后原文仍在
 const s6 = await page.evaluate(() => {
   const top = document.querySelector('.plan-card-page.is-top')
   const detail = top.querySelector('.plan-card-detail')
@@ -159,10 +140,11 @@ const s6 = await page.evaluate(() => {
     detailOpen: detail?.open ?? null,
     steps: top.querySelectorAll('.plan-card-steps li').length,
     hasCue: !!top.querySelector('.plan-card-cue-text'),
+    titleSize: parseFloat(getComputedStyle(top.querySelector('.plan-card-title')).fontSize),
   }
 })
-check('默认简洁：一句话 + 3 条口令，详细折叠', s6.text.length < 200 && s6.detailOpen === false && s6.steps === 3 && s6.hasCue,
-  `默认可见 ${s6.text.length} 字`)
+check('默认简洁：一句话 + 3 条口令，详细折叠', s6.text.length < 200 && s6.detailOpen === false && s6.steps === 3 && s6.hasCue, `默认可见 ${s6.text.length} 字`)
+check('大标题层级', s6.titleSize >= 26, `${s6.titleSize}px`)
 await page.click('.plan-card-page.is-top .plan-card-detail summary')
 await page.waitForTimeout(200)
 const s7 = await page.evaluate(() => {

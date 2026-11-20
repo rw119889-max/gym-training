@@ -300,20 +300,18 @@ function PlanExercisePage({
 
   return (
     <div className="plan-card-body">
-      <div className="plan-card-head">
-        <span className="plan-exercise-index" aria-hidden="true">
-          {index + 1}
-        </span>
-        <div className="plan-exercise-main">
-          <span className="plan-card-name-row">
-            <span className="plan-exercise-name">{displayName}</span>
-            {override && <span className="plan-chip is-swapped">已替换</span>}
-          </span>
-          {override && (
-            <span className="plan-exercise-muscles">原动作：{exercise.name}</span>
-          )}
-        </div>
-      </div>
+      <header className="plan-card-head">
+        <p className="plan-card-eyebrow">
+          {day === 'push' ? '推日' : '拉日'} · 动作 {index + 1}
+        </p>
+        <h2 className="plan-card-title">
+          {displayName}
+          {override && <span className="plan-chip is-swapped">已替换</span>}
+        </h2>
+        {override && (
+          <p className="plan-card-original">原动作：{exercise.name}</p>
+        )}
+      </header>
 
       {replacing ? (
         <SwapEditor day={day} current={override} onDone={applyOverride} />
@@ -325,16 +323,12 @@ function PlanExercisePage({
           </div>
 
           <div className="plan-card-cue">
-            <span className="plan-card-cue-label">一句话</span>
             <p className="plan-card-cue-text">{brief.cue}</p>
           </div>
 
           <ol className="plan-card-steps">
-            {brief.steps.map((step, stepIndex) => (
-              <li key={step}>
-                <span className="plan-card-step-no" aria-hidden="true">{stepIndex + 1}</span>
-                <span>{step}</span>
-              </li>
+            {brief.steps.map((step) => (
+              <li key={step}>{step}</li>
             ))}
           </ol>
 
@@ -408,7 +402,7 @@ function PlanExercisePage({
   )
 }
 
-/* 计划详情翻页卡：触屏左滑翻页（带折痕受光）+ 底部上一页/下一页/n m 分页 */
+/* 计划详情翻页卡：左右拖动跟手翻页（折痕受光 + 边界回弹），无按钮无页码 */
 const CARD_TURN_DEG = 72
 const CARD_SETTLE_MS = 360
 
@@ -561,27 +555,6 @@ function PlanCardPager({ day, dayId }: { day: PlanDayInfo; dayId: 'push' | 'pull
             aria-hidden="true"
           />
         </div>
-      </div>
-      <div className="plan-card-foot">
-        <button
-          type="button"
-          className="plan-card-nav"
-          disabled={page === 0}
-          onClick={() => commit(-1)}
-        >
-          上一页
-        </button>
-        <span className="plan-card-count">
-          {page + 1} / {total}
-        </span>
-        <button
-          type="button"
-          className="plan-card-nav"
-          disabled={page === total - 1}
-          onClick={() => commit(1)}
-        >
-          下一页
-        </button>
       </div>
     </div>
   )
@@ -1432,7 +1405,7 @@ export default function ExerciseTab({ active, onOpenNotes }: Props) {
           <span className="group-count">{day.exercises.length} 个动作</span>
         </div>
         <p className="page-sub">
-          {day.focus} · 按顺序练，触屏左滑翻看下一页
+          {day.focus} · 左右拖动翻页
         </p>
 
         <button

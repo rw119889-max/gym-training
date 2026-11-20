@@ -1778,15 +1778,15 @@ body::before {
   text-overflow: ellipsis;
 }
 
-/* ---------- 计划详情：翻页卡片 ---------- */
+/* ---------- 计划详情：翻页卡片（Apple 风格排版） ---------- */
 
 .plan-card-stage {
   position: relative;
-  height: min(44vh, 380px);
-  min-height: 300px;
+  height: min(50vh, 440px);
+  min-height: 340px;
   perspective: 1400px;
   overflow: hidden;
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
 }
 
 .plan-card-page {
@@ -1797,9 +1797,15 @@ body::before {
   -webkit-overflow-scrolling: touch;
   background-color: var(--surface-1);
   border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-1);
+  border-radius: var(--r-lg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 36px rgba(0, 0, 0, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "HarmonyOS Sans SC", "Manrope", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* 推/拉日的主题色在卡片内统一取用 */
+.plan-card.is-push { --card-accent: var(--accent-text); }
+.plan-card.is-pull { --card-accent: var(--info); }
 
 .plan-card-page.is-top {
   z-index: 2;
@@ -1837,121 +1843,123 @@ body::before {
   pointer-events: none;
 }
 
-.plan-card-head {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s3);
+.plan-card-body {
+  padding: var(--s6) var(--s6) var(--s8);
 }
 
-.plan-card-name-row {
+/* 标题层级：小标签 → 大标题，留白拉开 */
+.plan-card-head {
+  margin-bottom: 20px;
+}
+
+.plan-card-eyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.plan-card-title {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s2);
+  margin: 0;
+  font-size: clamp(26px, 7.2vw, 32px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-wrap: balance;
 }
 
-.plan-card-body {
-  padding: var(--s4);
+.plan-card-original {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
 }
 
 .plan-card-chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s2);
-  margin-top: var(--s3);
+  margin-bottom: 20px;
+}
+
+.plan-card-chips .plan-chip {
+  padding: 6px 12px;
+  letter-spacing: 0;
 }
 
 .plan-chip.is-effort {
-  color: var(--accent-text);
+  color: var(--card-accent, var(--accent-text));
   background: var(--accent-06);
   border-color: var(--accent-28);
 }
 
-/* 一句话：卡片上最显眼的一块 */
+/* 一句话：主题色细线 + 大字，不用卡片框 */
 .plan-card-cue {
-  margin-top: var(--s4);
-  padding: var(--s3) var(--s4);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-}
-
-.plan-card-cue-label {
-  display: block;
-  margin-bottom: var(--s1);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--muted);
+  margin-bottom: 20px;
+  padding: 2px 0 2px 14px;
+  border-left: 3px solid var(--card-accent, var(--accent));
 }
 
 .plan-card-cue-text {
-  font-size: 15px;
-  line-height: 1.5;
+  margin: 0;
+  font-size: 19px;
   font-weight: 650;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
   color: var(--text);
   text-wrap: pretty;
 }
 
-/* 三条短口令 */
+/* 三条短口令：细分隔线 + 极简序号 */
 .plan-card-steps {
-  display: grid;
-  gap: var(--s2);
-  margin: var(--s3) 0 0;
+  counter-reset: planStep;
+  margin: 0;
   padding: 0;
   list-style: none;
+  border-top: 1px solid var(--line);
 }
 
 .plan-card-steps li {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s2);
-  font-size: 13px;
-  line-height: 1.55;
+  position: relative;
+  padding: 11px 0 11px 28px;
+  font-size: 15px;
+  line-height: 1.5;
   color: var(--text-2);
+  border-bottom: 1px solid var(--line);
   text-wrap: pretty;
 }
 
-.plan-card-step-no {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  font-size: 11px;
-  font-weight: 700;
+.plan-card-steps li::before {
+  counter-increment: planStep;
+  content: counter(planStep);
+  position: absolute;
+  left: 0;
+  top: 12px;
+  font-size: 13px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: var(--r-full);
-}
-
-.plan-card.is-push .plan-card-step-no {
-  color: var(--accent-text);
-  background: var(--accent-06);
-  border-color: var(--accent-28);
-}
-
-.plan-card.is-pull .plan-card-step-no {
-  color: var(--info);
-  background: var(--info-12);
-  border-color: var(--info-28);
 }
 
 /* 详细讲解默认折叠，想看再展开 */
 .plan-card-detail {
-  margin-top: var(--s4);
-  border-top: 1px solid var(--line);
+  margin-top: 4px;
 }
 
 .plan-card-detail summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--s3) 0;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 10px 0;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--muted);
   cursor: pointer;
   list-style: none;
@@ -1970,29 +1978,30 @@ body::before {
 }
 
 .plan-card-detail-body {
-  padding-bottom: var(--s4);
+  padding: 8px 0 var(--s4);
 }
 
 .plan-card-actions {
   display: flex;
-  gap: var(--s3);
-  margin-top: var(--s1);
+  gap: 20px;
+  justify-content: flex-end;
+  margin-top: 4px;
 }
 
 .plan-card-text-btn {
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--card-accent, var(--accent-text));
   background: none;
   border: none;
   padding: 8px 0;
   cursor: pointer;
-  transition: color var(--t-color) var(--ease);
+  transition: opacity var(--t-color) var(--ease);
 }
 
 .plan-card-text-btn:hover {
-  color: var(--text);
+  opacity: 0.7;
 }
 
 .plan-card-body .plan-tips {
@@ -2001,104 +2010,10 @@ body::before {
   animation: none;
 }
 
-.plan-card-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s3);
-  padding: var(--s3) var(--s2) 0;
-}
-
-.plan-card-nav {
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  background: var(--surface-1);
-  border: 1px solid var(--line);
-  border-radius: var(--r-full);
-  padding: 8px 16px;
-  cursor: pointer;
-  transition: opacity var(--t-color) var(--ease), transform var(--t-color) var(--ease),
-    border-color var(--t-color) var(--ease);
-}
-
-.plan-card-nav:hover:not(:disabled) {
-  border-color: var(--accent-28);
-}
-
-.plan-card-nav:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.plan-card-nav:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.plan-card-count {
-  font-size: 12px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .plan-card-page.is-top:not(.is-turning) {
     animation: none;
   }
-}
-
-.plan-exercise-index {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  margin-top: 2px;
-  font-size: 12px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  border-radius: var(--r-full);
-}
-
-.plan-card.is-push .plan-exercise-index {
-  color: var(--accent-text);
-  background: var(--accent-06);
-  border: 1px solid var(--accent-28);
-}
-
-.plan-card.is-pull .plan-exercise-index {
-  color: var(--info);
-  background: var(--info-12);
-  border: 1px solid var(--info-28);
-}
-
-.plan-exercise-main {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.plan-exercise-name {
-  font-size: 14px;
-  font-weight: 650;
-  line-height: 1.35;
-}
-
-.plan-exercise-muscles {
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--muted);
-}
-
-.plan-exercise-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s2);
-  margin-top: 2px;
 }
 
 .plan-chip {
@@ -5299,13 +5214,6 @@ button.wp-cell:active {
   color: var(--accent-text);
   background: var(--accent-12);
   border-color: var(--accent-28);
-}
-
-.plan-exercise-name {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s2);
-  flex-wrap: wrap;
 }
 
 /* ===== 笔记：左滑删除 + 筛选/排序弹层 + 确认弹窗 ===== */
